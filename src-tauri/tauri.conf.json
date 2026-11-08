@@ -1,0 +1,63 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Cerchio",
+  "version": "0.1.0",
+  "identifier": "app.cerchio.desktop",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Cerchio",
+        "width": 1180,
+        "height": 760,
+        "minWidth": 820,
+        "minHeight": 520,
+        "resizable": true,
+        "center": true,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob: mediastream: https://*.supabase.co; connect-src 'self' ipc: http://ipc.localhost https://*.supabase.co wss://*.supabase.co; font-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis",
+      "msi"
+    ],
+    "createUpdaterArtifacts": true,
+    "category": "SocialNetworking",
+    "shortDescription": "Chat e vocale privati",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEYxMjlBNUFGNDQwRDlCQUQKUldTdG13MUVyNlVwOFJJQkpQY2RSZUdodmFZOHZNamE2bnNXejBaMnFDQ25RYUkrTEVBb0JEREUK",
+      "endpoints": [
+        "https://github.com/De-Cri/cerchio-releases/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

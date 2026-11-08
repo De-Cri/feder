@@ -1,0 +1,74 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { supabase } from './lib/supabase';
+  import { configured } from './lib/config';
+  import { app } from './lib/state.svelte';
+  import Auth from './components/Auth.svelte';
+  import Join from './components/Join.svelte';
+  import Shell from './components/Shell.svelte';
+
+  onMount(() => {
+    if (!configured) {
+      app.booted = true;
+      return;
+    }
+    let lastUser: string | null | undefined = undefined; // undefined = primo evento
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      app.session = session;
+      const uid = session?.user.id ?? null;
+      if (uid !== lastUser) {
+        lastUser = uid;
+        app.membership = 'unknown';
+        // fuori dal callback per evitare deadlock interni di supabase-js
+        if (uid) setTimeout(() => app.checkMembership().finally(() => (app.booted = true)), 0);
+        else app.booted = true;
+      }
+    });
+    const onFocus = () => (app.focused = true);
+    const onBlur = () => (app.focused = false);
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      data.subscription.unsubscribe();
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('blur', onBlur);
+    };
+  });
+</script>
+
+{#if !configured}
+  <div class="center">
+    <h2>App non configurata</h2>
+    <p class="muted">Manca <code>cerchio.config.json</code>. Esegui <code>npm run setup</code>.</p>
+  </div>
+{:else if !app.booted || (app.session && app.membership === 'unknown')}
+  <div class="center"><div class="spinner"></div></div>
+{:else if !app.session}
+  <Auth />
+{:else if app.membership === 'member'}
+  <Shell />
+{:else}
+  <Join />
+{/if}
+
+<style>
+  .center {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .spinner {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--border-strong);
+    border-top-color: var(--accent);
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
