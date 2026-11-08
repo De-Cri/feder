@@ -1,6 +1,7 @@
 <script lang="ts">
   import { supabase } from '../lib/supabase';
   import { errorText } from '../lib/util';
+  import Logo from './Logo.svelte';
 
   let mode = $state<'login' | 'register'>('login');
   let email = $state('');
@@ -46,9 +47,9 @@
 
 <div class="wrap">
   <form class="card" onsubmit={submit}>
-    <div class="logo" aria-hidden="true"></div>
+    <div class="logo"><Logo size={48} /></div>
     <h1>{mode === 'login' ? 'Bentornato' : 'Crea un account'}</h1>
-    <p class="muted sub">Cerchio — solo per pochi.</p>
+    <p class="muted sub">Paper — solo per pochi.</p>
 
     <label class="label" for="email">Email</label>
     <input id="email" class="field" type="email" autocomplete="email" bind:value={email} required />
@@ -111,13 +112,7 @@
     display: flex;
     flex-direction: column;
   }
-  .logo {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    border: 5px solid var(--accent);
-    margin: 0 auto 14px;
-  }
+  .logo { display: flex; justify-content: center; margin: 0 auto 12px; }
   h1 {
     font-size: 20px;
     font-weight: 600;

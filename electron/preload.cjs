@@ -11,4 +11,5 @@ contextBridge.exposeInMainWorld('cerchio', {
     ipcRenderer.on('screen:pick', (_e, sources) => cb(sources));
   },
   pickSource: (id) => ipcRenderer.send('screen:picked', id),
+  setBackground: (background) => ipcRenderer.send('background', !!background),
 });

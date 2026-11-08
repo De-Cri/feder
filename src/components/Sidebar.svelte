@@ -3,6 +3,7 @@
   import { voice } from '../lib/voice.svelte';
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
+  import Logo from './Logo.svelte';
 
   function openVoice(id: number) {
     app.view = id;
@@ -19,8 +20,8 @@
 
 <aside>
   <header>
-    <span class="ring" aria-hidden="true"></span>
-    <span class="title">Cerchio</span>
+    <Logo size={20} />
+    <span class="title">Paper</span>
   </header>
 
   <nav>
@@ -109,12 +110,6 @@
     gap: 10px;
     padding: 0 18px;
     flex: none;
-  }
-  .ring {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 3px solid var(--accent);
   }
   .title { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
   nav {

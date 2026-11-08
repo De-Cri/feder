@@ -13,11 +13,13 @@
     focused = false,
     connecting = false,
     screen = false,
+    audioMuted = false,
+    ontoggleaudio,
     ondblclick,
     oncontextmenu,
   }: {
     id: string;
-    stream: MediaStream;
+    stream: MediaStream | null;
     hasVideo: boolean;
     rev: number;
     speaking: boolean;
@@ -26,6 +28,9 @@
     connecting?: boolean;
     /** riquadro della condivisione schermo (separato da quello della persona) */
     screen?: boolean;
+    /** solo riquadri schermo: audio della stream silenziato per te */
+    audioMuted?: boolean;
+    ontoggleaudio?: () => void;
     ondblclick?: () => void;
     oncontextmenu?: (e: MouseEvent) => void;
   } = $props();
@@ -51,13 +56,24 @@
 </script>
 
 <div class="tile" class:speaking class:focused class:screen role="presentation" {ondblclick} {oncontextmenu}>
-  {#if hasVideo}
+  {#if hasVideo && stream}
     <video bind:this={video} autoplay playsinline muted class:mirror={mirror && !screen}></video>
     {#if noFrames}<div class="waiting">Nessuna immagine ricevuta…</div>{/if}
   {:else if screen}
     <div class="waiting">In attesa dello schermo…</div>
   {:else}
     <Avatar {id} size={focused ? 96 : 64} {speaking} />
+  {/if}
+  {#if screen && ontoggleaudio}
+    <button
+      class="audio-btn"
+      class:muted={audioMuted}
+      title={audioMuted ? 'Riattiva l’audio della stream' : 'Silenzia l’audio della stream (lui lo senti ancora)'}
+      onclick={(e) => { e.stopPropagation(); ontoggleaudio(); }}
+      ondblclick={(e) => e.stopPropagation()}
+    >
+      <Icon name={audioMuted ? 'headphones-off' : 'volume'} size={16} />
+    </button>
   {/if}
   <div class="label">
     {#if screen}
@@ -108,12 +124,26 @@
     gap: 5px;
     padding: 3px 8px;
     border-radius: 6px;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.6);
     color: #fff;
     font-size: 12px;
     font-weight: 500;
-    backdrop-filter: blur(10px);
   }
   .conn { opacity: 0.7; font-weight: 400; }
+  .audio-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .tile:hover .audio-btn, .audio-btn.muted { opacity: 1; }
   .live { font-size: 9px; font-weight: 700; background: var(--red); border-radius: 4px; padding: 1px 4px; }
 </style>

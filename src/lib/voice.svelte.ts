@@ -8,6 +8,7 @@ import { prefs, micOptions } from './prefs.svelte';
 import { config } from './config';
 import { MicPipeline } from './audio';
 import { playSound } from './sounds';
+import { screenSettings, screenWarning } from './screenQuality';
 
 export const rtcSupported =
   typeof RTCPeerConnection !== 'undefined' &&
@@ -22,14 +23,12 @@ type Signal = {
   to: string;
   description?: RTCSessionDescriptionInit;
   candidate?: RTCIceCandidateInit | null;
+  /** id dello stream dello schermo di chi invia (null = non condivide). */
+  screen?: string | null;
 };
 
 const STUN: RTCIceServer[] = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }];
 const CAM_BITRATE = 900_000; // mesh a 5: ~0.9 Mbps per peer in upload
-const SCREEN = {
-  smooth: { frameRate: 60, height: 720, bitrate: 2_500_000, hint: 'motion' },
-  sharp: { frameRate: 30, height: 1080, bitrate: 3_500_000, hint: 'detail' },
-} as const;
 const SPEAKING_DB = -50;
 
 async function loadIceServers(): Promise<RTCIceServer[]> {
@@ -75,6 +74,25 @@ function analyser(stream: MediaStream, onLevel: (speaking: boolean) => void): ()
     };
   } catch {
     return () => {};
+  }
+}
+
+/**
+ * Su Windows il codec H.264 è codificato dalla scheda video: molta meno CPU e
+ * stream più fluida. Lo mettiamo per primo (gli altri restano come riserva).
+ * Su Linux Chromium codifica comunque via software, quindi resta VP8.
+ */
+export function preferHardwareCodec(pc: RTCPeerConnection, sender: RTCRtpSender, force = false) {
+  try {
+    if (!force && !/Windows/.test(navigator.userAgent)) return;
+    const tr = pc.getTransceivers().find((t) => t.sender === sender);
+    const caps = RTCRtpSender.getCapabilities?.('video')?.codecs;
+    if (!tr || !caps || !tr.setCodecPreferences) return;
+    const h264 = caps.filter((c) => /h264/i.test(c.mimeType));
+    if (!h264.length) return;
+    tr.setCodecPreferences([...h264, ...caps.filter((c) => !/h264/i.test(c.mimeType))]);
+  } catch {
+    /* preferenza non applicabile: si usa il predefinito */
   }
 }
 
@@ -124,17 +142,26 @@ class Peer {
   polite: boolean;
   makingOffer = false;
   ignoreOffer = false;
-  /** Tutte le tracce remote (per il video e per il meter). */
+  /** Tutte le tracce remote ricevute (diagnostica). */
   stream = new MediaStream();
   /** Audio da riprodurre, uno stream per sorgente (microfono, audio dello schermo). */
-  audioStreams = $state<MediaStream[]>([]);
+  audioStreams = $state<{ key: string; stream: MediaStream }[]>([]);
   audioSender: RTCRtpSender | null = null;
-  videoSender: RTCRtpSender | null = null;
+  camSender: RTCRtpSender | null = null;
+  screenSender: RTCRtpSender | null = null;
   screenAudioSender: RTCRtpSender | null = null;
   private stopAnalyser: (() => void) | null = null;
   private streamMap = new Map<string, MediaStream>();
 
-  hasVideo = $state(false);
+  /** id dello stream dello schermo dell'altro (undefined = versione vecchia, non lo manda). */
+  screenStreamId: string | null | undefined = undefined;
+  private camTrack: MediaStreamTrack | null = null;
+  private screenTrack: MediaStreamTrack | null = null;
+  /** Uno stream nuovo per ogni traccia video: il <video> non resta mai su una traccia vecchia (nero). */
+  camView = $state<MediaStream | null>(null);
+  screenView = $state<MediaStream | null>(null);
+  hasCam = $state(false);
+  hasScreen = $state(false);
   speaking = $state(false);
   connection = $state<RTCPeerConnectionState>('new');
   rev = $state(0);
@@ -156,7 +183,7 @@ class Peer {
       try {
         this.makingOffer = true;
         await this.pc.setLocalDescription();
-        room.send(id, { description: this.pc.localDescription!.toJSON() });
+        room.send(id, { description: this.pc.localDescription!.toJSON(), screen: room.screenStreamIdIfActive });
       } catch (e) {
         console.warn('negotiation', e);
       } finally {
@@ -166,13 +193,31 @@ class Peer {
 
     this.pc.ontrack = ({ track, streams }) => {
       if (!this.stream.getTracks().includes(track)) this.stream.addTrack(track);
+      if (track.kind === 'video') {
+        // Schermo o webcam? Lo dice l'id dello stream che l'altro ci ha comunicato.
+        const isScreen = !!streams[0] && streams[0].id === this.screenStreamId;
+        if (isScreen) {
+          // Un piccolo buffer in più (150 ms) assorbe gli sbalzi di rete: stream più regolare.
+          try {
+            const r = this.pc.getReceivers().find((x) => x.track === track) as RTCRtpReceiver & { jitterBufferTarget?: number };
+            if (r && 'jitterBufferTarget' in r) r.jitterBufferTarget = 150;
+          } catch {
+            /* non supportato */
+          }
+          this.screenTrack = track;
+          this.screenView = new MediaStream([track]);
+        } else {
+          this.camTrack = track;
+          this.camView = new MediaStream([track]);
+        }
+      }
       if (track.kind === 'audio') {
         const key = streams[0]?.id ?? track.id;
         let s = this.streamMap.get(key);
         if (!s) {
           s = new MediaStream();
           this.streamMap.set(key, s);
-          this.audioStreams = [...this.audioStreams, s];
+          this.audioStreams = [...this.audioStreams, { key, stream: s }];
         }
         if (!s.getTracks().includes(track)) s.addTrack(track);
         if (!this.stopAnalyser) this.stopAnalyser = analyser(s, (v) => (this.speaking = v));
@@ -215,9 +260,13 @@ class Peer {
     clearTimeout(this.attachTimer);
     const room = this.room;
     if (room.audioTrack) this.audioSender = this.pc.addTrack(room.audioTrack, room.localStream);
-    if (room.videoTrack) this.videoSender = this.pc.addTrack(room.videoTrack, room.localStream);
+    if (room.camTrack) this.camSender = this.pc.addTrack(room.camTrack, room.localStream);
+    if (room.screenTrack) {
+      this.screenSender = this.pc.addTrack(room.screenTrack, room.screenStream);
+      preferHardwareCodec(this.pc, this.screenSender);
+    }
     if (room.screenAudioTrack) this.screenAudioSender = this.pc.addTrack(room.screenAudioTrack, room.screenStream);
-    if (this.videoSender) this.room.tuneBitrate(this);
+    this.room.tuneBitrate(this);
   }
 
   /** Le tracce aggiunte dopo (webcam/schermo) passano di qui solo se già collegato. */
@@ -226,8 +275,20 @@ class Peer {
   }
 
   refresh() {
-    this.hasVideo = this.stream.getVideoTracks().some((t) => t.readyState === 'live' && !t.muted);
+    const live = (t: MediaStreamTrack | null) => !!t && t.readyState === 'live' && !t.muted;
+    this.hasCam = live(this.camTrack);
+    this.hasScreen = live(this.screenTrack);
     this.rev++;
+  }
+
+  /** L'audio con questa chiave è quello dello schermo condiviso (non la voce)? */
+  isScreenAudio(key: string) {
+    return !!this.screenStreamId && key === this.screenStreamId;
+  }
+
+  /** Compatibilità (test e codice vecchio): c'è almeno un video attivo. */
+  get hasVideo() {
+    return this.hasCam || this.hasScreen;
   }
 
   // I segnali vanno applicati in ordine: un candidato ICE elaborato prima che
@@ -251,6 +312,7 @@ class Peer {
           this.stats.ignored++;
           return;
         }
+        if (sig.screen !== undefined) this.screenStreamId = sig.screen;
         // Partenza veloce del video: senza, Chromium parte da ~300 kbps e lo schermo
         // resta sgranato per decine di secondi. Se la modifica non piace al browser
         // si usa la descrizione originale.
@@ -263,7 +325,7 @@ class Peer {
           // Aggiunte dopo l'offerta, le tracce riusano i transceiver già negoziati.
           this.attachLocalTracks();
           await pc.setLocalDescription();
-          this.room.send(this.id, { description: pc.localDescription!.toJSON() });
+          this.room.send(this.id, { description: pc.localDescription!.toJSON(), screen: this.room.screenStreamIdIfActive });
         }
       } else if (sig.candidate !== undefined) {
         this.stats.recv++;
@@ -294,7 +356,11 @@ class VoiceRoom {
   peers = $state<Record<string, Peer>>({});
   micOn = $state(true);
   deaf = $state(false);
-  videoKind = $state<'cam' | 'screen' | null>(null);
+  camOn = $state(false);
+  screenOn = $state(false);
+  /** Anteprime locali: uno stream per la webcam e uno per lo schermo. */
+  camPreview = $state<MediaStream | null>(null);
+  screenPreview = $state<MediaStream | null>(null);
   localSpeaking = $state(false);
   localRev = $state(0);
   error = $state<string | null>(null);
@@ -306,7 +372,8 @@ class VoiceRoom {
   localStream = new MediaStream();
   screenStream = new MediaStream();
   audioTrack: MediaStreamTrack | null = null;
-  videoTrack: MediaStreamTrack | null = null;
+  camTrack: MediaStreamTrack | null = null;
+  screenTrack: MediaStreamTrack | null = null;
   screenAudioTrack: MediaStreamTrack | null = null;
   private rt: RealtimeChannel | null = null;
   private ice: RTCIceServer[] = STUN;
@@ -421,8 +488,7 @@ class VoiceRoom {
       t.stop();
       this.localStream.removeTrack(t);
     }
-    this.audioTrack = this.videoTrack = null;
-    this.videoKind = null;
+    this.audioTrack = null;
     this.channelId = null;
     this.joining = false;
     this.localSpeaking = false;
@@ -518,37 +584,83 @@ class VoiceRoom {
     this.syncPresence();
   }
 
-  // ---- video (webcam o schermo, uno alla volta) --------------------------
+  // ---- video: webcam e schermo sono indipendenti (anche insieme) --------
+  /** id dello stream dello schermo da comunicare agli altri (null se non condividi). */
+  get screenStreamIdIfActive(): string | null {
+    return this.screenTrack ? this.screenStream.id : null;
+  }
+
+  private forReadyPeers(fn: (p: Peer) => void) {
+    for (const p of Object.values(this.peers)) if (p.ready) fn(p); // gli altri ricevono tutto quando si collegano
+  }
+
+  private removeSender(p: Peer, key: 'camSender' | 'screenSender' | 'screenAudioSender') {
+    const sender = p[key];
+    if (!sender) return;
+    try {
+      p.pc.removeTrack(sender);
+    } catch {
+      /* connessione già chiusa */
+    }
+    p[key] = null;
+  }
+
   async toggleCam() {
-    if (this.videoKind === 'cam') return this.stopVideo();
+    if (this.camTrack) return this.stopCam();
     const video = (id?: string): MediaTrackConstraints => ({
       deviceId: id ? { exact: id } : undefined,
       width: { ideal: 1280 },
       height: { ideal: 720 },
       frameRate: { ideal: 30 },
     });
+    let track: MediaStreamTrack;
     try {
       const s = await navigator.mediaDevices
         .getUserMedia({ video: video(prefs.camId || undefined) })
         .catch((e) => (prefs.camId ? navigator.mediaDevices.getUserMedia({ video: video() }) : Promise.reject(e)));
-      this.stopScreenAudio();
-      await this.setVideo(s.getVideoTracks()[0], 'cam');
+      track = s.getVideoTracks()[0];
     } catch {
       this.error = 'Impossibile accedere alla webcam.';
+      return;
     }
+    if (this.channelId === null) return track.stop();
+    this.camTrack = track;
+    this.localStream.addTrack(track);
+    this.camPreview = new MediaStream([track]);
+    this.camOn = true;
+    track.onended = () => this.camTrack === track && this.stopCam();
+    this.forReadyPeers((p) => {
+      p.camSender = p.pc.addTrack(track, this.localStream);
+      this.tuneBitrate(p);
+    });
+    this.localRev++;
+    this.syncPresence();
+  }
+
+  stopCam(sync = true) {
+    const t = this.camTrack;
+    if (!t) return;
+    for (const p of Object.values(this.peers)) this.removeSender(p, 'camSender');
+    this.localStream.removeTrack(t);
+    t.stop();
+    this.camTrack = null;
+    this.camPreview = null;
+    this.camOn = false;
+    this.localRev++;
+    if (sync) this.syncPresence();
   }
 
   async toggleScreen() {
-    if (this.videoKind === 'screen') return this.stopVideo();
+    if (this.screenTrack) return this.stopScreen();
     if (!screenShareSupported) {
       this.error = 'Condivisione schermo non supportata qui.';
       return;
     }
-    const q = SCREEN[prefs.screenQuality];
+    const q = screenSettings();
     let s: MediaStream;
     try {
       s = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: q.frameRate }, height: { ideal: q.height } },
+        video: { frameRate: { ideal: q.fps, max: q.fps }, ...(q.height ? { height: { ideal: q.height } } : {}) },
         audio: prefs.screenAudio
           ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
           : false,
@@ -558,101 +670,93 @@ class VoiceRoom {
     }
     const track = s.getVideoTracks()[0];
     if (!track) return;
+    if (this.channelId === null) return s.getTracks().forEach((t) => t.stop());
     track.contentHint = q.hint;
-    track.onended = () => {
-      if (this.videoTrack === track) this.stopVideo();
-    };
-    await this.setVideo(track, 'screen');
-
+    track.onended = () => this.screenTrack === track && this.stopScreen(); // "Interrompi condivisione" del sistema
+    this.screenTrack = track;
+    this.screenStream.addTrack(track);
+    this.screenPreview = new MediaStream([track]);
+    this.screenOn = true;
     // Audio di sistema/scheda (Windows: spunta "Condividi audio" nel selettore).
-    const audio = s.getAudioTracks()[0];
-    this.stopScreenAudio();
+    const audio = s.getAudioTracks()[0] ?? null;
     if (audio) {
       this.screenAudioTrack = audio;
       this.screenStream.addTrack(audio);
-      for (const p of Object.values(this.peers)) if (p.ready) p.screenAudioSender = p.pc.addTrack(audio, this.screenStream);
     }
-  }
-
-  private stopScreenAudio() {
-    const t = this.screenAudioTrack;
-    if (!t) return;
-    this.screenStream.removeTrack(t);
-    t.stop();
-    this.screenAudioTrack = null;
-    for (const p of Object.values(this.peers)) {
-      if (p.screenAudioSender) {
-        try {
-          p.pc.removeTrack(p.screenAudioSender);
-        } catch {
-          /* già chiusa */
-        }
-        p.screenAudioSender = null;
-      }
-    }
-  }
-
-  private async setVideo(track: MediaStreamTrack, kind: 'cam' | 'screen') {
-    const old = this.videoTrack;
-    if (old) {
-      this.localStream.removeTrack(old);
-      old.stop();
-    }
-    this.videoTrack = track;
-    this.localStream.addTrack(track);
-    this.videoKind = kind;
-    for (const p of Object.values(this.peers)) {
-      if (!p.ready) continue; // riceverà le tracce attuali quando si collega
-      if (p.videoSender) await p.videoSender.replaceTrack(track);
-      else p.videoSender = p.pc.addTrack(track, this.localStream);
+    const w = screenWarning(Math.max(1, Object.keys(this.peers).length));
+    this.notice = w.level !== 'ok' ? 'Stream ad alta qualità: se a chi guarda scatta, passa a 720p · 30 fps nelle impostazioni.' : null;
+    this.forReadyPeers((p) => {
+      p.screenSender = p.pc.addTrack(track, this.screenStream);
+      preferHardwareCodec(p.pc, p.screenSender);
+      if (audio) p.screenAudioSender = p.pc.addTrack(audio, this.screenStream);
       this.tuneBitrate(p);
-    }
+    });
     this.localRev++;
     this.syncPresence();
   }
 
-  stopVideo(sync = true) {
-    this.stopScreenAudio();
-    const t = this.videoTrack;
-    if (!t) return;
-    this.localStream.removeTrack(t);
-    t.stop();
-    this.videoTrack = null;
-    this.videoKind = null;
+  stopScreen(sync = true) {
     for (const p of Object.values(this.peers)) {
-      if (p.videoSender) {
-        try {
-          p.pc.removeTrack(p.videoSender);
-        } catch {
-          /* già chiusa */
-        }
-        p.videoSender = null;
-      }
+      this.removeSender(p, 'screenSender');
+      this.removeSender(p, 'screenAudioSender');
     }
+    for (const t of [this.screenTrack, this.screenAudioTrack]) {
+      if (!t) continue;
+      this.screenStream.removeTrack(t);
+      t.stop();
+    }
+    const had = !!this.screenTrack;
+    this.screenTrack = this.screenAudioTrack = null;
+    this.screenPreview = null;
+    this.screenOn = false;
     this.localRev++;
+    if (sync && had) this.syncPresence();
+  }
+
+  /** Applica subito le nuove impostazioni di qualità a una condivisione in corso. */
+  async applyScreenSettings() {
+    const t = this.screenTrack;
+    if (!t) return;
+    const q = screenSettings();
+    t.contentHint = q.hint;
+    try {
+      await t.applyConstraints({ frameRate: { ideal: q.fps, max: q.fps }, ...(q.height ? { height: { ideal: q.height } } : {}) });
+    } catch {
+      /* il sistema non permette di cambiarla al volo: varrà alla prossima condivisione */
+    }
+    for (const p of Object.values(this.peers)) this.tuneBitrate(p);
+  }
+
+  /** Spegne webcam e schermo. */
+  stopVideo(sync = true) {
+    this.stopCam(false);
+    this.stopScreen(false);
     if (sync) this.syncPresence();
   }
 
   async tuneBitrate(p: Peer) {
-    const s = p.videoSender;
-    if (!s) return;
-    try {
-      const params = s.getParameters();
-      if (!params.encodings?.length) params.encodings = [{}];
-      const screen = this.videoKind === 'screen';
-      params.encodings[0].maxBitrate = screen ? SCREEN[prefs.screenQuality].bitrate : CAM_BITRATE;
-      if (screen) params.degradationPreference = prefs.screenQuality === 'sharp' ? 'maintain-resolution' : 'balanced';
-      await s.setParameters(params);
-    } catch {
-      /* non ancora negoziato: riprova a connessione avvenuta */
-    }
+    const set = async (sender: RTCRtpSender | null, bitrate: number, degradation?: RTCDegradationPreference) => {
+      if (!sender) return;
+      try {
+        const params = sender.getParameters();
+        if (!params.encodings?.length) params.encodings = [{}];
+        params.encodings[0].maxBitrate = bitrate;
+        if (degradation) params.degradationPreference = degradation;
+        await sender.setParameters(params);
+      } catch {
+        /* non ancora negoziato: riprova a connessione avvenuta */
+      }
+    };
+    await set(p.camSender, CAM_BITRATE);
+    const q = screenSettings();
+    await set(p.screenSender, q.bitrate, q.degradation);
   }
 
   private syncPresence() {
     app.myPresence.mic = this.micOn && !this.adminMuted;
     app.myPresence.deaf = this.deaf;
-    app.myPresence.cam = this.videoKind === 'cam';
-    app.myPresence.screen = this.videoKind === 'screen';
+    app.myPresence.cam = this.camOn;
+    app.myPresence.screen = this.screenOn;
     app.publishPresence();
   }
 }
@@ -682,7 +786,37 @@ app.onMemberLeft = (id) => voice.drop(id);
           size: r.frameWidth ? `${r.frameWidth}x${r.frameHeight}` : '',
           fps: r.framesPerSecond ?? '',
           limite: r.qualityLimitationReason ?? '',
+          // lato chi guarda: blocchi del video, fotogrammi buttati, ritardo del buffer
+          blocchi: r.type === 'inbound-rtp' && r.kind === 'video' ? `${r.freezeCount ?? 0} (${(r.totalFreezesDuration ?? 0).toFixed(1)} s)` : '',
+          persi: r.type === 'inbound-rtp' ? `${r.packetsLost ?? 0} pkt / ${r.framesDropped ?? 0} frm` : '',
+          buffer:
+            r.type === 'inbound-rtp' && r.jitterBufferEmittedCount
+              ? `${Math.round((r.jitterBufferDelay / r.jitterBufferEmittedCount) * 1000)} ms`
+              : '',
           codec: stats.get(r.codecId)?.mimeType ?? '',
+          stato: p.connection,
+        });
+      }
+    });
+  }
+  // rete tra voi (round-trip) dalla coppia ICE attiva
+  for (const p of Object.values(voice.peers)) {
+    const stats = await p.pc.getStats();
+    stats.forEach((r) => {
+      if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') {
+        const local = stats.get(r.localCandidateId);
+        rows.push({
+          con: app.name(p.id),
+          dir: 'rete',
+          kind: local?.candidateType === 'relay' ? 'via TURN' : 'diretta',
+          fps: '',
+          frames: '',
+          size: '',
+          limite: `ping ${Math.round((r.currentRoundTripTime ?? 0) * 1000)} ms`,
+          blocchi: '',
+          persi: '',
+          buffer: '',
+          codec: r.availableOutgoingBitrate ? `${Math.round(r.availableOutgoingBitrate / 1000)} kbps disp.` : '',
           stato: p.connection,
         });
       }

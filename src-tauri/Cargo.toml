@@ -1,6 +1,6 @@
 [package]
 name = "cerchio"
-version = "0.2.1"
+version = "0.1.0"
 description = "Cerchio — chat e vocale privati per pochi amici"
 edition = "2021"
 rust-version = "1.80"
@@ -31,3 +31,7 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.39"
+windows-core = "0.62"
