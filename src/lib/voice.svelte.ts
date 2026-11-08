@@ -78,6 +78,46 @@ function analyser(stream: MediaStream, onLevel: (speaking: boolean) => void): ()
   }
 }
 
+/** Aggiunge x-google-start/min-bitrate ai codec video dell'SDP (kbps). */
+export function boostVideoBitrate(sdp: string, start = 1500, min = 300): string {
+  if (!sdp.includes('m=video')) return sdp;
+  const lines = sdp.split('\r\n');
+  const out: string[] = [];
+  let inVideo = false;
+  const seenFmtp = new Set<string>();
+  const videoPts: string[] = [];
+  for (const line of lines) {
+    if (line.startsWith('m=')) {
+      // chiude la sezione video precedente aggiungendo fmtp mancanti
+      if (inVideo) for (const pt of videoPts) if (!seenFmtp.has(pt)) out.push(`a=fmtp:${pt} x-google-start-bitrate=${start};x-google-min-bitrate=${min}`);
+      inVideo = line.startsWith('m=video');
+      seenFmtp.clear();
+      videoPts.length = 0;
+      out.push(line);
+      continue;
+    }
+    if (inVideo) {
+      const rtp = line.match(/^a=rtpmap:(\d+) (VP8|VP9|H264|AV1)\//i);
+      if (rtp) videoPts.push(rtp[1]);
+      const fmtp = line.match(/^a=fmtp:(\d+) (.*)$/);
+      if (fmtp && videoPts.includes(fmtp[1]) && !fmtp[2].includes('x-google-start-bitrate')) {
+        seenFmtp.add(fmtp[1]);
+        out.push(`${line};x-google-start-bitrate=${start};x-google-min-bitrate=${min}`);
+        continue;
+      }
+      if (fmtp) seenFmtp.add(fmtp[1]);
+    }
+    out.push(line);
+  }
+  if (inVideo) {
+    // sezione video in fondo: inserisce prima della riga vuota finale
+    const tail = out.length && out[out.length - 1] === '' ? out.pop() : undefined;
+    for (const pt of videoPts) if (!seenFmtp.has(pt)) out.push(`a=fmtp:${pt} x-google-start-bitrate=${start};x-google-min-bitrate=${min}`);
+    if (tail !== undefined) out.push(tail);
+  }
+  return out.join('\r\n');
+}
+
 // ---------------------------------------------------------------------------
 class Peer {
   pc: RTCPeerConnection;
@@ -211,7 +251,14 @@ class Peer {
           this.stats.ignored++;
           return;
         }
-        await pc.setRemoteDescription(d);
+        // Partenza veloce del video: senza, Chromium parte da ~300 kbps e lo schermo
+        // resta sgranato per decine di secondi. Se la modifica non piace al browser
+        // si usa la descrizione originale.
+        try {
+          await pc.setRemoteDescription({ type: d.type, sdp: boostVideoBitrate(d.sdp ?? '') });
+        } catch {
+          await pc.setRemoteDescription(d);
+        }
         if (d.type === 'offer') {
           // Aggiunte dopo l'offerta, le tracce riusano i transceiver già negoziati.
           this.attachLocalTracks();
@@ -322,6 +369,7 @@ class VoiceRoom {
           }, 800);
         }
         const ids = new Set(Object.keys(state));
+        app.room = { channel: channelId, ids: [this.me, ...[...ids].filter((id) => id !== this.me && app.members.some((m) => m.user_id === id))] };
         ids.delete(this.me);
         // Solo chi ha l'id minore avvia la connessione; l'altro risponde all'offerta.
         for (const id of ids) {
@@ -379,6 +427,7 @@ class VoiceRoom {
     this.joining = false;
     this.localSpeaking = false;
     app.myPresence.voice = null;
+    app.room = { channel: null, ids: [] };
     this.syncPresence();
   }
 
@@ -406,6 +455,8 @@ class VoiceRoom {
     this.localStream.addTrack(mic.track);
     this.applyMic();
     if (mic.aiFallback) this.notice = 'Soppressione rumore AI non disponibile: uso quella standard.';
+    else if (mic.deviceFallback) this.notice = 'Il microfono scelto non è disponibile: uso quello predefinito.';
+    else this.notice = null;
     if (this.meterTimer) clearInterval(this.meterTimer);
     let hold = 0;
     this.meterTimer = setInterval(() => {
@@ -470,15 +521,16 @@ class VoiceRoom {
   // ---- video (webcam o schermo, uno alla volta) --------------------------
   async toggleCam() {
     if (this.videoKind === 'cam') return this.stopVideo();
+    const video = (id?: string): MediaTrackConstraints => ({
+      deviceId: id ? { exact: id } : undefined,
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+      frameRate: { ideal: 30 },
+    });
     try {
-      const s = await navigator.mediaDevices.getUserMedia({
-        video: {
-          deviceId: prefs.camId ? { ideal: prefs.camId } : undefined,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 },
-        },
-      });
+      const s = await navigator.mediaDevices
+        .getUserMedia({ video: video(prefs.camId || undefined) })
+        .catch((e) => (prefs.camId ? navigator.mediaDevices.getUserMedia({ video: video() }) : Promise.reject(e)));
       this.stopScreenAudio();
       await this.setVideo(s.getVideoTracks()[0], 'cam');
     } catch {
@@ -589,7 +641,7 @@ class VoiceRoom {
       if (!params.encodings?.length) params.encodings = [{}];
       const screen = this.videoKind === 'screen';
       params.encodings[0].maxBitrate = screen ? SCREEN[prefs.screenQuality].bitrate : CAM_BITRATE;
-      if (screen) params.degradationPreference = prefs.screenQuality === 'sharp' ? 'maintain-resolution' : 'maintain-framerate';
+      if (screen) params.degradationPreference = prefs.screenQuality === 'sharp' ? 'maintain-resolution' : 'balanced';
       await s.setParameters(params);
     } catch {
       /* non ancora negoziato: riprova a connessione avvenuta */
@@ -613,3 +665,29 @@ app.onKicked = () => {
   if (voice.channelId !== null) voice.leave();
 };
 app.onMemberLeft = (id) => voice.drop(id);
+
+// Diagnostica da console (F12): `await cerchioStats()` mostra cosa viene inviato e
+// ricevuto con ogni persona (utile se qualcuno vede nero o non si sente).
+(globalThis as { cerchioStats?: () => Promise<unknown> }).cerchioStats = async () => {
+  const rows: Record<string, unknown>[] = [];
+  for (const p of Object.values(voice.peers)) {
+    const stats = await p.pc.getStats();
+    stats.forEach((r) => {
+      if ((r.type === 'outbound-rtp' || r.type === 'inbound-rtp') && (r.kind === 'video' || r.kind === 'audio')) {
+        rows.push({
+          con: app.name(p.id),
+          dir: r.type === 'outbound-rtp' ? 'invio' : 'ricevo',
+          kind: r.kind,
+          frames: r.type === 'outbound-rtp' ? r.framesEncoded : r.framesDecoded,
+          size: r.frameWidth ? `${r.frameWidth}x${r.frameHeight}` : '',
+          fps: r.framesPerSecond ?? '',
+          limite: r.qualityLimitationReason ?? '',
+          codec: stats.get(r.codecId)?.mimeType ?? '',
+          stato: p.connection,
+        });
+      }
+    });
+  }
+  console.table(rows);
+  return rows;
+};

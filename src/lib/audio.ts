@@ -46,6 +46,12 @@ export class MicPipeline {
   readonly stream: MediaStream;
   /** true se è stata chiesta l'AI ma non è stato possibile caricarla. */
   aiFallback = false;
+  /** true se il microfono scelto non era disponibile e si usa quello predefinito. */
+  deviceFallback = false;
+  /** Nome del microfono effettivamente in uso. */
+  get deviceLabel(): string {
+    return this.raw.getAudioTracks()[0]?.label ?? '';
+  }
   private gainNode: GainNode;
   private analyserNode: AnalyserNode;
   private nodes: AudioNode[] = [];
@@ -62,16 +68,24 @@ export class MicPipeline {
   }
 
   static async create(o: MicOptions): Promise<MicPipeline> {
-    const raw = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        deviceId: o.deviceId ? { ideal: o.deviceId } : undefined,
-        echoCancellation: o.echoCancellation,
-        noiseSuppression: o.noise === 'standard',
-        autoGainControl: o.autoGain,
-        channelCount: 1,
-      },
-      video: false,
+    const audio = (deviceId?: string): MediaTrackConstraints => ({
+      // "exact": con "ideal" Chromium può ignorare la scelta e restare sul predefinito.
+      deviceId: deviceId ? { exact: deviceId } : undefined,
+      echoCancellation: o.echoCancellation,
+      noiseSuppression: o.noise === 'standard',
+      autoGainControl: o.autoGain,
+      channelCount: 1,
     });
+    let raw: MediaStream;
+    let deviceFallback = false;
+    try {
+      raw = await navigator.mediaDevices.getUserMedia({ audio: audio(o.deviceId || undefined), video: false });
+    } catch (e) {
+      // dispositivo scollegato o id non più valido: si torna al predefinito
+      if (!o.deviceId) throw e;
+      raw = await navigator.mediaDevices.getUserMedia({ audio: audio(), video: false });
+      deviceFallback = true;
+    }
     const c = audioContext();
     const nodes: AudioNode[] = [];
     const src = c.createMediaStreamSource(raw);
@@ -125,6 +139,7 @@ export class MicPipeline {
 
     const p = new MicPipeline(raw, dest.stream, gain, an, nodes);
     p.aiFallback = aiFallback;
+    p.deviceFallback = deviceFallback;
     return p;
   }
 

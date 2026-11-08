@@ -30,6 +30,9 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
   assert(s.every((x) => Object.keys(x).length === 2), 'ognuno vede 2 peer');
   assert(s.every((x) => Object.values(x).every((p) => p.conn === 'connected')), 'tutte le connessioni P2P connesse');
   assert(s.every((x) => Object.values(x).every((p) => p.audio > 0)), 'audio ricevuto da tutti');
+  const playing = await Promise.all(['a', 'b', 'c'].map((u) => pages[u].evaluate(() =>
+    [...document.querySelectorAll('audio')].filter((el) => el.srcObject && !el.paused && el.srcObject.getAudioTracks().some((t) => t.readyState === 'live')).length)));
+  assert(playing.every((n) => n === 2), `audio degli altri in riproduzione senza schermata vocale (${playing})`);
   const sounds = await pages.c.evaluate(() => [...window.soundLog]);
   console.log('suoni di c:', sounds.join(', '));
   assert(sounds.includes('selfJoin'), 'suono di ingresso nel vocale');

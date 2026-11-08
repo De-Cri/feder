@@ -25,6 +25,7 @@
   let level = $state(0);
   let monitor: HTMLAudioElement | undefined = $state();
   let raf = 0;
+  let activeMic = $state('');
 
   const inCall = $derived(voice.channelId !== null);
   const active = $derived(inCall || testing);
@@ -43,6 +44,7 @@
     const loop = () => {
       const p = inCall ? voice.mic : test;
       level = p ? dbToMeter(p.levelDb()) : 0;
+      activeMic = p?.deviceLabel ?? '';
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -126,6 +128,7 @@
   <option value="">Predefinito di sistema</option>
   {#each mics as d}<option value={d.deviceId}>{d.label || 'Microfono'}</option>{/each}
 </select>
+{#if activeMic}<p class="hint">In uso: {activeMic}</p>{/if}
 <label class="label" for="spk">Uscita audio</label>
 <select id="spk" class="field" value={prefs.speakerId} onchange={(e) => set('speakerId', e.currentTarget.value)}>
   <option value="">Predefinita di sistema</option>

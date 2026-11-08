@@ -8,6 +8,7 @@
   import MemberList from './MemberList.svelte';
   import Settings from './Settings.svelte';
   import ScreenPicker from './ScreenPicker.svelte';
+  import VoiceAudio from './VoiceAudio.svelte';
 
   const current = $derived(app.channels.find((c) => c.id === app.view));
   let update = $state<UpdateInfo | null>(null);
@@ -59,16 +60,20 @@
 {/if}
 
 <ScreenPicker />
+<VoiceAudio />
 
 <style>
   .shell {
     height: 100%;
     display: grid;
     grid-template-columns: 240px 1fr;
+    grid-template-rows: 100%;
   }
   .shell.members { grid-template-columns: 240px 1fr 220px; }
   main {
     min-width: 0;
+    min-height: 0;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     background: var(--bg);

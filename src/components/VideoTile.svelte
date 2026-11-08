@@ -12,6 +12,7 @@
     mirror = false,
     focused = false,
     connecting = false,
+    screen = false,
     ondblclick,
     oncontextmenu,
   }: {
@@ -23,6 +24,8 @@
     mirror?: boolean;
     focused?: boolean;
     connecting?: boolean;
+    /** riquadro della condivisione schermo (separato da quello della persona) */
+    screen?: boolean;
     ondblclick?: () => void;
     oncontextmenu?: (e: MouseEvent) => void;
   } = $props();
@@ -35,19 +38,37 @@
     if (video && video.srcObject !== stream) video.srcObject = stream;
     video?.play().catch(() => {});
   });
+
+  // Se il video è attivo ma non arriva nessuna immagine, lo diciamo invece di mostrare nero.
+  let noFrames = $state(false);
+  $effect(() => {
+    noFrames = false;
+    if (!hasVideo || !video) return;
+    const v = video;
+    const t = setInterval(() => (noFrames = v.videoWidth === 0 || v.readyState < 2), 4000);
+    return () => clearInterval(t);
+  });
 </script>
 
-<div class="tile" class:speaking class:focused role="presentation" {ondblclick} {oncontextmenu}>
+<div class="tile" class:speaking class:focused class:screen role="presentation" {ondblclick} {oncontextmenu}>
   {#if hasVideo}
-    <video bind:this={video} autoplay playsinline muted class:mirror={mirror && !p?.screen}></video>
+    <video bind:this={video} autoplay playsinline muted class:mirror={mirror && !screen}></video>
+    {#if noFrames}<div class="waiting">Nessuna immagine ricevuta…</div>{/if}
+  {:else if screen}
+    <div class="waiting">In attesa dello schermo…</div>
   {:else}
     <Avatar {id} size={focused ? 96 : 64} {speaking} />
   {/if}
   <div class="label">
-    {#if p && (!p.mic || app.voiceMutes[id])}<Icon name="mic-off" size={13} />{/if}
-    {#if p?.deaf}<Icon name="headphones-off" size={13} />{/if}
-    <span>{app.name(id)}{id === app.me ? ' (tu)' : ''}</span>
-    {#if p?.screen}<span class="live">LIVE</span>{/if}
+    {#if screen}
+      <Icon name="screen" size={13} />
+      <span>Schermo di {app.name(id)}{id === app.me ? ' (tu)' : ''}</span>
+      <span class="live">LIVE</span>
+    {:else}
+      {#if p && (!p.mic || app.voiceMutes[id])}<Icon name="mic-off" size={13} />{/if}
+      {#if p?.deaf}<Icon name="headphones-off" size={13} />{/if}
+      <span>{app.name(id)}{id === app.me ? ' (tu)' : ''}</span>
+    {/if}
     {#if connecting}<span class="conn">connessione…</span>{/if}
   </div>
 </div>
@@ -67,7 +88,16 @@
   .tile.speaking { box-shadow: inset 0 0 0 2px var(--green); }
   .tile.focused { aspect-ratio: auto; height: 100%; }
   video { width: 100%; height: 100%; object-fit: cover; background: #000; }
-  .tile.focused video { object-fit: contain; }
+  .tile.focused video, .tile.screen video { object-fit: contain; }
+  .waiting {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+    background: rgba(0, 0, 0, 0.35);
+  }
   video.mirror { transform: scaleX(-1); }
   .label {
     position: absolute;

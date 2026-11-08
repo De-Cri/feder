@@ -6,34 +6,72 @@
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
   import VideoTile from './VideoTile.svelte';
-  import PeerAudio from './PeerAudio.svelte';
 
   let { channel }: { channel: Channel } = $props();
 
   const joined = $derived(voice.channelId === channel.id);
   const others = $derived(app.inVoice(channel.id));
   const peers = $derived(Object.values(voice.peers));
-  let focus = $state<string | null>(null);
+  let focus = $state<string | null>(null); // chiave del riquadro in primo piano
   let menu = $state<{ id: string; x: number; y: number } | null>(null);
   const autoFocused = new Set<string>();
 
-  // Quando qualcuno inizia a condividere lo schermo, lo metti in primo piano (una volta).
-  $effect(() => {
-    for (const p of peers) {
-      const sharing = app.presence[p.id]?.screen;
-      if (sharing && !autoFocused.has(p.id) && focus === null) {
-        autoFocused.add(p.id);
-        focus = p.id;
-      }
-      if (!sharing) autoFocused.delete(p.id);
+  // Ogni persona ha il suo riquadro; chi condivide lo schermo ne ha uno in più, separato.
+  type Tile = {
+    key: string;
+    id: string;
+    screen: boolean;
+    stream: MediaStream;
+    hasVideo: boolean;
+    rev: number;
+    speaking: boolean;
+    mirror: boolean;
+    connecting: boolean;
+  };
+  const tiles = $derived.by(() => {
+    const out: Tile[] = [];
+    const me = app.me!;
+    const meSharing = voice.videoKind === 'screen';
+    out.push({
+      key: me, id: me, screen: false, stream: voice.localStream, hasVideo: voice.videoKind === 'cam',
+      rev: voice.localRev, speaking: voice.localSpeaking, mirror: true, connecting: false,
+    });
+    if (meSharing) {
+      out.push({
+        key: `${me}:screen`, id: me, screen: true, stream: voice.localStream, hasVideo: true,
+        rev: voice.localRev, speaking: false, mirror: false, connecting: false,
+      });
     }
-    if (focus && focus !== app.me && !voice.peers[focus]) focus = null;
+    for (const p of peers) {
+      const sharing = !!app.presence[p.id]?.screen;
+      out.push({
+        key: p.id, id: p.id, screen: false, stream: p.stream, hasVideo: p.hasVideo && !sharing, rev: p.rev,
+        speaking: p.speaking && !app.voiceMutes[p.id], mirror: false, connecting: p.connection !== 'connected',
+      });
+      if (sharing) {
+        out.push({
+          key: `${p.id}:screen`, id: p.id, screen: true, stream: p.stream, hasVideo: p.hasVideo, rev: p.rev,
+          speaking: false, mirror: false, connecting: p.connection !== 'connected',
+        });
+      }
+    }
+    return out;
   });
+  const focused = $derived(focus ? tiles.find((t) => t.key === focus) ?? null : null);
+  const strip = $derived(focused ? tiles.filter((t) => t.key !== focused.key) : []);
 
-  function volumeOf(id: string) {
-    if (voice.deaf || app.voiceMutes[id]) return 0;
-    return prefs.outputVolume * userVolume(id);
-  }
+  // Quando qualcuno inizia a condividere lo schermo, il suo schermo va in primo piano (una volta).
+  $effect(() => {
+    for (const t of tiles) {
+      if (!t.screen || t.id === app.me) continue;
+      if (!autoFocused.has(t.key) && focus === null) {
+        autoFocused.add(t.key);
+        focus = t.key;
+      }
+    }
+    for (const k of [...autoFocused]) if (!tiles.some((t) => t.key === k)) autoFocused.delete(k);
+    if (focus && !tiles.some((t) => t.key === focus)) focus = null;
+  });
 
   function openMenu(e: MouseEvent, id: string) {
     if (id === app.me) return;
@@ -46,13 +84,8 @@
     savePrefs();
   }
 
-  // Mute imposto dall'admin: applicato appena cambia.
-  $effect(() => {
-    void app.voiceMutes[app.me ?? ''];
-    voice.applyMic();
-  });
 
-  const count = $derived(peers.length + 1);
+  const count = $derived(tiles.length);
   const cols = $derived(count <= 1 ? 1 : count <= 4 ? 2 : 3);
 </script>
 
@@ -82,65 +115,62 @@
       </button>
     </div>
   {:else}
-    <div class="stage" class:focus={!!focus}>
-      {#if focus}
-        {@const fp = focus === app.me ? null : voice.peers[focus]}
+    <div class="stage" class:focus={!!focused}>
+      {#if focused}
         <div class="main">
-          {#if focus === app.me}
-            <VideoTile
-              id={app.me!}
-              stream={voice.localStream}
-              hasVideo={!!voice.videoKind}
-              rev={voice.localRev}
-              speaking={voice.localSpeaking}
-              mirror
-              focused
-              ondblclick={() => (focus = null)}
-            />
-          {:else if fp}
-            <VideoTile
-              id={fp.id}
-              stream={fp.stream}
-              hasVideo={fp.hasVideo}
-              rev={fp.rev}
-              speaking={fp.speaking}
-              focused
-              ondblclick={() => (focus = null)}
-            />
-          {/if}
+          <VideoTile
+            id={focused.id}
+            stream={focused.stream}
+            hasVideo={focused.hasVideo}
+            rev={focused.rev}
+            speaking={focused.speaking}
+            mirror={focused.mirror}
+            screen={focused.screen}
+            connecting={focused.connecting}
+            focused
+            ondblclick={() => (focus = null)}
+            oncontextmenu={(e) => openMenu(e, focused.id)}
+          />
         </div>
+        {#if strip.length}
+          <div class="strip">
+            {#each strip as t (t.key)}
+              <div class="mini">
+                <VideoTile
+                  id={t.id}
+                  stream={t.stream}
+                  hasVideo={t.hasVideo}
+                  rev={t.rev}
+                  speaking={t.speaking}
+                  mirror={t.mirror}
+                  screen={t.screen}
+                  connecting={t.connecting}
+                  ondblclick={() => (focus = t.key)}
+                  oncontextmenu={(e) => openMenu(e, t.id)}
+                />
+              </div>
+            {/each}
+          </div>
+        {/if}
       {:else}
         <div class="grid" style="--cols:{cols}">
-          <VideoTile
-            id={app.me!}
-            stream={voice.localStream}
-            hasVideo={!!voice.videoKind}
-            rev={voice.localRev}
-            speaking={voice.localSpeaking}
-            mirror
-            ondblclick={() => (focus = app.me)}
-          />
-          {#each peers as p (p.id)}
+          {#each tiles as t (t.key)}
             <VideoTile
-              id={p.id}
-              stream={p.stream}
-              hasVideo={p.hasVideo}
-              rev={p.rev}
-              speaking={p.speaking && !app.voiceMutes[p.id]}
-              connecting={p.connection !== 'connected'}
-              ondblclick={() => (focus = p.id)}
-              oncontextmenu={(e) => openMenu(e, p.id)}
+              id={t.id}
+              stream={t.stream}
+              hasVideo={t.hasVideo}
+              rev={t.rev}
+              speaking={t.speaking}
+              mirror={t.mirror}
+              screen={t.screen}
+              connecting={t.connecting}
+              ondblclick={() => (focus = t.key)}
+              oncontextmenu={(e) => openMenu(e, t.id)}
             />
           {/each}
         </div>
       {/if}
     </div>
-
-    {#each peers as p (p.id)}
-      {#each p.audioStreams as s (s.id)}
-        <PeerAudio stream={s} volume={volumeOf(p.id)} />
-      {/each}
-    {/each}
 
     {#if menu}
       {@const id = menu.id}
@@ -256,7 +286,10 @@
     gap: 10px;
     align-content: center;
   }
-  .main { width: 100%; height: 100%; }
+  .stage.focus { flex-direction: column; align-items: stretch; gap: 10px; overflow: hidden; padding-bottom: 4px; }
+  .main { width: 100%; flex: 1; min-height: 0; }
+  .strip { flex: none; display: flex; gap: 10px; justify-content: safe center; overflow-x: auto; }
+  .mini { width: 176px; flex: none; }
   .controls {
     flex: none;
     display: flex;

@@ -1,3 +1,5 @@
+import { mount } from 'svelte';
+import VoiceAudio from '../../src/components/VoiceAudio.svelte';
 import { app } from '../../src/lib/state.svelte';
 import { voice } from '../../src/lib/voice.svelte';
 import { prefs } from '../../src/lib/prefs.svelte';
@@ -23,3 +25,6 @@ app.channels = [3, 4].map((id) => ({ id, name: 'v' + id, kind: 'voice', position
       },
     ]),
   );
+
+// L'audio della chiamata vive fuori dalla schermata vocale (come in Shell).
+mount(VoiceAudio, { target: document.body });

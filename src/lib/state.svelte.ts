@@ -138,8 +138,23 @@ class AppState {
     if (!me || !this.online[me]) return this.online;
     return { ...this.online, [me]: { ...this.online[me], ...this.myPresence, user_id: me } };
   }
+  /**
+   * Chi è nella tua stanza vocale secondo la stanza stessa (fonte più affidabile
+   * della lista generale per il canale in cui sei). Aggiornato da voice.svelte.ts.
+   */
+  room = $state<{ channel: number | null; ids: string[] }>({ channel: null, ids: [] });
+
   inVoice(channelId: number): Presence[] {
-    return Object.values(this.presence).filter((p) => p.voice === channelId);
+    const all = this.presence;
+    const room = this.room.channel !== null ? this.room : null;
+    if (room && channelId === room.channel) {
+      // la tua stanza: chi c'è davvero, anche se la lista generale è indietro
+      return room.ids.map(
+        (id) => ({ ...(all[id] ?? { mic: true, deaf: false, cam: false, screen: false }), user_id: id, voice: channelId }) as Presence,
+      );
+    }
+    // gli altri canali: chi la stanza dice essere con te non può essere altrove
+    return Object.values(all).filter((p) => p.voice === channelId && !(room && room.ids.includes(p.user_id)));
   }
 
   async checkMembership() {
