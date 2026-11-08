@@ -1,5 +1,11 @@
 // Mock di supabase-js per testare la voce P2P in browser senza backend:
 // broadcast + presence emulati con BroadcastChannel tra pagine dello stesso contesto.
+const DUP = new URLSearchParams(location.search).get('dup') === '1';
+// ?drop=1 simula il caso opposto: due aggiornamenti troppo ravvicinati e il server
+// "perde" la persona (sparisce per tutti, anche per sé stessa).
+const DROP = new URLSearchParams(location.search).get('drop') === '1';
+// ?stale=1: l'aggiornamento troppo ravvicinato viene ignorato (resta lo stato vecchio).
+const STALE = new URLSearchParams(location.search).get('stale') === '1';
 type Handler = { type: string; event: string; cb: (p: any) => void };
 
 class MockChannel {
@@ -23,7 +29,9 @@ class MockChannel {
     if (d.t === 'b') this.fire('broadcast', d.event, { payload: d.payload });
     else if (d.t === 'presence') {
       const isNew = !this.state[d.key];
-      this.state[d.key] = [d.meta];
+      // ?dup=1 simula il caso reale di Supabase in cui restano due stati per la
+      // stessa persona, con quello vecchio in fondo alla lista.
+      this.state[d.key] = DUP ? [d.meta, ...(this.state[d.key] ?? [])].slice(0, 2) : [d.meta];
       if (isNew && this.state[this.key]) this.bc.postMessage({ t: 'presence', key: this.key, meta: this.state[this.key][0] });
       this.fire('presence', 'sync');
     } else if (d.t === 'leave') {
@@ -35,7 +43,20 @@ class MockChannel {
     setTimeout(() => cb?.('SUBSCRIBED'), 10);
     return this;
   }
+  private lastTrack = 0;
+  private lastTrackKept = 0;
   async track(meta: any) {
+    const now = Date.now();
+    const tooFast = DROP && now - this.lastTrack < 300;
+    this.lastTrack = now;
+    if (STALE && now - this.lastTrackKept < 300) return;
+    if (STALE) this.lastTrackKept = now;
+    if (tooFast) {
+      delete this.state[this.key];
+      this.bc.postMessage({ t: 'leave', key: this.key });
+      this.fire('presence', 'sync');
+      return;
+    }
     this.state[this.key] = [meta];
     this.bc.postMessage({ t: 'presence', key: this.key, meta });
     this.fire('presence', 'sync');

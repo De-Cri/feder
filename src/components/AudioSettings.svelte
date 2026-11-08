@@ -4,6 +4,14 @@
   import { voice } from '../lib/voice.svelte';
   import { MicPipeline, dbToMeter, type NoiseMode } from '../lib/audio';
   import { isElectron } from '../lib/platform';
+  import { playSound, SOUND_LABELS, type SoundKind } from '../lib/sounds';
+
+  const soundKinds = Object.keys(SOUND_LABELS) as SoundKind[];
+  function toggleSound(k: SoundKind, on: boolean) {
+    prefs.sounds[k] = on;
+    savePrefs();
+    if (on) playSound(k, true);
+  }
 
   let devices = $state<MediaDeviceInfo[]>([]);
   const mics = $derived(devices.filter((d) => d.kind === 'audioinput'));
@@ -209,7 +217,37 @@
   Condividi anche l’audio {isElectron ? '(non supportato su Linux)' : '(spunta “Condividi audio” nel selettore)'}
 </label>
 
+<h3>Suoni</h3>
+<div class="slider">
+  <span>Volume</span>
+  <input type="range" min="0" max="1" step="0.01" value={prefs.soundVolume}
+    oninput={(e) => set('soundVolume', Number(e.currentTarget.value))}
+    onchange={() => playSound('join', true)} />
+  <span class="pct">{Math.round(prefs.soundVolume * 100)}%</span>
+</div>
+<div class="sounds">
+  {#each soundKinds as k}
+    <div class="sound-row">
+      <label class="check inline">
+        <input type="checkbox" checked={prefs.sounds[k]} onchange={(e) => toggleSound(k, e.currentTarget.checked)} />
+        {SOUND_LABELS[k]}
+      </label>
+      <button class="play" title="Ascolta" onclick={() => playSound(k, true)} aria-label="Ascolta">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+      </button>
+    </div>
+  {/each}
+</div>
+
 <style>
+  .sounds { display: flex; flex-direction: column; margin-top: 4px; }
+  .sound-row { display: flex; align-items: center; justify-content: space-between; }
+  .check.inline { margin-top: 8px; }
+  .play {
+    width: 26px; height: 26px; margin-top: 8px; border-radius: 50%;
+    display: grid; place-items: center; color: var(--text-2); background: var(--bg-active);
+  }
+  .play:hover { color: var(--text); background: var(--border-strong); }
   h2 { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
   h3 { margin: 20px 0 4px; font-size: 13px; font-weight: 600; color: var(--text-2); }
   .label { margin-top: 8px; }

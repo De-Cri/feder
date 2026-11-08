@@ -20,7 +20,7 @@
   // Quando qualcuno inizia a condividere lo schermo, lo metti in primo piano (una volta).
   $effect(() => {
     for (const p of peers) {
-      const sharing = app.online[p.id]?.screen;
+      const sharing = app.presence[p.id]?.screen;
       if (sharing && !autoFocused.has(p.id) && focus === null) {
         autoFocused.add(p.id);
         focus = p.id;

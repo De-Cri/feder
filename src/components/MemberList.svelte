@@ -8,8 +8,8 @@
   const sorted = $derived(
     [...app.members].sort((a, b) => app.name(a.user_id).localeCompare(app.name(b.user_id))),
   );
-  const online = $derived(sorted.filter((m) => app.online[m.user_id]));
-  const offline = $derived(sorted.filter((m) => !app.online[m.user_id]));
+  const online = $derived(sorted.filter((m) => app.presence[m.user_id]));
+  const offline = $derived(sorted.filter((m) => !app.presence[m.user_id]));
 
   let menu = $state<{ id: string; x: number; y: number } | null>(null);
   let confirm = $state<{ id: string; action: 'kick' | 'ban' } | null>(null);
@@ -51,7 +51,7 @@
       <span class="name">{app.name(id)}</span>
       {#if role === 'admin'}<span class="admin" title="Admin"><Icon name="shield" size={13} /></span>{/if}
       {#if app.voiceMutes[id]}<span class="muted-ic" title="Silenziato dall’admin"><Icon name="mic-off" size={13} /></span>{/if}
-      {#if app.online[id]?.voice}<span class="in-voice" title="In vocale"><Icon name="volume" size={13} /></span>{/if}
+      {#if app.presence[id]?.voice}<span class="in-voice" title="In vocale"><Icon name="volume" size={13} /></span>{/if}
     </button>
   {/snippet}
 

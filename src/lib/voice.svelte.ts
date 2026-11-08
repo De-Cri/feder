@@ -7,6 +7,7 @@ import { app } from './state.svelte';
 import { prefs, micOptions } from './prefs.svelte';
 import { config } from './config';
 import { MicPipeline } from './audio';
+import { playSound } from './sounds';
 
 export const rtcSupported =
   typeof RTCPeerConnection !== 'undefined' &&
@@ -269,18 +270,23 @@ class VoiceRoom {
     return !!app.voiceMutes[this.me];
   }
 
+  private joinSeq = 0;
+
   async join(channelId: number) {
-    if (this.channelId === channelId || this.joining) return;
+    if (this.channelId === channelId) return;
     if (!rtcSupported) {
       this.error = 'WebRTC non disponibile in questa installazione.';
       return;
     }
-    if (this.channelId !== null) await this.leave();
+    // Un clic su un altro canale annulla anche un ingresso ancora in corso.
+    if (this.channelId !== null || this.joining) await this.leave(true);
+    const seq = ++this.joinSeq;
     this.joining = true;
     this.error = null;
     this.me = app.me!;
     try {
       const [mic, ice] = await Promise.all([MicPipeline.create(micOptions()), loadIceServers()]);
+      if (seq !== this.joinSeq) return mic.stop(); // superato da un altro clic
       this.ice = ice;
       this.setMic(mic);
     } catch (e) {
@@ -291,10 +297,15 @@ class VoiceRoom {
 
     this.channelId = channelId;
     await supabase.realtime.setAuth();
+    if (seq !== this.joinSeq) return;
     const rt = supabase.channel(`cerchio:voice:${channelId}`, {
       config: { private: true, broadcast: { self: false }, presence: { key: this.me } },
     });
     this.rt = rt;
+    let known: Set<string> | null = null; // chi c'era al mio ingresso (niente suono per loro)
+    let settledAt = Infinity; // fino a poco dopo l'ingresso lo stato può arrivare a pezzi
+    let subscribed = false;
+    let retrack: ReturnType<typeof setTimeout> | undefined;
     rt.on('broadcast', { event: 'signal' }, ({ payload }) => {
       const sig = payload as Signal;
       if (sig.to !== this.me || sig.from === this.me) return;
@@ -302,7 +313,15 @@ class VoiceRoom {
       this.peer(sig.from).handle(sig);
     })
       .on('presence', { event: 'sync' }, () => {
-        const ids = new Set(Object.keys(rt.presenceState()));
+        const state = rt.presenceState();
+        // Se il server ci ha perso dalla stanza, ci ripresentiamo (gli altri non ci vedrebbero).
+        if (subscribed && !(this.me in state)) {
+          clearTimeout(retrack);
+          retrack = setTimeout(() => {
+            if (this.rt === rt && !(this.me in rt.presenceState())) rt.track({ at: Date.now() });
+          }, 800);
+        }
+        const ids = new Set(Object.keys(state));
         ids.delete(this.me);
         // Solo chi ha l'id minore avvia la connessione; l'altro risponde all'offerta.
         for (const id of ids) {
@@ -315,11 +334,19 @@ class VoiceRoom {
             }, 3000);
         }
         for (const id of Object.keys(this.peers)) if (!ids.has(id)) this.drop(id);
+        if (known && Date.now() > settledAt) {
+          if ([...ids].some((id) => !known!.has(id))) playSound('join');
+          if ([...known].some((id) => !ids.has(id))) playSound('leave');
+        }
+        known = ids;
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await rt.track({ at: Date.now() });
+          subscribed = true;
           this.joining = false;
+          settledAt = Date.now() + 1500;
+          playSound('selfJoin');
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           this.error = 'Connessione al canale vocale non riuscita.';
         }
@@ -329,7 +356,10 @@ class VoiceRoom {
     this.syncPresence();
   }
 
-  async leave() {
+  /** @param switching true quando si passa a un altro canale (niente suono di uscita). */
+  async leave(switching = false) {
+    this.joinSeq++; // annulla eventuali ingressi in corso
+    if (this.channelId !== null && !switching) playSound('selfLeave');
     const rt = this.rt;
     this.rt = null;
     if (rt) await supabase.removeChannel(rt);
@@ -424,6 +454,7 @@ class VoiceRoom {
   toggleMic() {
     if (this.adminMuted) return;
     this.micOn = !this.micOn;
+    playSound(this.micOn ? 'unmute' : 'mute');
     if (this.micOn && this.deaf) this.deaf = false;
     this.applyMic();
     this.syncPresence();
@@ -431,6 +462,7 @@ class VoiceRoom {
 
   toggleDeaf() {
     this.deaf = !this.deaf;
+    playSound(this.deaf ? 'mute' : 'unmute');
     this.applyMic();
     this.syncPresence();
   }

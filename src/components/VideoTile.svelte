@@ -28,7 +28,7 @@
   } = $props();
 
   let video: HTMLVideoElement | undefined = $state();
-  const p = $derived(app.online[id]);
+  const p = $derived(app.presence[id]);
 
   $effect(() => {
     void rev;

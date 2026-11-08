@@ -30,6 +30,9 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
   assert(s.every((x) => Object.keys(x).length === 2), 'ognuno vede 2 peer');
   assert(s.every((x) => Object.values(x).every((p) => p.conn === 'connected')), 'tutte le connessioni P2P connesse');
   assert(s.every((x) => Object.values(x).every((p) => p.audio > 0)), 'audio ricevuto da tutti');
+  const sounds = await pages.c.evaluate(() => [...window.soundLog]);
+  console.log('suoni di c:', sounds.join(', '));
+  assert(sounds.includes('selfJoin'), 'suono di ingresso nel vocale');
 
   const micInfo = await pages.a.evaluate(() => ({ ai: !window.voice.mic.aiFallback, db: window.voice.mic.levelDb(), label: window.voice.audioTrack.label }));
   console.log('mic pipeline', JSON.stringify(micInfo));
@@ -94,6 +97,7 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
     if (!ok) await sleep(250);
   }
   assert(ok, 'uscita di c: a e b chiudono la connessione con c e restano connessi');
+  assert((await pages.a.evaluate(() => window.soundLog.includes('leave'))), 'a sente il suono di uscita di c');
 
   await pages.c.evaluate(() => window.voice.join(3));
   ok = false;
@@ -111,6 +115,30 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
     if (!ok) await sleep(250);
   }
   assert(ok, 'chi entra dopo vede subito la webcam già accesa di b');
+
+  // Cambio canale senza riagganciare: a passa da 3 a 4, poi torna in 3.
+  await pages.a.evaluate(() => window.voice.join(4));
+  ok = false;
+  for (let i = 0; i < 40 && !ok; i++) {
+    const [a, b, c] = await Promise.all(['a', 'b', 'c'].map(snap));
+    const ch = await pages.a.evaluate(() => window.voice.channelId);
+    ok = ch === 4 && Object.keys(a).length === 0 && !b.a && !c.a && b.c?.conn === 'connected';
+    if (!ok) await sleep(250);
+  }
+  assert(ok, 'cambio canale: a esce dal 3 (b e c lo chiudono) ed è solo nel 4');
+  const pres = await pages.a.evaluate(() => window.app.myPresence.voice);
+  assert(pres === 4, 'presenza pubblicata = nuovo canale');
+  await pages.a.evaluate(() => window.voice.join(3));
+  ok = false;
+  for (let i = 0; i < 40 && !ok; i++) {
+    const s3 = await Promise.all(['a', 'b', 'c'].map(snap));
+    ok = s3.every((x) => Object.keys(x).length === 2 && Object.values(x).every((p) => p.conn === 'connected'));
+    if (!ok) await sleep(250);
+  }
+  if (!ok) console.log('RET', JSON.stringify(await Promise.all(['a','b','c'].map(snap))), await pages.a.evaluate(() => [window.voice.channelId, window.voice.joining, window.voice.error]));
+  assert(ok, 'ritorno nel 3: mesh completa');
+  await pages.a.evaluate(() => window.voice.leave());
+  assert((await pages.a.evaluate(() => window.app.myPresence.voice)) === null, 'riagganciando la presenza torna a nessun canale');
 
   await browser.close();
   console.log('\nVOICE E2E PASSED');

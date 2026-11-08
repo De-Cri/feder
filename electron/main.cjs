@@ -86,6 +86,14 @@ function createWindow() {
     if (/^https?:\/\//.test(url)) shell.openExternal(url);
   });
 
+  // F12 o Ctrl+Shift+I: strumenti per sviluppatori (utili per diagnosticare problemi).
+  win.webContents.on('before-input-event', (_e, input) => {
+    if (input.type !== 'keyDown') return;
+    if (input.key === 'F12' || (input.control && input.shift && input.key.toLowerCase() === 'i')) {
+      win?.webContents.toggleDevTools();
+    }
+  });
+
   win.loadURL(DEV_URL || 'app://cerchio/index.html');
   win.on('closed', () => (win = null));
 }

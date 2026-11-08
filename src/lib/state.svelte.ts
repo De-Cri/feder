@@ -1,6 +1,7 @@
 import type { RealtimeChannel, Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { notify } from './notify';
+import { playSound } from './sounds';
 
 export type Profile = { id: string; username: string; avatar_path: string | null };
 export type Member = { user_id: string; role: 'admin' | 'member'; joined_at: string };
@@ -18,6 +19,7 @@ export type Message = {
 };
 export type Presence = {
   user_id: string;
+  at?: number; // quando è stato pubblicato (per scartare stati vecchi)
   voice: number | null;
   mic: boolean;
   deaf: boolean;
@@ -127,8 +129,17 @@ class AppState {
   name(id: string | null): string {
     return (id && this.profiles[id]?.username) || 'utente';
   }
+  /**
+   * Presenza da mostrare: quella del server per gli altri, e per te sempre lo
+   * stato locale attuale (aggiornato subito, anche prima che il server risponda).
+   */
+  get presence(): Record<string, Presence> {
+    const me = this.me;
+    if (!me || !this.online[me]) return this.online;
+    return { ...this.online, [me]: { ...this.online[me], ...this.myPresence, user_id: me } };
+  }
   inVoice(channelId: number): Presence[] {
-    return Object.values(this.online).filter((p) => p.voice === channelId);
+    return Object.values(this.presence).filter((p) => p.voice === channelId);
   }
 
   async checkMembership() {
@@ -184,6 +195,7 @@ class AppState {
           this.unread[m.channel_id] = (this.unread[m.channel_id] ?? 0) + 1;
           const ch = this.channels.find((c) => c.id === m.channel_id);
           notify(`${this.name(m.author_id)} in #${ch?.name ?? ''}`, m.content || m.attachment_name || 'Allegato');
+          playSound('message');
         }
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, ({ old }) => {
@@ -224,19 +236,102 @@ class AppState {
         const state = this.lobby!.presenceState<Presence>();
         const next: Record<string, Presence> = {};
         for (const [key, metas] of Object.entries(state)) {
-          const last = metas[metas.length - 1];
-          if (last) next[key] = { ...last, user_id: key };
+          // Più stati per la stessa persona (aggiornamenti ravvicinati, due PC):
+          // vale il più recente, non l'ultimo della lista.
+          let best: Presence | null = null;
+          for (const m of metas) if (!best || (m.at ?? 0) >= (best.at ?? 0)) best = m;
+          if (best) next[key] = { ...best, user_id: key };
         }
+        // Il proprio stato è sempre quello locale (il server può essere un attimo indietro).
+        if (this.me && this.lobbyJoined) {
+          // Il server ci ha "perso" o ha uno stato vecchio: ripubblica.
+          if (!next[this.me] || !this.samePresence(next[this.me])) this.healPresence();
+          next[this.me] = { ...(next[this.me] ?? {}), ...$state.snapshot(this.myPresence), user_id: this.me };
+        }
+        this.detectCalls(next);
         this.online = next;
       })
       .subscribe(async (status) => {
+        this.lobbyJoined = status === 'SUBSCRIBED';
         if (status === 'SUBSCRIBED') await this.publishPresence();
       });
+    // Ripubblica ogni tanto: corregge eventuali stati persi o rimasti indietro sul server.
+    clearInterval(this.presenceTimer);
+    this.presenceTimer = setInterval(() => this.lobbyJoined && this.publishPresence(), 45_000);
   }
 
+  private samePresence(p: Presence) {
+    const m = this.myPresence;
+    return p.voice === m.voice && p.mic === m.mic && p.deaf === m.deaf && p.cam === m.cam && p.screen === m.screen;
+  }
+
+  private lobbyJoined = false;
+  private presenceTimer: ReturnType<typeof setInterval> | undefined;
+  private healTimer: ReturnType<typeof setTimeout> | undefined;
+  private healAttempts = 0;
+  /**
+   * Controlla poco dopo che il server abbia il proprio stato attuale; se manca o
+   * è vecchio lo ripubblica, riprovando con attese crescenti (0,8 s → 1,6 s → … max 10 s).
+   */
+  private healPresence() {
+    if (this.healTimer) return;
+    const delay = Math.min(800 * 2 ** this.healAttempts, 10_000);
+    this.healTimer = setTimeout(() => {
+      this.healTimer = undefined;
+      if (!this.lobby || !this.me || !this.lobbyJoined) return;
+      const metas = this.lobby.presenceState<Presence>()[this.me] ?? [];
+      const latest = metas.reduce<Presence | null>((b, m) => (!b || (m.at ?? 0) >= (b.at ?? 0) ? m : b), null);
+      if (latest && this.samePresence(latest)) {
+        this.healAttempts = 0;
+        return;
+      }
+      this.healAttempts++;
+      console.info('[presence] stato sul server mancante o vecchio: ripubblico');
+      this.publishPresence(); // al termine richiama healPresence per verificare di nuovo
+    }, delay);
+  }
+
+  // Una pubblicazione alla volta, sempre con lo stato più recente: chiamate
+  // ravvicinate (es. cambio canale vocale) non lasciano stati fantasma.
+  private publishing = false;
+  private publishAgain = false;
   async publishPresence() {
     if (!this.lobby || !this.me) return;
-    await this.lobby.track({ user_id: this.me, ...$state.snapshot(this.myPresence) });
+    if (this.publishing) {
+      this.publishAgain = true;
+      return;
+    }
+    this.publishing = true;
+    try {
+      do {
+        this.publishAgain = false;
+        await this.lobby?.track({ user_id: this.me, ...$state.snapshot(this.myPresence), at: Date.now() });
+      } while (this.publishAgain && this.lobby);
+    } finally {
+      this.publishing = false;
+    }
+    // Verifica poco dopo che il server abbia davvero lo stato appena pubblicato.
+    this.healPresence();
+  }
+
+  /** Suono "chiamata": qualcuno entra in un canale vocale vuoto mentre tu non sei in vocale. */
+  private presenceReady = false;
+  private detectCalls(next: Record<string, Presence>) {
+    const prev = this.online;
+    if (!this.presenceReady) {
+      this.presenceReady = true;
+      return;
+    }
+    if (this.myPresence.voice !== null) return;
+    for (const p of Object.values(next)) {
+      if (p.user_id === this.me || p.voice === null) continue;
+      if (prev[p.user_id]?.voice === p.voice) continue; // era già lì
+      const alreadyBusy = Object.values(prev).some((o) => o.voice === p.voice && o.user_id !== p.user_id);
+      if (alreadyBusy) continue;
+      const ch = this.channels.find((c) => c.id === p.voice);
+      playSound('call');
+      notify(`${this.name(p.user_id)} è in ${ch?.name ?? 'vocale'}`, 'Clicca il canale per entrare.');
+    }
   }
 
   private async refreshProfile(id: string) {
@@ -254,6 +349,11 @@ class AppState {
   }
 
   async unsubscribe() {
+    this.presenceReady = false;
+    this.lobbyJoined = false;
+    clearInterval(this.presenceTimer);
+    clearTimeout(this.healTimer);
+    this.healTimer = undefined;
     if (this.db) await supabase.removeChannel(this.db);
     if (this.lobby) await supabase.removeChannel(this.lobby);
     this.db = this.lobby = null;

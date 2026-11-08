@@ -304,7 +304,29 @@ try {
 } catch {
   hasRemote = false;
 }
-if (!hasRemote) {
+const full = `${state.ghUser}/${state.repo}`;
+const ghq = (args) => spawnSync('gh', args, { encoding: 'utf8', shell: process.platform === 'win32' });
+let forcePush = false;
+const view = ghq(['repo', 'view', full, '--json', 'visibility,isEmpty']);
+if (view.status === 0) {
+  // Il repo esiste già: lo riusiamo.
+  const info = JSON.parse(view.stdout);
+  if (info.visibility !== 'PRIVATE') {
+    console.log(`  Il repo ${full} esiste ed è ${info.visibility.toLowerCase()}: il codice sarebbe visibile a tutti.`);
+    if (!/^[sy]/i.test((await ask('Lo rendo privato? (s/n)', { def: 's' })) || 's')) fail('Il repo del codice deve essere privato.');
+    if (ghq(['repo', 'edit', full, '--visibility', 'private', '--accept-visibility-change-consequences']).status !== 0) {
+      fail(`Non riesco a renderlo privato: fallo da https://github.com/${full}/settings`);
+    }
+  }
+  if (!info.isEmpty) {
+    console.log(`  Il repo ${full} contiene già dei file (es. un README creato da GitHub).`);
+    const a = await ask('Li sostituisco con il progetto Cerchio? (s/n)', { def: 'n' });
+    if (!/^[sy]/i.test(a)) fail(`Rinomina o cancella ${full}, oppure rilancia e scegli un altro nome.`);
+    forcePush = true;
+  }
+  if (!hasRemote) sh(`git remote add origin https://github.com/${full}.git`);
+  done(`Uso il repo esistente ${full} (privato)`);
+} else if (!hasRemote) {
   sh(`gh repo create ${state.repo} --private --source . --remote origin --description "Cerchio — chat e vocale privati"`);
 }
 // Repo pubblico solo per gli installer (nessun codice).
@@ -332,7 +354,7 @@ secretSet('RELEASES_TOKEN', sh('gh auth token'));
 }
 done('Secrets impostati');
 
-sh('git push -u origin main');
+sh(`git push -u origin main${forcePush ? ' --force' : ''}`);
 const version = conf.version;
 try {
   sh(`git tag v${version}`);

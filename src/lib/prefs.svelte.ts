@@ -1,5 +1,6 @@
 // Preferenze locali (per utente e per PC). localStorage è sufficiente qui.
 import type { NoiseMode } from './audio';
+import type { SoundKind } from './sounds';
 
 export type Prefs = {
   notifications: boolean;
@@ -16,6 +17,8 @@ export type Prefs = {
   userVolumes: Record<string, number>; // 0..1 per utente
   screenQuality: 'smooth' | 'sharp';
   screenAudio: boolean;
+  sounds: Record<SoundKind, boolean>;
+  soundVolume: number; // 0..1
 };
 
 const KEY = 'cerchio-prefs';
@@ -34,6 +37,8 @@ const defaults: Prefs = {
   userVolumes: {},
   screenQuality: 'smooth',
   screenAudio: true,
+  sounds: { selfJoin: true, selfLeave: true, join: true, leave: true, call: true, message: true, mute: true, unmute: true },
+  soundVolume: 0.6,
 };
 
 function load(): Prefs {
@@ -41,7 +46,7 @@ function load(): Prefs {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}');
     if (raw.noiseSuppression === false && !raw.noiseMode) raw.noiseMode = 'off';
     delete raw.noiseSuppression;
-    return { ...defaults, ...raw };
+    return { ...defaults, ...raw, sounds: { ...defaults.sounds, ...(raw.sounds ?? {}) } };
   } catch {
     return { ...defaults };
   }
