@@ -25,6 +25,7 @@
     check: 'M20 6 9 17l-5-5',
     lock: 'M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM7 11V7a5 5 0 0 1 10 0v4',
     expand: 'M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7',
+    megaphone: 'M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 1 1-5.8-1.6',
   };
   let { name, size = 18, stroke = 1.75 }: { name: string; size?: number; stroke?: number } = $props();
 </script>

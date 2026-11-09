@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { app } from '../lib/state.svelte';
+  import { app, RELEASES_VIEW } from '../lib/state.svelte';
   import { voice } from '../lib/voice.svelte';
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
@@ -42,6 +42,11 @@
         {#if app.unread[c.id]}<span class="badge">{app.unread[c.id]}</span>{/if}
       </button>
     {/each}
+    <button class="item" class:active={app.view === RELEASES_VIEW} onclick={() => (app.view = RELEASES_VIEW)}>
+      <Icon name="megaphone" size={16} />
+      <span class="name">novità</span>
+      {#if app.releasesUnseen}<span class="badge">nuovo</span>{/if}
+    </button>
 
     <div class="section">Voce</div>
     {#each app.voiceChannels as c (c.id)}

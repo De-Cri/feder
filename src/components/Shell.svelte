@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { app } from '../lib/state.svelte';
+  import { app, RELEASES_VIEW } from '../lib/state.svelte';
   import { checkUpdate, setBackgroundMode, type UpdateInfo } from '../lib/platform';
   import { voice } from '../lib/voice.svelte';
   import Sidebar from './Sidebar.svelte';
@@ -10,6 +10,7 @@
   import Settings from './Settings.svelte';
   import ScreenPicker from './ScreenPicker.svelte';
   import VoiceAudio from './VoiceAudio.svelte';
+  import Releases from './Releases.svelte';
 
   const current = $derived(app.channels.find((c) => c.id === app.view));
   let update = $state<UpdateInfo | null>(null);
@@ -55,7 +56,9 @@
         >
       </div>
     {/if}
-    {#if current?.kind === 'text'}
+    {#if app.view === RELEASES_VIEW}
+      <Releases />
+    {:else if current?.kind === 'text'}
       {#key current.id}
         <TextChannel channel={current} />
       {/key}

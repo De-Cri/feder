@@ -32,6 +32,8 @@
     { v: 'light', label: 'Chiaro' },
     { v: 'dark', label: 'Scuro (grigio)' },
     { v: 'black', label: 'Nero' },
+    { v: 'black-blue', label: 'Nero blu (come prima della 0.4)' },
+    { v: 'oled', label: 'Nero profondo' },
   ];
 
   onMount(() => {
