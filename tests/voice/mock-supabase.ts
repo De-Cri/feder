@@ -75,6 +75,8 @@ class MockChannel {
 
 export const supabase = {
   realtime: { setAuth: async () => {} },
+  // prefs.svelte.ts si iscrive al login per sincronizzare le preferenze
+  auth: { onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) },
   channel: (name: string, opts: any) => new MockChannel(name, opts),
   removeChannel: async (ch: MockChannel) => ch.close(),
   functions: { invoke: async () => ({ data: null, error: 'none' }) },
