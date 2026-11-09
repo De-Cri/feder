@@ -42,7 +42,11 @@
 
   async function refreshDevices() {
     try {
-      devices = await navigator.mediaDevices.enumerateDevices();
+      // Chromium aggiunge le voci virtuali "Predefinito - …" e "Comunicazioni - …":
+      // doppioni di "Predefinito di sistema" (e "Comunicazioni" manda le cuffie BT in vivavoce).
+      devices = (await navigator.mediaDevices.enumerateDevices()).filter(
+        (d) => d.deviceId !== 'default' && d.deviceId !== 'communications',
+      );
     } catch {
       devices = [];
     }
