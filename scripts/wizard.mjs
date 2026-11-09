@@ -331,15 +331,15 @@ async function buildInCloud() {
   const version = JSON.parse(readFileSync('package.json', 'utf8')).version;
 
   title('Compilazione nel cloud (Windows + Linux, ~10 minuti)');
-  info(`Segui anche da qui: https://github.com/${repo}/actions`);
+  info(`Segui anche da qui: https://github.com/${rel}/actions`);
   let runId = null;
   for (let i = 0; i < 30 && !runId && !DRY; i++) {
-    runId = out('gh', ['run', 'list', '-R', repo, '--workflow', 'release.yml', '--limit', '1', '--json', 'databaseId', '--jq', '.[0].databaseId']);
+    runId = out('gh', ['run', 'list', '-R', rel, '--workflow', 'release.yml', '--limit', '1', '--json', 'databaseId', '--jq', '.[0].databaseId']);
     if (!runId) await new Promise((r) => setTimeout(r, 2000));
   }
   if (!DRY && !runId) die('Non trovo la build su GitHub Actions. Controlla il link qui sopra.');
-  if (!run('gh', ['run', 'watch', String(runId), '-R', repo, '--exit-status', '--interval', '15'])) {
-    die(`La build nel cloud è fallita: apri https://github.com/${repo}/actions per vedere l’errore.`);
+  if (!run('gh', ['run', 'watch', String(runId), '-R', rel, '--exit-status', '--interval', '15'])) {
+    die(`La build nel cloud è fallita: apri https://github.com/${rel}/actions per vedere l’errore.`);
   }
   ok('Build completata');
 
@@ -350,7 +350,7 @@ async function buildInCloud() {
 }
 
 // ---- main -------------------------------------------------------------------
-console.log(c.b('\n  Cerchio — installazione guidata'));
+console.log(c.b('\n  Paper — installazione guidata'));
 console.log(c.dim(`  Sistema: ${WIN ? 'Windows' : LINUX ? `Linux (${DISTRO})` : platform}${DRY ? ' · DRY-RUN' : ''}`));
 
 const cfg = JSON.parse(readFileSync('cerchio.config.json', 'utf8'));

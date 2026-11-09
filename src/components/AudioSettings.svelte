@@ -5,6 +5,25 @@
   import { MicPipeline, dbToMeter, type NoiseMode } from '../lib/audio';
   import { isElectron } from '../lib/platform';
   import { playSound, SOUND_LABELS, type SoundKind } from '../lib/sounds';
+  import { SCREEN_OPTIONS, screenWarning } from '../lib/screenQuality';
+
+  // spettatori: quelli nella tua chiamata, o 4 come stima se non sei in chiamata
+  const viewers = $derived(voice.channelId !== null ? Math.max(1, Object.keys(voice.peers).length) : 4);
+  const warning = $derived.by(() => {
+    void prefs.screenHeight; void prefs.screenFps; void prefs.screenMode;
+    return screenWarning(viewers);
+  });
+  function setQuality(height: number, fps: number) {
+    prefs.screenHeight = height;
+    prefs.screenFps = fps;
+    savePrefs();
+    voice.applyScreenSettings();
+  }
+  function setScreen<K extends 'screenHeight' | 'screenFps' | 'screenMode'>(k: K, v: (typeof prefs)[K]) {
+    prefs[k] = v;
+    savePrefs();
+    voice.applyScreenSettings();
+  }
 
   const soundKinds = Object.keys(SOUND_LABELS) as SoundKind[];
   function toggleSound(k: SoundKind, on: boolean) {
@@ -212,15 +231,24 @@
 {/if}
 
 <h3>Condivisione schermo</h3>
+<div class="label">Qualità</div>
 <div class="seg">
-  <button class:active={prefs.screenQuality === 'smooth'} onclick={() => set('screenQuality', 'smooth')}>
-    Fluida · 720p 60fps
-  </button>
-  <button class:active={prefs.screenQuality === 'sharp'} onclick={() => set('screenQuality', 'sharp')}>
-    Nitida · 1080p 30fps
-  </button>
+  {#each SCREEN_OPTIONS as o}
+    <button
+      class:active={prefs.screenHeight === o.height && prefs.screenFps === o.fps}
+      onclick={() => setQuality(o.height, o.fps)}>{o.label}</button
+    >
+  {/each}
 </div>
-<p class="hint">Fluida per giochi e video, Nitida per testo e codice. Con 4 spettatori Nitida richiede ~14 Mbps in upload.</p>
+<div class="label">Ottimizza per</div>
+<div class="seg">
+  <button class:active={prefs.screenMode === 'motion'} onclick={() => setScreen('screenMode', 'motion')}>Movimento (giochi, video)</button>
+  <button class:active={prefs.screenMode === 'detail'} onclick={() => setScreen('screenMode', 'detail')}>Testo e dettagli</button>
+</div>
+<div class="warning {warning.level}">
+  {#if warning.level !== 'ok'}<strong>{warning.level === 'danger' ? 'Attenzione' : 'Nota'}:</strong>{/if}
+  {warning.text}
+</div>
 <label class="check">
   <input type="checkbox" checked={prefs.screenAudio} onchange={(e) => set('screenAudio', e.currentTarget.checked)} />
   Condividi anche l’audio {isElectron ? '(non supportato su Linux)' : '(spunta “Condividi audio” nel selettore)'}
@@ -297,4 +325,15 @@
   .seg button.active { background: var(--bg-elev); color: var(--text); font-weight: 500; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
   .check { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; }
   .hint { font-size: 12px; color: var(--text-3); margin: 6px 0 0; }
+  .warning {
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: var(--r-sm);
+    font-size: 12px;
+    line-height: 1.45;
+    background: var(--bg-active);
+    color: var(--text-2);
+  }
+  .warning.warn { background: color-mix(in srgb, var(--orange) 14%, transparent); color: var(--text); }
+  .warning.danger { background: color-mix(in srgb, var(--red) 14%, transparent); color: var(--text); }
 </style>

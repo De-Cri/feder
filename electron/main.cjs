@@ -1,4 +1,4 @@
-// Cerchio — contenitore Electron (solo Linux).
+// Paper — contenitore Electron (Linux; utile anche per sviluppare su Windows).
 // Su Linux la webview di sistema (WebKitGTK) spesso non ha WebRTC: Electron
 // porta con sé Chromium, così voce, video e condivisione schermo funzionano sempre.
 const {
@@ -45,6 +45,10 @@ protocol.registerSchemesAsPrivileged([
 app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer,WaylandWindowDecorations');
 app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
 
+// I dati (login, impostazioni) restano nella cartella di quando l'app si chiamava
+// "Cerchio": così cambiare nome non fa perdere la sessione a nessuno.
+app.setPath('userData', path.join(app.getPath('appData'), 'Cerchio'));
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 }
@@ -58,7 +62,7 @@ function createWindow() {
     height: 760,
     minWidth: 820,
     minHeight: 520,
-    title: 'Cerchio',
+    title: 'Paper',
     show: false,
     autoHideMenuBar: true,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1e1e20' : '#ffffff',
@@ -167,6 +171,11 @@ app.on('window-all-closed', () => app.quit());
 
 // ---- IPC -------------------------------------------------------------------
 ipcMain.on('app:version', (e) => (e.returnValue = app.getVersion()));
+
+// In background e senza chiamata i timer della pagina vengono rallentati (meno CPU).
+ipcMain.on('background', (_e, background) => {
+  win?.webContents.setBackgroundThrottling(!!background);
+});
 
 ipcMain.handle('open', (_e, url) => {
   if (typeof url === 'string' && /^https?:\/\//.test(url)) return shell.openExternal(url);

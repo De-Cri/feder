@@ -15,6 +15,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![set_background_mode])
         .setup(|app| {
             #[cfg(target_os = "linux")]
             if let Some(w) = app.get_webview_window("main") {
@@ -24,7 +25,38 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("errore avviando Cerchio");
+        .expect("errore avviando Paper");
+}
+
+/// Finestra nascosta e nessuna chiamata in corso: chiede a WebView2 di usare
+/// meno memoria (libera cache e memoria non indispensabile). Al ritorno torna normale.
+#[tauri::command]
+fn set_background_mode(window: tauri::WebviewWindow, background: bool) {
+    #[cfg(windows)]
+    {
+        let _ = window.with_webview(move |wv| unsafe {
+            use webview2_com::Microsoft::Web::WebView2::Win32::{
+                ICoreWebView2_19, COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW,
+                COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL,
+            };
+            use windows_core::Interface;
+            let level = if background {
+                COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW
+            } else {
+                COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL
+            };
+            // ICoreWebView2_19 esiste da WebView2 Runtime 1.0.2210: se è più vecchio, niente.
+            if let Ok(core) = wv.controller().CoreWebView2() {
+                if let Ok(core19) = core.cast::<ICoreWebView2_19>() {
+                    let _ = core19.SetMemoryUsageTargetLevel(level);
+                }
+            }
+        });
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (window, background);
+    }
 }
 
 /// WebKitGTK di default ha getUserMedia/WebRTC disattivati e nega i permessi

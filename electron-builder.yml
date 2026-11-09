@@ -1,7 +1,7 @@
 # Build Linux (Electron). Windows usa Tauri (src-tauri/).
 appId: app.cerchio.desktop
-productName: Cerchio
-copyright: Cerchio
+productName: Paper
+copyright: Paper
 directories:
   output: release
   buildResources: assets
@@ -18,8 +18,8 @@ linux:
   syncDesktopName: true
   synopsis: Chat e vocale privati
   description: Chat, voce, video e condivisione schermo privati per pochi amici.
-  maintainer: Cerchio
-  artifactName: Cerchio-${version}-${arch}.${ext}
+  maintainer: Paper
+  artifactName: Paper-${version}-${arch}.${ext}
 publish:
   provider: github
   owner: De-Cri

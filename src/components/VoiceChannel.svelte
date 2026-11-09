@@ -1,7 +1,7 @@
 <script lang="ts">
   import { app, type Channel } from '../lib/state.svelte';
   import { voice, rtcSupported, screenShareSupported } from '../lib/voice.svelte';
-  import { prefs, savePrefs, userVolume } from '../lib/prefs.svelte';
+  import { prefs, savePrefs, userVolume, screenVolume } from '../lib/prefs.svelte';
   import { supabase } from '../lib/supabase';
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
@@ -13,7 +13,7 @@
   const others = $derived(app.inVoice(channel.id));
   const peers = $derived(Object.values(voice.peers));
   let focus = $state<string | null>(null); // chiave del riquadro in primo piano
-  let menu = $state<{ id: string; x: number; y: number } | null>(null);
+  let menu = $state<{ id: string; x: number; y: number; screen: boolean } | null>(null);
   const autoFocused = new Set<string>();
 
   // Ogni persona ha il suo riquadro; chi condivide lo schermo ne ha uno in più, separato.
@@ -21,7 +21,7 @@
     key: string;
     id: string;
     screen: boolean;
-    stream: MediaStream;
+    stream: MediaStream | null;
     hasVideo: boolean;
     rev: number;
     speaking: boolean;
@@ -31,26 +31,31 @@
   const tiles = $derived.by(() => {
     const out: Tile[] = [];
     const me = app.me!;
-    const meSharing = voice.videoKind === 'screen';
     out.push({
-      key: me, id: me, screen: false, stream: voice.localStream, hasVideo: voice.videoKind === 'cam',
+      key: me, id: me, screen: false, stream: voice.camPreview, hasVideo: voice.camOn,
       rev: voice.localRev, speaking: voice.localSpeaking, mirror: true, connecting: false,
     });
-    if (meSharing) {
+    if (voice.screenOn) {
       out.push({
-        key: `${me}:screen`, id: me, screen: true, stream: voice.localStream, hasVideo: true,
+        key: `${me}:screen`, id: me, screen: true, stream: voice.screenPreview, hasVideo: true,
         rev: voice.localRev, speaking: false, mirror: false, connecting: false,
       });
     }
     for (const p of peers) {
-      const sharing = !!app.presence[p.id]?.screen;
+      const pres = app.presence[p.id];
+      // Versioni vecchie non dicono quale video è lo schermo: si deduce dalla presenza.
+      const legacyScreen = p.screenStreamId === undefined && !!pres?.screen && !pres?.cam;
+      const camStream = legacyScreen ? null : p.camView;
+      const camLive = legacyScreen ? false : p.hasCam;
+      const screenStream = legacyScreen ? p.camView : p.screenView;
+      const screenLive = legacyScreen ? p.hasCam : p.hasScreen;
       out.push({
-        key: p.id, id: p.id, screen: false, stream: p.stream, hasVideo: p.hasVideo && !sharing, rev: p.rev,
+        key: p.id, id: p.id, screen: false, stream: camStream, hasVideo: camLive, rev: p.rev,
         speaking: p.speaking && !app.voiceMutes[p.id], mirror: false, connecting: p.connection !== 'connected',
       });
-      if (sharing) {
+      if (pres?.screen || screenLive) {
         out.push({
-          key: `${p.id}:screen`, id: p.id, screen: true, stream: p.stream, hasVideo: p.hasVideo, rev: p.rev,
+          key: `${p.id}:screen`, id: p.id, screen: true, stream: screenStream, hasVideo: screenLive, rev: p.rev,
           speaking: false, mirror: false, connecting: p.connection !== 'connected',
         });
       }
@@ -73,16 +78,18 @@
     if (focus && !tiles.some((t) => t.key === focus)) focus = null;
   });
 
-  function openMenu(e: MouseEvent, id: string) {
+  function openMenu(e: MouseEvent, id: string, screen = false) {
     if (id === app.me) return;
     e.preventDefault();
-    menu = { id, x: Math.min(e.clientX, window.innerWidth - 250), y: Math.min(e.clientY, window.innerHeight - 160) };
+    menu = { id, screen, x: Math.min(e.clientX, window.innerWidth - 250), y: Math.min(e.clientY, window.innerHeight - 170) };
   }
 
-  function setUserVolume(id: string, v: number) {
-    prefs.userVolumes[id] = v;
+  function setVolume(id: string, screen: boolean, v: number) {
+    if (screen) prefs.screenVolumes[id] = v;
+    else prefs.userVolumes[id] = v;
     savePrefs();
   }
+  const volOf = (id: string, screen: boolean) => (screen ? screenVolume(id) : userVolume(id));
 
 
   const count = $derived(tiles.length);
@@ -126,10 +133,12 @@
             speaking={focused.speaking}
             mirror={focused.mirror}
             screen={focused.screen}
+            audioMuted={focused.screen && screenVolume(focused.id) === 0}
+            ontoggleaudio={focused.screen && focused.id !== app.me ? () => setVolume(focused.id, true, screenVolume(focused.id) > 0 ? 0 : 1) : undefined}
             connecting={focused.connecting}
             focused
             ondblclick={() => (focus = null)}
-            oncontextmenu={(e) => openMenu(e, focused.id)}
+            oncontextmenu={(e) => openMenu(e, focused.id, focused.screen)}
           />
         </div>
         {#if strip.length}
@@ -144,9 +153,11 @@
                   speaking={t.speaking}
                   mirror={t.mirror}
                   screen={t.screen}
+              audioMuted={t.screen && screenVolume(t.id) === 0}
+              ontoggleaudio={t.screen && t.id !== app.me ? () => setVolume(t.id, true, screenVolume(t.id) > 0 ? 0 : 1) : undefined}
                   connecting={t.connecting}
                   ondblclick={() => (focus = t.key)}
-                  oncontextmenu={(e) => openMenu(e, t.id)}
+                  oncontextmenu={(e) => openMenu(e, t.id, t.screen)}
                 />
               </div>
             {/each}
@@ -163,9 +174,11 @@
               speaking={t.speaking}
               mirror={t.mirror}
               screen={t.screen}
+              audioMuted={t.screen && screenVolume(t.id) === 0}
+              ontoggleaudio={t.screen && t.id !== app.me ? () => setVolume(t.id, true, screenVolume(t.id) > 0 ? 0 : 1) : undefined}
               connecting={t.connecting}
               ondblclick={() => (focus = t.key)}
-              oncontextmenu={(e) => openMenu(e, t.id)}
+              oncontextmenu={(e) => openMenu(e, t.id, t.screen)}
             />
           {/each}
         </div>
@@ -174,22 +187,27 @@
 
     {#if menu}
       {@const id = menu.id}
+      {@const scr = menu.screen}
       <div class="backdrop" role="presentation" onclick={() => (menu = null)}></div>
       <div class="menu" style="left:{menu.x}px; top:{menu.y}px">
-        <div class="menu-title">{app.name(id)}</div>
+        <div class="menu-title">{scr ? `Stream di ${app.name(id)}` : app.name(id)}</div>
         <label class="vol">
-          <span>Volume</span>
+          <span>{scr ? 'Audio stream' : 'Voce'}</span>
           <input
             type="range"
             min="0"
             max="2"
             step="0.01"
-            value={userVolume(id)}
-            oninput={(e) => setUserVolume(id, Number(e.currentTarget.value))}
+            value={volOf(id, scr)}
+            oninput={(e) => setVolume(id, scr, Number(e.currentTarget.value))}
           />
-          <span class="pct">{Math.round(userVolume(id) * 100)}%</span>
+          <span class="pct">{Math.round(volOf(id, scr) * 100)}%</span>
         </label>
-        {#if app.isAdmin}
+        <button onclick={() => setVolume(id, scr, volOf(id, scr) > 0 ? 0 : 1)}>
+          <Icon name={volOf(id, scr) > 0 ? 'volume' : 'mic-off'} size={15} />
+          {volOf(id, scr) > 0 ? (scr ? 'Silenzia la stream' : 'Silenzia per me') : 'Riattiva audio'}
+        </button>
+        {#if app.isAdmin && !scr}
           <button
             onclick={async () => {
               menu = null;
@@ -218,14 +236,14 @@
       <button class="ctl" class:off={voice.deaf} title="Audio" onclick={() => voice.toggleDeaf()}>
         <Icon name={voice.deaf ? 'headphones-off' : 'headphones'} size={20} />
       </button>
-      <button class="ctl" class:on={voice.videoKind === 'cam'} title="Webcam" onclick={() => voice.toggleCam()}>
-        <Icon name={voice.videoKind === 'cam' ? 'video' : 'video-off'} size={20} />
+      <button class="ctl" class:on={voice.camOn} title="Webcam" onclick={() => voice.toggleCam()}>
+        <Icon name={voice.camOn ? 'video' : 'video-off'} size={20} />
       </button>
       {#if screenShareSupported}
         <button
           class="ctl"
-          class:on={voice.videoKind === 'screen'}
-          title={voice.videoKind === 'screen' ? 'Interrompi condivisione' : 'Condividi schermo'}
+          class:on={voice.screenOn}
+          title={voice.screenOn ? 'Interrompi condivisione' : 'Condividi schermo'}
           onclick={() => voice.toggleScreen()}
         >
           <Icon name="screen" size={20} />

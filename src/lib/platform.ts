@@ -11,6 +11,7 @@ type ElectronBridge = {
   installUpdate(): Promise<void>;
   onPickSource(cb: (sources: ScreenSource[]) => void): void;
   pickSource(id: string | null): void;
+  setBackground?(background: boolean): void;
 };
 
 const electron = (globalThis as { cerchio?: ElectronBridge }).cerchio;
@@ -86,4 +87,20 @@ export function onPickScreenSource(cb: (sources: ScreenSource[]) => void) {
 }
 export function pickScreenSource(id: string | null) {
   electron?.pickSource(id);
+}
+
+/**
+ * Finestra nascosta senza chiamata: meno memoria (Windows/WebView2) e meno CPU
+ * (Electron: timer rallentati in background). Si annulla appena torni.
+ */
+export async function setBackgroundMode(background: boolean) {
+  try {
+    if (electron) return electron.setBackground?.(background);
+    if (isTauri) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('set_background_mode', { background });
+    }
+  } catch {
+    /* non supportato: nessun problema */
+  }
 }

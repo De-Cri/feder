@@ -1,7 +1,7 @@
 import { mount } from 'svelte';
 import VoiceAudio from '../../src/components/VoiceAudio.svelte';
 import { app } from '../../src/lib/state.svelte';
-import { voice } from '../../src/lib/voice.svelte';
+import { voice, preferHardwareCodec } from '../../src/lib/voice.svelte';
 import { prefs } from '../../src/lib/prefs.svelte';
 import { soundLog } from '../../src/lib/sounds';
 
@@ -9,6 +9,7 @@ const me = new URLSearchParams(location.search).get('u')!;
 app.session = { user: { id: me } } as any;
 app.members = ['a', 'b', 'c'].map((id) => ({ user_id: id, role: 'member', joined_at: '' }));
 (window as any).voice = voice;
+(window as any).preferHardwareCodec = preferHardwareCodec;
 (window as any).app = app;
 (window as any).prefs = prefs;
 (window as any).soundLog = soundLog;

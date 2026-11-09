@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Cerchio",
-  "version": "0.2.1",
+  "productName": "Paper",
+  "version": "0.3.0",
   "identifier": "app.cerchio.desktop",
   "build": {
     "frontendDist": "../dist",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Cerchio",
+        "title": "Paper",
         "width": 1180,
         "height": 760,
         "minWidth": 820,

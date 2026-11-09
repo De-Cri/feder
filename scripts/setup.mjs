@@ -102,7 +102,7 @@ async function api(method, path, body) {
 const query = (sql) => api('POST', `/projects/${state.ref}/database/query`, { query: sql });
 
 // -----------------------------------------------------------------------------
-console.log(c.b('\nCerchio — setup\n'));
+console.log(c.b('\nPaper — setup\n'));
 
 step('Controllo prerequisiti');
 const [major] = process.versions.node.split('.').map(Number);
@@ -333,27 +333,6 @@ if (view.status === 0) {
 if (spawnSync('gh', ['repo', 'view', rel], { stdio: 'ignore', shell: process.platform === 'win32' }).status !== 0) {
   sh(`gh repo create ${rel} --public --add-readme --description "Cerchio — download"`);
 }
-const secretSet = (name, value) => {
-  const r = spawnSync('gh', ['secret', 'set', name, '--repo', `${state.ghUser}/${state.repo}`], {
-    input: value,
-    encoding: 'utf8',
-    shell: process.platform === 'win32',
-  });
-  if (r.status !== 0) fail(`gh secret set ${name}: ${r.stderr}`);
-};
-secretSet('TAURI_SIGNING_PRIVATE_KEY', readFileSync(keyPath, 'utf8'));
-secretSet('TAURI_SIGNING_PRIVATE_KEY_PASSWORD', state.keyPass ?? '');
-// Token con cui le Actions del repo privato pubblicano nel repo delle release.
-secretSet('RELEASES_TOKEN', sh('gh auth token'));
-{
-  const r = spawnSync('gh', ['variable', 'set', 'RELEASES_REPO', '--repo', `${state.ghUser}/${state.repo}`, '--body', rel], {
-    encoding: 'utf8',
-    shell: process.platform === 'win32',
-  });
-  if (r.status !== 0) fail(`gh variable set RELEASES_REPO: ${r.stderr}`);
-}
-done('Secrets impostati');
-
 sh(`git push -u origin main${forcePush ? ' --force' : ''}`);
 const version = conf.version;
 try {
@@ -362,13 +341,21 @@ try {
   /* tag già presente */
 }
 sh(`git push origin v${version}`);
-done(`Push fatto, build della v${version} avviata`);
+done('Codice caricato nel repo privato');
+
+// Le chiavi e la build stanno nel repo pubblico delle release: solo tu puoi pubblicare.
+{
+  const r = spawnSync('node', ['scripts/secure-releases.mjs'], { stdio: 'inherit', shell: process.platform === 'win32' });
+  if (r.status !== 0) fail('Configurazione del repo delle release non riuscita.');
+}
+sh(`gh workflow run release.yml -R ${rel} -f ref=v${version}`);
+done(`Build della v${version} avviata`);
 
 rl.close();
 console.log(`
 ${c.ok('Fatto!')}
 
-  Build in corso (~10 min):  https://github.com/${state.ghUser}/${state.repo}/actions
+  Build in corso (~10 min):  https://github.com/${rel}/actions
   Link per i tuoi amici:     https://github.com/${rel}/releases/latest
 
   Loro: scaricano l'installer → si registrano → inseriscono la password del server.

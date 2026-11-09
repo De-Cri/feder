@@ -1,10 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#2f97ff"/>
       <stop offset="1" stop-color="#0a6cff"/>
     </linearGradient>
   </defs>
-  <rect x="80" y="80" width="864" height="864" rx="200" fill="url(#g)"/>
-  <circle cx="512" cy="512" r="230" fill="none" stroke="#fff" stroke-width="92"/>
+  <rect x="80" y="80" width="864" height="864" rx="200" fill="url(#bg)"/>
+  <!-- foglio con l'angolo piegato -->
+  <path d="M332 248h250l140 140v388a40 40 0 0 1-40 40H332a40 40 0 0 1-40-40V288a40 40 0 0 1 40-40z" fill="#fff"/>
+  <path d="M582 248v100a40 40 0 0 0 40 40h100z" fill="#cfe3ff"/>
+  <rect x="372" y="500" width="240" height="30" rx="15" fill="#0a84ff" opacity=".85"/>
+  <rect x="372" y="570" width="280" height="30" rx="15" fill="#0a84ff" opacity=".45"/>
+  <rect x="372" y="640" width="180" height="30" rx="15" fill="#0a84ff" opacity=".45"/>
 </svg>

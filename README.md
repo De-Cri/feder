@@ -1,4 +1,4 @@
-# Cerchio
+# Paper
 
 Un Discord privato per pochi amici: **un solo server**, **2 canali chat**, **2 canali voce/video**, un solo admin.
 App desktop per **Windows** (Tauri 2, circa 4 MB) e **Linux** (Electron, perché la webview di sistema su Linux spesso non ha WebRTC). Il backend è Supabase free, la voce viaggia P2P (WebRTC). **Costo: 0 €.**
@@ -51,7 +51,7 @@ Le chiavi private stanno in `.cerchio-secrets/`, una cartella ignorata da git: *
 ## Per i tuoi amici
 
 1. Aprono `https://github.com/<tuo-user>/cerchio-releases/releases/latest`
-2. Windows: scaricano `Cerchio_x.y.z_x64-setup.exe`. Linux: `.rpm` (Fedora), `.deb` (Ubuntu/Debian) o `.AppImage` (qualsiasi distro).
+2. Windows: scaricano `Paper_x.y.z_x64-setup.exe`. Linux: `.rpm` (Fedora), `.deb` (Ubuntu/Debian) o `.AppImage` (qualsiasi distro).
 3. Si registrano e inseriscono la password del server.
 
 **Windows SmartScreen**: l'installer non è firmato (un certificato costa), quindi al primo avvio compare "Windows ha protetto il PC". Basta cliccare *Ulteriori informazioni → Esegui comunque*. Gli aggiornamenti successivi sono comunque verificati con la chiave di firma dell'updater.
@@ -59,10 +59,12 @@ Le chiavi private stanno in `.cerchio-secrets/`, una cartella ignorata da git: *
 ## Pubblicare una nuova versione
 
 ```bash
-npm run release -- 0.2.0
+npm run release -- 0.4.0
 ```
 
-Aggiorna la versione, crea il tag e fa il push. GitHub Actions compila gli installer e le app installate si aggiornano da sole al prossimo avvio.
+Lo script aggiorna la versione, crea il tag, fa push e avvia la build nel repo pubblico delle release. Dopo circa 10 minuti le app installate si aggiornano da sole.
+
+**Solo il proprietario può pubblicare.** Il workflow di build e le chiavi di firma stanno nel repo pubblico `cerchio-releases`, dove scrivi solo tu. I collaboratori del repo privato del codice possono pushare e aprire Pull Request, ma non possono avviare release né leggere le chiavi. Con il piano GitHub Free i repo privati non hanno protezioni sui rami, quindi è l'unico modo gratuito per ottenere questo risultato. Per configurarlo, una volta sola: `node scripts/secure-releases.mjs`, sul PC dove c'è `.cerchio-secrets/`.
 
 ## Limiti da conoscere
 

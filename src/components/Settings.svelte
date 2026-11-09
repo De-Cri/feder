@@ -165,7 +165,7 @@
         <p class="hint">Espelli, banna e muta in vocale dal menu di ogni membro (lista membri a destra nei canali chat).</p>
       {:else}
         <h2>Info</h2>
-        <p>Cerchio <span class="muted">v{version}</span></p>
+        <p>Paper <span class="muted">v{version}</span></p>
         <div class="inline">
           <button class="btn" onclick={runUpdateCheck}>Controlla aggiornamenti</button>
           {#if updateState}<span class="hint">{updateState}</span>{/if}

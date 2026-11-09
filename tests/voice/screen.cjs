@@ -1,8 +1,10 @@
+// Schermo + webcam insieme, spegni/riaccendi: chi guarda deve sempre ricevere immagini (mai nero).
 const { chromium } = require('playwright');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1); } console.log('ok -', m); };
 (async () => {
-  const b = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--auto-accept-this-tab-capture', '--auto-select-desktop-capture-source=Entire screen'] });
-  const ctx = await b.newContext({ permissions: ['microphone', 'camera'], viewport: { width: 900, height: 600 } });
+  const b = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--auto-select-desktop-capture-source=Entire screen'] });
+  const ctx = await b.newContext({ permissions: ['microphone', 'camera'] });
   const pages = {};
   for (const u of ['a', 'b']) {
     const p = await ctx.newPage();
@@ -11,25 +13,72 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     pages[u] = p;
   }
   for (const u of ['a', 'b']) await pages[u].evaluate(() => window.voice.join(3));
-  await sleep(3000);
-  await pages.a.evaluate(() => { const bt = document.createElement('button'); bt.id = 's'; bt.textContent = 'share'; bt.onclick = () => window.voice.toggleScreen(); document.body.appendChild(bt); });
-  await pages.a.click('#s');
-  await sleep(4000);
-  const local = await pages.a.evaluate(() => ({ kind: window.voice.videoKind, label: window.voice.videoTrack?.label, settings: window.voice.videoTrack?.getSettings() }));
-  console.log('sender', JSON.stringify(local));
-  const rx = await pages.b.evaluate(async () => {
+  await sleep(2500);
+  await pages.a.evaluate(() => {
+    for (const [id, fn] of [['scr', () => window.voice.toggleScreen()], ['cam', () => window.voice.toggleCam()]]) {
+      const bt = document.createElement('button'); bt.id = id; bt.textContent = id; bt.onclick = fn; document.body.appendChild(bt);
+    }
+  });
+  // b "guarda": conta i fotogrammi realmente disegnati in un <video> per la vista indicata
+  const watch = (which) => pages.b.evaluate(async (which) => {
     const p = window.voice.peers.a;
-    const st = await p.pc.getStats();
-    const out = { hasVideo: p.hasVideo, tracks: p.stream.getTracks().map((t) => `${t.kind}:${t.readyState}:${t.muted}`) };
-    st.forEach((r) => { if (r.type === 'inbound-rtp' && r.kind === 'video') Object.assign(out, { framesDecoded: r.framesDecoded, w: r.frameWidth, h: r.frameHeight, fps: r.framesPerSecond }); });
+    const view = which === 'screen' ? p.screenView : p.camView;
+    if (!view) return { ok: false, why: 'nessuna vista' };
+    const v = document.createElement('video'); v.muted = true; v.srcObject = view; document.body.appendChild(v);
+    await v.play().catch(() => {});
+    let frames = 0;
+    const cb = () => { frames++; v.requestVideoFrameCallback(cb); };
+    v.requestVideoFrameCallback(cb);
+    await new Promise((r) => setTimeout(r, 2000));
+    const out = { ok: frames > 5 && v.videoWidth > 0, frames, w: v.videoWidth, cam: p.hasCam, screen: p.hasScreen };
+    v.remove();
     return out;
+  }, which);
+  const until = async (fn, ms = 10000) => { const t = Date.now(); while (Date.now() - t < ms) { if (await fn()) return true; await sleep(250); } return false; };
+  const st = () => pages.b.evaluate(() => ({ cam: window.voice.peers.a.hasCam, screen: window.voice.peers.a.hasScreen }));
+
+  await pages.a.click('#scr');
+  assert(await until(async () => (await st()).screen), 'b riceve lo schermo');
+  let w = await watch('screen'); console.log('   ', JSON.stringify(w));
+  assert(w.ok && !w.cam, 'lo schermo si vede (riquadro schermo, non webcam)');
+
+  // volume separato: zittire la stream non zittisce la voce
+  const vols = () => pages.b.evaluate(() => {
+    const p = window.voice.peers.a;
+    return [...document.querySelectorAll('audio')].filter((el) => el.srcObject).map((el) => {
+      const a = p.audioStreams.find((x) => x.stream === el.srcObject);
+      return { screen: a ? p.isScreenAudio(a.key) : null, vol: el.volume };
+    });
   });
-  console.log('receiver', JSON.stringify(rx));
-  const tx = await pages.a.evaluate(async () => {
-    const p = window.voice.peers.b; const st = await p.pc.getStats(); const o = {};
-    st.forEach((r) => { if (r.type === 'outbound-rtp' && r.kind === 'video') Object.assign(o, { framesEncoded: r.framesEncoded, w: r.frameWidth, h: r.frameHeight, limit: r.qualityLimitationReason }); });
-    return o;
-  });
-  console.log('sender stats', JSON.stringify(tx));
+  await sleep(500);
+  let v = await vols(); console.log('   ', JSON.stringify(v));
+  assert(v.some((x) => x.screen === true) && v.some((x) => x.screen === false), 'audio della stream e voce riprodotti separatamente');
+  await pages.b.evaluate(() => { window.prefs.screenVolumes.a = 0; });
+  await sleep(300);
+  v = await vols();
+  assert(v.find((x) => x.screen).vol === 0 && v.find((x) => x.screen === false).vol === 1, 'stream silenziata, voce ancora al 100%');
+  await pages.b.evaluate(() => { window.prefs.screenVolumes.a = 1; });
+
+  await pages.a.click('#cam');
+  assert(await until(async () => { const s = await st(); return s.cam && s.screen; }), 'webcam + schermo insieme');
+  w = await watch('screen'); assert(w.ok, `lo schermo continua mentre la webcam è accesa (${w.frames} fotogrammi)`);
+  w = await watch('cam'); assert(w.ok, `la webcam si vede nel suo riquadro (${w.frames} fotogrammi)`);
+
+  await pages.a.click('#cam'); // spegne la webcam
+  assert(await until(async () => !(await st()).cam), 'webcam spenta');
+  w = await watch('screen'); assert(w.ok, 'lo schermo continua dopo aver spento la webcam');
+
+  await pages.a.click('#scr'); // ferma lo schermo
+  assert(await until(async () => !(await st()).screen), 'condivisione fermata');
+  await pages.a.click('#scr'); // e la riavvia
+  assert(await until(async () => (await st()).screen), 'condivisione riavviata');
+  w = await watch('screen'); console.log('   ', JSON.stringify(w));
+  assert(w.ok, 'dopo il riavvio lo schermo si vede (niente nero)');
+
+  await pages.a.click('#cam');
+  assert(await until(async () => (await st()).cam), 'webcam riaccesa');
+  w = await watch('cam'); assert(w.ok, 'la webcam riaccesa si vede (niente nero)');
+  w = await watch('screen'); assert(w.ok, 'e lo schermo continua');
   await b.close();
+  console.log('\nSCREEN PASSED');
 })();

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cerchio - avvio del wizard su Linux:  ./setup.sh
+# Paper - avvio del wizard su Linux:  ./setup.sh
 # Se manca Node.js (serve per il wizard) chiede il permesso e lo installa.
 set -euo pipefail
 cd "$(dirname "$0")"
