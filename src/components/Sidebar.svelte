@@ -4,10 +4,19 @@
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
   import Logo from './Logo.svelte';
+  import VoiceMenu from './VoiceMenu.svelte';
+
+  let menu = $state<{ id: string; x: number; y: number } | null>(null);
 
   function openVoice(id: number) {
     app.view = id;
     if (voice.channelId !== id) voice.join(id);
+  }
+
+  // Tasto destro su chi è in vocale: volume e silenzio (non su te stesso).
+  function openMenu(e: MouseEvent, id: string) {
+    e.preventDefault();
+    menu = id === app.me ? null : { id, x: e.clientX, y: e.clientY };
   }
 
   function speaking(id: string) {
@@ -41,7 +50,7 @@
         <span class="name">{c.name}</span>
       </button>
       {#each app.inVoice(c.id) as p (p.user_id)}
-        <div class="participant">
+        <div class="participant" role="presentation" oncontextmenu={(e) => openMenu(e, p.user_id)}>
           <Avatar id={p.user_id} size={20} speaking={speaking(p.user_id)} />
           <span class="pname">{app.name(p.user_id)}</span>
           {#if p.screen}<span class="live">LIVE</span>{/if}
@@ -94,6 +103,10 @@
     </button>
   </footer>
 </aside>
+
+{#if menu}
+  <VoiceMenu id={menu.id} x={menu.x} y={menu.y} onclose={() => (menu = null)} />
+{/if}
 
 <style>
   aside {
@@ -157,9 +170,11 @@
     gap: 8px;
     height: 28px;
     padding: 0 8px 0 30px;
+    border-radius: var(--r-sm);
     color: var(--text-2);
     font-size: 13px;
   }
+  .participant:hover { background: var(--bg-hover); color: var(--text); }
   .pname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .live {
     font-size: 9px;
