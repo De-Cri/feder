@@ -3,7 +3,7 @@
 // "perfect negotiation" per gestire offerte simultanee e rinegoziazioni.
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import { app } from './state.svelte';
+import { app, presenceBudget as budget } from './state.svelte';
 import { prefs, micOptions } from './prefs.svelte';
 import { config } from './config';
 import { MicPipeline } from './audio';
@@ -465,8 +465,10 @@ class VoiceRoom {
         if (subscribed && !(this.me in state)) {
           clearTimeout(retrack);
           retrack = setTimeout(() => {
-            if (this.rt === rt && !(this.me in rt.presenceState())) rt.track({ at: Date.now() });
-          }, 800);
+            if (this.rt !== rt || this.me in rt.presenceState()) return;
+            budget.take();
+            rt.track({ at: Date.now() });
+          }, Math.max(800, budget.wait()));
         }
         const ids = new Set(Object.keys(state));
         app.room = { channel: channelId, ids: [this.me, ...[...ids].filter((id) => id !== this.me && app.members.some((m) => m.user_id === id))] };
@@ -490,6 +492,7 @@ class VoiceRoom {
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
+          budget.take();
           await rt.track({ at: Date.now() });
           subscribed = true;
           this.joining = false;

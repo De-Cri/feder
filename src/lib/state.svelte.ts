@@ -2,6 +2,7 @@ import type { RealtimeChannel, Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { notify } from './notify';
 import { playSound } from './sounds';
+import { hasUnseenRelease } from './releases';
 
 export type Profile = { id: string; username: string; avatar_path: string | null };
 export type Member = { user_id: string; role: 'admin' | 'member'; joined_at: string };
@@ -20,6 +21,7 @@ export type Message = {
 export type Presence = {
   user_id: string;
   at?: number; // quando è stato pubblicato (per scartare stati vecchi)
+  dev?: string; // quale copia dell'app (stessa persona su app desktop + browser, o due PC)
   voice: number | null;
   mic: boolean;
   deaf: boolean;
@@ -28,6 +30,33 @@ export type Presence = {
 };
 
 const PAGE = 50;
+
+/** `app.view` del canale "novità" (note di rilascio, non è un canale del server). */
+export const RELEASES_VIEW = -1;
+
+/** Identifica questa copia dell'app nella presenza (la chiave è l'utente, condivisa tra dispositivi). */
+const DEVICE = crypto.randomUUID();
+
+/**
+ * Supabase accetta al massimo 5 track() ogni 30 s per client: oltre, CHIUDE il canale
+ * (ClientPresenceRateLimitReached) e la presenza smette di aggiornarsi per tutti.
+ * Noi: 5 ogni 32 s (margine sulla finestra); il resto viene accorpato e inviato appena si può.
+ */
+export class TrackBudget {
+  private times: number[] = [];
+  constructor(private max = 5, private windowMs = 32_000) {}
+  /** Millisecondi da aspettare prima del prossimo track() (0 = subito). */
+  wait(now = Date.now()): number {
+    this.times = this.times.filter((t) => now - t < this.windowMs);
+    return this.times.length < this.max ? 0 : this.windowMs - (now - this.times[0]) + 100;
+  }
+  take(now = Date.now()) {
+    this.times.push(now);
+  }
+}
+
+/** Un solo conteggio per lobby e canale vocale: prudente anche se il limite fosse per connessione. */
+export const presenceBudget = new TrackBudget();
 
 class ChannelLog {
   messages = $state<Message[]>([]);
@@ -89,7 +118,8 @@ class AppState {
   logs: Record<number, ChannelLog> = {};
   unread = $state<Record<number, number>>({});
 
-  view = $state<number>(1); // canale visualizzato (testo o voce)
+  view = $state<number>(1); // canale visualizzato (testo o voce, o RELEASES_VIEW)
+  releasesUnseen = $state(hasUnseenRelease()); // pallino "nuovo" sul canale novità
   showMembers = $state(true);
   settingsOpen = $state(false);
   focused = $state(true);
@@ -238,34 +268,57 @@ class AppState {
       })
       .subscribe();
 
-    const me = this.me!;
-    this.lobby = supabase.channel('cerchio:lobby', { config: { private: true, presence: { key: me } } });
-    this.lobby
-      .on('presence', { event: 'sync' }, () => {
-        const state = this.lobby!.presenceState<Presence>();
-        const next: Record<string, Presence> = {};
-        for (const [key, metas] of Object.entries(state)) {
-          // Più stati per la stessa persona (aggiornamenti ravvicinati, due PC):
-          // vale il più recente, non l'ultimo della lista.
-          const best = latest(metas);
-          if (best) next[key] = { ...best, user_id: key };
-        }
-        // Il proprio stato è sempre quello locale (il server può essere un attimo indietro).
-        if (this.me && this.lobbyJoined) {
-          // Il server ci ha "perso" o ha uno stato vecchio: ripubblica.
-          if (!next[this.me] || !this.samePresence(next[this.me])) this.healPresence();
-          next[this.me] = { ...(next[this.me] ?? {}), ...$state.snapshot(this.myPresence), user_id: this.me };
-        }
-        this.detectCalls(next);
-        this.online = next;
-      })
-      .subscribe(async (status) => {
-        this.lobbyJoined = status === 'SUBSCRIBED';
-        if (status === 'SUBSCRIBED') await this.publishPresence();
-      });
+    this.joinLobby();
     // Ripubblica ogni tanto: corregge eventuali stati persi o rimasti indietro sul server.
     clearInterval(this.presenceTimer);
     this.presenceTimer = setInterval(() => this.lobbyJoined && this.publishPresence(), 45_000);
+  }
+
+  private lobbyRetry: ReturnType<typeof setTimeout> | undefined;
+  private joinLobby() {
+    const me = this.me!;
+    const ch = supabase.channel('cerchio:lobby', { config: { private: true, presence: { key: me } } });
+    this.lobby = ch;
+    ch.on('presence', { event: 'sync' }, () => {
+      if (this.lobby !== ch) return;
+      const state = ch.presenceState<Presence>();
+      const next: Record<string, Presence> = {};
+      for (const [key, metas] of Object.entries(state)) {
+        const best = pick(metas);
+        if (best) next[key] = { ...best, user_id: key };
+      }
+      // Il proprio stato è sempre quello locale (il server può essere un attimo indietro).
+      if (this.me && this.lobbyJoined) {
+        // Il server ci ha "perso" o ha uno stato vecchio: ripubblica.
+        if (!this.serverHasMine(state[this.me])) this.healPresence();
+        next[this.me] = { ...(next[this.me] ?? {}), ...$state.snapshot(this.myPresence), user_id: this.me };
+      }
+      this.detectCalls(next);
+      this.online = next;
+    }).subscribe(async (status) => {
+      if (this.lobby !== ch) return; // canale vecchio, già sostituito o chiuso da noi
+      this.lobbyJoined = status === 'SUBSCRIBED';
+      if (status === 'SUBSCRIBED') return void (await this.publishPresence());
+      // Il server ha chiuso il canale (es. troppi aggiornamenti) o la rete è caduta:
+      // senza questo la barra laterale resterebbe ferma fino al riavvio dell'app.
+      if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('[presence] canale lobby perso:', status, '- mi ricollego');
+        clearTimeout(this.lobbyRetry);
+        this.lobbyRetry = setTimeout(async () => {
+          if (this.lobby !== ch || !this.me) return;
+          this.lobby = null;
+          await supabase.removeChannel(ch);
+          await supabase.realtime.setAuth();
+          if (this.lobby === null && this.me && this.db) this.joinLobby();
+        }, 3000);
+      }
+    });
+  }
+
+  /** Il server ha il nostro stato attuale (cercando tra gli stati di QUESTA copia dell'app). */
+  private serverHasMine(metas: Presence[] | undefined): boolean {
+    const mine = latest((metas ?? []).filter((m) => m.dev === DEVICE));
+    return !!mine && this.samePresence(mine);
   }
 
   private samePresence(p: Presence) {
@@ -287,8 +340,7 @@ class AppState {
     this.healTimer = setTimeout(() => {
       this.healTimer = undefined;
       if (!this.lobby || !this.me || !this.lobbyJoined) return;
-      const mine = latest(this.lobby.presenceState<Presence>()[this.me] ?? []);
-      if (mine && this.samePresence(mine)) {
+      if (this.serverHasMine(this.lobby.presenceState<Presence>()[this.me])) {
         this.healAttempts = 0;
         return;
       }
@@ -300,25 +352,39 @@ class AppState {
 
   // Una pubblicazione alla volta, sempre con lo stato più recente: chiamate
   // ravvicinate (es. cambio canale vocale) non lasciano stati fantasma.
+  // Oltre il limite di Supabase l'invio viene rimandato (sempre con lo stato più recente).
   private publishing = false;
   private publishAgain = false;
+  private publishTimer: ReturnType<typeof setTimeout> | undefined;
   async publishPresence() {
     if (!this.lobby || !this.me) return;
+    if (this.publishTimer) return; // un invio è già in programma: userà lo stato più recente
     if (this.publishing) {
       this.publishAgain = true;
       return;
     }
     this.publishing = true;
+    let deferred = false;
     try {
       do {
         this.publishAgain = false;
-        await this.lobby?.track({ user_id: this.me, ...$state.snapshot(this.myPresence), at: Date.now() });
+        const wait = presenceBudget.wait();
+        if (wait > 0) {
+          deferred = true;
+          this.publishTimer = setTimeout(() => {
+            this.publishTimer = undefined;
+            this.publishPresence();
+          }, wait);
+          break;
+        }
+        presenceBudget.take();
+        await this.lobby?.track({ user_id: this.me, ...$state.snapshot(this.myPresence), at: Date.now(), dev: DEVICE });
       } while (this.publishAgain && this.lobby);
     } finally {
       this.publishing = false;
     }
     // Verifica poco dopo che il server abbia davvero lo stato appena pubblicato.
-    this.healPresence();
+    if (!deferred) this.healPresence();
   }
 
   /** Suono "chiamata": qualcuno entra in un canale vocale vuoto mentre tu non sei in vocale. */
@@ -366,9 +432,13 @@ class AppState {
     clearInterval(this.presenceTimer);
     clearTimeout(this.healTimer);
     this.healTimer = undefined;
-    if (this.db) await supabase.removeChannel(this.db);
-    if (this.lobby) await supabase.removeChannel(this.lobby);
-    this.db = this.lobby = null;
+    clearTimeout(this.publishTimer);
+    this.publishTimer = undefined;
+    clearTimeout(this.lobbyRetry);
+    const { db, lobby } = this;
+    this.db = this.lobby = null; // prima di chiudere: così i loro callback sanno che è voluto
+    if (db) await supabase.removeChannel(db);
+    if (lobby) await supabase.removeChannel(lobby);
   }
 
   async signOut() {
@@ -379,9 +449,22 @@ class AppState {
   }
 }
 
-/** Più stati per la stessa persona (aggiornamenti ravvicinati, due PC): vale il più recente. */
+/** Più stati per la stessa persona (aggiornamenti ravvicinati): vale il più recente. */
 function latest(metas: Presence[]): Presence | null {
   return metas.reduce<Presence | null>((b, m) => (!b || (m.at ?? 0) >= (b.at ?? 0) ? m : b), null);
+}
+
+/**
+ * Stato da mostrare per una persona. Per ogni copia dell'app vale il suo stato più
+ * recente; se ne ha più di una (app + browser, due PC) conta quella in chiamata,
+ * altrimenti gli altri la vedrebbero entrare e uscire di continuo.
+ */
+function pick(metas: Presence[]): Presence | null {
+  const byDev = new Map<string, Presence[]>();
+  for (const m of metas) byDev.set(m.dev ?? '', [...(byDev.get(m.dev ?? '') ?? []), m]);
+  const heads = [...byDev.values()].map((g) => latest(g)!);
+  const inVoice = heads.filter((m) => m.voice !== null);
+  return latest(inVoice.length ? inVoice : heads);
 }
 
 export const app = new AppState();
