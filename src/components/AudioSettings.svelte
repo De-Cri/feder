@@ -9,18 +9,9 @@
 
   // spettatori: quelli nella tua chiamata, o 4 come stima se non sei in chiamata
   const viewers = $derived(voice.channelId !== null ? Math.max(1, Object.keys(voice.peers).length) : 4);
-  const warning = $derived.by(() => {
-    void prefs.screenHeight; void prefs.screenFps; void prefs.screenMode;
-    return screenWarning(viewers);
-  });
-  function setQuality(height: number, fps: number) {
-    prefs.screenHeight = height;
-    prefs.screenFps = fps;
-    savePrefs();
-    voice.applyScreenSettings();
-  }
-  function setScreen<K extends 'screenHeight' | 'screenFps' | 'screenMode'>(k: K, v: (typeof prefs)[K]) {
-    prefs[k] = v;
+  const warning = $derived(screenWarning(viewers));
+  function setScreen(p: Partial<Prefs>) {
+    Object.assign(prefs, p);
     savePrefs();
     voice.applyScreenSettings();
   }
@@ -236,14 +227,14 @@
   {#each SCREEN_OPTIONS as o}
     <button
       class:active={prefs.screenHeight === o.height && prefs.screenFps === o.fps}
-      onclick={() => setQuality(o.height, o.fps)}>{o.label}</button
+      onclick={() => setScreen({ screenHeight: o.height, screenFps: o.fps })}>{o.label}</button
     >
   {/each}
 </div>
 <div class="label">Ottimizza per</div>
 <div class="seg">
-  <button class:active={prefs.screenMode === 'motion'} onclick={() => setScreen('screenMode', 'motion')}>Movimento (giochi, video)</button>
-  <button class:active={prefs.screenMode === 'detail'} onclick={() => setScreen('screenMode', 'detail')}>Testo e dettagli</button>
+  <button class:active={prefs.screenMode === 'motion'} onclick={() => setScreen({ screenMode: 'motion' })}>Movimento (giochi, video)</button>
+  <button class:active={prefs.screenMode === 'detail'} onclick={() => setScreen({ screenMode: 'detail' })}>Testo e dettagli</button>
 </div>
 <div class="warning {warning.level}">
   {#if warning.level !== 'ok'}<strong>{warning.level === 'danger' ? 'Attenzione' : 'Nota'}:</strong>{/if}

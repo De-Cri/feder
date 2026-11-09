@@ -16,7 +16,7 @@ export type Prefs = {
   outputVolume: number; // 0..1
   userVolumes: Record<string, number>; // 0..2 per utente (voce)
   screenVolumes: Record<string, number>; // 0..1 per utente (audio della sua condivisione schermo)
-  screenHeight: number; // 0 = nativa
+  screenHeight: number;
   screenFps: number;
   screenMode: 'motion' | 'detail'; // movimento (giochi, video) o dettaglio (testo, codice)
   screenAudio: boolean;
@@ -47,6 +47,12 @@ const defaults: Prefs = {
   soundVolume: 0.6,
 };
 
+/** Solo 720p30, 720p60 o 1080p30: riporta valori vecchi o non validi alla combinazione più vicina. */
+export function clampScreen(height: number, fps: number): { height: number; fps: number } {
+  if (height >= 1080 || height === 0) return { height: 1080, fps: 30 };
+  return { height: 720, fps: fps >= 45 ? 60 : 30 };
+}
+
 function load(): Prefs {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}');
@@ -62,11 +68,8 @@ function load(): Prefs {
       [raw.screenHeight, raw.screenFps, raw.screenMode] = m;
     }
     delete raw.screenQuality;
-    // solo 720p30, 720p60 o 1080p30
     if (raw.screenHeight !== undefined) {
-      const h = raw.screenHeight >= 1080 || raw.screenHeight === 0 ? 1080 : 720;
-      raw.screenHeight = h;
-      raw.screenFps = h === 1080 ? 30 : (raw.screenFps ?? 30) >= 45 ? 60 : 30;
+      ({ height: raw.screenHeight, fps: raw.screenFps } = clampScreen(raw.screenHeight, raw.screenFps ?? 30));
     }
     delete raw.noiseSuppression;
     return { ...defaults, ...raw, sounds: { ...defaults.sounds, ...(raw.sounds ?? {}) } };

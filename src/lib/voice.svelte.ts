@@ -106,7 +106,8 @@ export function preferHardwareCodec(pc: RTCPeerConnection, sender: RTCRtpSender,
 function screenVideo(q: { fps: number; height: number }): MediaTrackConstraints {
   return {
     frameRate: { ideal: q.fps, max: q.fps },
-    ...(q.height ? { height: { ideal: q.height, max: q.height }, width: { max: Math.round((q.height * 16) / 9) } } : {}),
+    height: { ideal: q.height, max: q.height },
+    width: { max: Math.round((q.height * 16) / 9) },
   };
 }
 
@@ -118,10 +119,13 @@ export function boostVideoBitrate(sdp: string, start = 1500, min = 300): string 
   let inVideo = false;
   const seenFmtp = new Set<string>();
   const videoPts: string[] = [];
+  // chiude la sezione video aggiungendo le fmtp mancanti
+  const flush = () => {
+    for (const pt of videoPts) if (!seenFmtp.has(pt)) out.push(`a=fmtp:${pt} x-google-start-bitrate=${start};x-google-min-bitrate=${min}`);
+  };
   for (const line of lines) {
     if (line.startsWith('m=')) {
-      // chiude la sezione video precedente aggiungendo fmtp mancanti
-      if (inVideo) for (const pt of videoPts) if (!seenFmtp.has(pt)) out.push(`a=fmtp:${pt} x-google-start-bitrate=${start};x-google-min-bitrate=${min}`);
+      if (inVideo) flush();
       inVideo = line.startsWith('m=video');
       seenFmtp.clear();
       videoPts.length = 0;
@@ -144,7 +148,7 @@ export function boostVideoBitrate(sdp: string, start = 1500, min = 300): string 
   if (inVideo) {
     // sezione video in fondo: inserisce prima della riga vuota finale
     const tail = out.length && out[out.length - 1] === '' ? out.pop() : undefined;
-    for (const pt of videoPts) if (!seenFmtp.has(pt)) out.push(`a=fmtp:${pt} x-google-start-bitrate=${start};x-google-min-bitrate=${min}`);
+    flush();
     if (tail !== undefined) out.push(tail);
   }
   return out.join('\r\n');
@@ -814,6 +818,17 @@ app.onMemberLeft = (id) => voice.drop(id);
   for (const p of Object.values(voice.peers)) {
     const stats = await p.pc.getStats();
     stats.forEach((r) => {
+      // rete tra voi (round-trip) dalla coppia ICE attiva
+      if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') {
+        rows.push({
+          con: app.name(p.id),
+          dir: 'rete',
+          kind: stats.get(r.localCandidateId)?.candidateType === 'relay' ? 'via TURN' : 'diretta',
+          limite: `ping ${Math.round((r.currentRoundTripTime ?? 0) * 1000)} ms`,
+          codec: r.availableOutgoingBitrate ? `${Math.round(r.availableOutgoingBitrate / 1000)} kbps disp.` : '',
+          stato: p.connection,
+        });
+      }
       if ((r.type === 'outbound-rtp' || r.type === 'inbound-rtp') && (r.kind === 'video' || r.kind === 'audio')) {
         rows.push({
           con: app.name(p.id),
@@ -831,29 +846,6 @@ app.onMemberLeft = (id) => voice.drop(id);
               ? `${Math.round((r.jitterBufferDelay / r.jitterBufferEmittedCount) * 1000)} ms`
               : '',
           codec: stats.get(r.codecId)?.mimeType ?? '',
-          stato: p.connection,
-        });
-      }
-    });
-  }
-  // rete tra voi (round-trip) dalla coppia ICE attiva
-  for (const p of Object.values(voice.peers)) {
-    const stats = await p.pc.getStats();
-    stats.forEach((r) => {
-      if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') {
-        const local = stats.get(r.localCandidateId);
-        rows.push({
-          con: app.name(p.id),
-          dir: 'rete',
-          kind: local?.candidateType === 'relay' ? 'via TURN' : 'diretta',
-          fps: '',
-          frames: '',
-          size: '',
-          limite: `ping ${Math.round((r.currentRoundTripTime ?? 0) * 1000)} ms`,
-          blocchi: '',
-          persi: '',
-          buffer: '',
-          codec: r.availableOutgoingBitrate ? `${Math.round(r.availableOutgoingBitrate / 1000)} kbps disp.` : '',
           stato: p.connection,
         });
       }
