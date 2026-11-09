@@ -25,6 +25,8 @@ type Signal = {
   candidate?: RTCIceCandidateInit | null;
   /** id dello stream dello schermo di chi invia (null = non condivide). */
   screen?: string | null;
+  /** id della connessione di chi invia: se cambia, l'altro l'ha ricreata da zero. */
+  sid?: string;
 };
 
 const STUN: RTCIceServer[] = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }];
@@ -177,6 +179,8 @@ class Peer {
   speaking = $state(false);
   connection = $state<RTCPeerConnectionState>('new');
   rev = $state(0);
+  sid = crypto.randomUUID();
+  remoteSid: string | undefined;
 
   constructor(
     public id: string,
@@ -254,10 +258,14 @@ class Peer {
     if (!this.polite) this.attachLocalTracks();
     else this.attachTimer = setTimeout(() => this.attachLocalTracks(), 2500);
 
-    // Watchdog: se dopo 10 s non è connesso, riavvia ICE.
+    // Watchdog: dopo 10 s non connesso riavvia ICE; dopo 20 s ricrea la connessione.
+    // Un segnale perso (offerta/risposta) altrimenti lascia un lato su "connessione…"
+    // per sempre, mentre l'altro resta sulla vecchia; il nuovo `sid` riallinea l'altro.
+    let stuck = 0;
     this.watchdog = setInterval(() => {
       const st = this.pc.connectionState;
-      if (st === 'connected' || st === 'closed') return;
+      if (st === 'connected' || st === 'closed') return void (stuck = 0);
+      if (++stuck >= 2) return room.recreate(id);
       if (!this.polite && this.pc.signalingState === 'stable') this.pc.restartIce();
     }, 10_000);
   }
@@ -309,6 +317,7 @@ class Peer {
   /** Contatori diagnostici (utili nei test). */
   stats = { sent: 0, recv: 0, candErr: 0, ignored: 0 };
   handle(sig: Signal) {
+    this.remoteSid ??= sig.sid;
     this.queue = this.queue.then(() => this.apply(sig));
     return this.queue;
   }
@@ -436,6 +445,14 @@ class VoiceRoom {
       const sig = payload as Signal;
       if (sig.to !== this.me || sig.from === this.me) return;
       if (!app.members.some((m) => m.user_id === sig.from)) return;
+      // L'altro ha ricreato la connessione (es. la presenza ci ha persi per un attimo)
+      // mentre noi teniamo la vecchia, ancora "connessa": la sua offerta nuova non
+      // attaccherebbe mai e lui resterebbe su "connessione…". Ricreiamo anche la nostra.
+      const old = this.peers[sig.from];
+      if (old?.remoteSid && sig.sid && sig.sid !== old.remoteSid) {
+        if (sig.description?.type !== 'offer') return; // residui della connessione vecchia
+        this.drop(sig.from);
+      }
       this.peer(sig.from).handle(sig);
     })
       .on('presence', { event: 'sync' }, () => {
@@ -509,12 +526,19 @@ class VoiceRoom {
     this.syncPresence();
   }
 
-  send(to: string, sig: Omit<Signal, 'from' | 'to'>) {
-    this.rt?.send({ type: 'broadcast', event: 'signal', payload: { ...sig, from: this.me, to } });
+  send(to: string, sig: Omit<Signal, 'from' | 'to' | 'sid'>) {
+    const sid = this.peers[to]?.sid;
+    this.rt?.send({ type: 'broadcast', event: 'signal', payload: { ...sig, from: this.me, to, sid } });
   }
 
   private peer(id: string): Peer {
     return (this.peers[id] ??= new Peer(id, this, this.ice));
+  }
+
+  recreate(id: string) {
+    if (!this.peers[id]) return;
+    this.drop(id);
+    this.peer(id);
   }
 
   drop(id: string) {
