@@ -96,6 +96,18 @@ export function preferHardwareCodec(pc: RTCPeerConnection, sender: RTCRtpSender,
   }
 }
 
+/**
+ * Vincoli di cattura dello schermo. Solo `ideal` non basta: su monitor 1440p/4K
+ * Chromium catturava a risoluzione nativa e ogni peer della mesh codificava quel
+ * flusso (CPU al limite = lag). Servono i `max`.
+ */
+function screenVideo(q: { fps: number; height: number }): MediaTrackConstraints {
+  return {
+    frameRate: { ideal: q.fps, max: q.fps },
+    ...(q.height ? { height: { ideal: q.height, max: q.height }, width: { max: Math.round((q.height * 16) / 9) } } : {}),
+  };
+}
+
 /** Aggiunge x-google-start/min-bitrate ai codec video dell'SDP (kbps). */
 export function boostVideoBitrate(sdp: string, start = 1500, min = 300): string {
   if (!sdp.includes('m=video')) return sdp;
@@ -660,14 +672,7 @@ class VoiceRoom {
     let s: MediaStream;
     try {
       s = await navigator.mediaDevices.getDisplayMedia({
-        // Solo `ideal` non basta: su monitor 1440p/4K Chromium catturava a risoluzione
-        // nativa e ogni peer della mesh codificava quel flusso (CPU al limite = lag).
-        video: {
-          frameRate: { ideal: q.fps, max: q.fps },
-          ...(q.height
-            ? { height: { ideal: q.height, max: q.height }, width: { max: Math.round((q.height * 16) / 9) } }
-            : {}),
-        },
+        video: screenVideo(q),
         audio: prefs.screenAudio
           ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
           : false,
@@ -727,7 +732,7 @@ class VoiceRoom {
     const q = screenSettings();
     t.contentHint = q.hint;
     try {
-      await t.applyConstraints({ frameRate: { ideal: q.fps, max: q.fps }, ...(q.height ? { height: { ideal: q.height } } : {}) });
+      await t.applyConstraints(screenVideo(q));
     } catch {
       /* il sistema non permette di cambiarla al volo: varrà alla prossima condivisione */
     }
