@@ -3,9 +3,13 @@
   import { supabase } from './lib/supabase';
   import { configured } from './lib/config';
   import { app } from './lib/state.svelte';
+  import { applyTheme } from './lib/theme';
   import Auth from './components/Auth.svelte';
   import Join from './components/Join.svelte';
   import Shell from './components/Shell.svelte';
+
+  // Tema applicato subito, prima del primo render.
+  applyTheme();
 
   onMount(() => {
     if (!configured) {
@@ -28,10 +32,21 @@
     const onBlur = () => (app.focused = false);
     window.addEventListener('focus', onFocus);
     window.addEventListener('blur', onBlur);
+
+    // Niente menu del browser (Ricarica, Salva con nome, Stampa…) ovunque,
+    // tranne dove serve copiare/incollare.
+    const noNativeMenu = (e: MouseEvent) => {
+      const el = e.target as Element | null;
+      if (el?.closest('input, textarea, [contenteditable="true"], .allow-native-menu')) return;
+      e.preventDefault();
+    };
+    window.addEventListener('contextmenu', noNativeMenu, { capture: true });
+
     return () => {
       data.subscription.unsubscribe();
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('blur', onBlur);
+      window.removeEventListener('contextmenu', noNativeMenu, { capture: true });
     };
   });
 </script>

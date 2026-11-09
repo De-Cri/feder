@@ -2,21 +2,22 @@
   import { onMount } from 'svelte';
   import { supabase } from '../lib/supabase';
   import { app } from '../lib/state.svelte';
-  import { prefs, savePrefs } from '../lib/prefs.svelte';
+  import { prefs, savePrefs, setTheme, type Theme } from '../lib/prefs.svelte';
   import { appVersion, checkUpdate } from '../lib/platform';
   import { errorText } from '../lib/util';
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
   import AudioSettings from './AudioSettings.svelte';
+  import AvatarCropper from './AvatarCropper.svelte';
 
-  type Tab = 'profile' | 'media' | 'admin' | 'about';
+  type Tab = 'profile' | 'appearance' | 'notifications' | 'media' | 'admin' | 'about';
   let tab = $state<Tab>('profile');
   let msg = $state<{ ok: boolean; text: string } | null>(null);
 
   // profilo
   let username = $state(app.myProfile?.username ?? '');
   let avatarInput: HTMLInputElement | undefined = $state();
-
+  let cropFile = $state<File | null>(null);
 
   // admin
   let newPass = $state('');
@@ -26,7 +27,13 @@
   let version = $state('');
   let updateState = $state<string | null>(null);
 
-  onMount(async () => {
+  const themes: { v: Theme; label: string }[] = [
+    { v: 'system', label: 'Sincronizza con il sistema' },
+    { v: 'light', label: 'Chiaro' },
+    { v: 'dark', label: 'Scuro' },
+  ];
+
+  onMount(() => {
     appVersion().then((v) => (version = v));
   });
 
@@ -37,6 +44,12 @@
   function flash(ok: boolean, text: string) {
     msg = { ok, text };
     setTimeout(() => (msg = null), 3500);
+  }
+
+  function onKey(e: KeyboardEvent) {
+    if (e.key !== 'Escape') return;
+    if (cropFile) cropFile = null;
+    else app.settingsOpen = false;
   }
 
   async function saveUsername() {
@@ -50,11 +63,10 @@
     }
   }
 
-  async function uploadAvatar(file: File) {
-    if (!file.type.startsWith('image/')) return flash(false, 'Scegli un’immagine.');
-    if (file.size > 5 * 1024 * 1024) return flash(false, 'Massimo 5 MB.');
-    const path = `${app.me}/avatar-${Date.now()}`;
-    const { error } = await supabase.storage.from('attachments').upload(path, file, { contentType: file.type });
+  async function uploadAvatar(blob: Blob) {
+    if (blob.size > 5 * 1024 * 1024) return flash(false, 'Massimo 5 MB.');
+    const path = `${app.me}/avatar-${Date.now()}.jpg`;
+    const { error } = await supabase.storage.from('attachments').upload(path, blob, { contentType: 'image/jpeg' });
     if (error) return flash(false, errorText(error));
     const old = app.myProfile?.avatar_path;
     const { error: e2 } = await supabase.from('profiles').update({ avatar_path: path }).eq('id', app.me!);
@@ -62,6 +74,12 @@
     app.profiles[app.me!] = { ...app.profiles[app.me!], avatar_path: path };
     if (old) supabase.storage.from('attachments').remove([old]);
     flash(true, 'Avatar aggiornato.');
+  }
+
+  function pickAvatar(f: File | undefined) {
+    if (!f) return;
+    if (!f.type.startsWith('image/')) return flash(false, 'Scegli un’immagine.');
+    cropFile = f;
   }
 
   function setPref<K extends keyof typeof prefs>(k: K, v: (typeof prefs)[K]) {
@@ -101,17 +119,25 @@
   }
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && (app.settingsOpen = false)} />
+<svelte:window onkeydown={onKey} />
 
 <div class="bg" role="presentation" onclick={() => (app.settingsOpen = false)}>
   <div class="panel" role="dialog" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
     <nav>
-      <button class:active={tab === 'profile'} onclick={() => (tab = 'profile')}>Profilo</button>
+      <div class="group">Impostazioni utente</div>
+      <button class:active={tab === 'profile'} onclick={() => (tab = 'profile')}>Il mio account</button>
       <button class:active={tab === 'media'} onclick={() => (tab = 'media')}>Voce e video</button>
+      <button class:active={tab === 'notifications'} onclick={() => (tab = 'notifications')}>Notifiche</button>
+      <button class:active={tab === 'appearance'} onclick={() => (tab = 'appearance')}>Aspetto</button>
+
       {#if app.isAdmin}
-        <button class:active={tab === 'admin'} onclick={() => (tab = 'admin')}>Amministrazione</button>
+        <div class="group">Amministrazione</div>
+        <button class:active={tab === 'admin'} onclick={() => (tab = 'admin')}>Server</button>
       {/if}
+
+      <div class="group">App</div>
       <button class:active={tab === 'about'} onclick={() => (tab = 'about')}>Info</button>
+
       <span class="grow"></span>
       <button class="logout" onclick={() => { app.settingsOpen = false; app.signOut(); }}>
         <Icon name="logout" size={15} /> Esci
@@ -119,128 +145,318 @@
     </nav>
 
     <section>
-      <button class="close icon-btn" onclick={() => (app.settingsOpen = false)}><Icon name="x" /></button>
+      <button class="close" title="Chiudi (Esc)" onclick={() => (app.settingsOpen = false)}>
+        <Icon name="x" size={20} />
+        <span>ESC</span>
+      </button>
 
-      {#if tab === 'profile'}
-        <h2>Profilo</h2>
-        <div class="avatar-row">
-          <Avatar id={app.me} size={64} />
-          <button class="btn" onclick={() => avatarInput?.click()}>Cambia avatar</button>
-          <input type="file" accept="image/*" hidden bind:this={avatarInput}
-            onchange={(e) => { const f = e.currentTarget.files?.[0]; if (f) uploadAvatar(f); e.currentTarget.value = ''; }} />
-        </div>
-        <label class="label" for="un">Username</label>
-        <div class="inline">
-          <input id="un" class="field" bind:value={username} />
-          <button class="btn primary" onclick={saveUsername}>Salva</button>
-        </div>
-        <label class="check">
-          <input type="checkbox" checked={prefs.notifications}
-            onchange={(e) => setPref('notifications', e.currentTarget.checked)} />
-          Notifiche desktop per i nuovi messaggi
-        </label>
-      {:else if tab === 'media'}
-        <AudioSettings />
-      {:else if tab === 'admin' && app.isAdmin}
-        <h2>Amministrazione</h2>
-        <label class="label" for="np">Nuova password del server</label>
-        <div class="inline">
-          <input id="np" class="field" type="password" bind:value={newPass} placeholder="Almeno 6 caratteri" />
-          <button class="btn primary" disabled={newPass.length < 6} onclick={changePassword}>Cambia</button>
-        </div>
-        <h3>Utenti bannati</h3>
-        {#if !bans.length}
-          <p class="hint">Nessuno.</p>
-        {/if}
-        {#each bans as b (b.user_id)}
-          <div class="ban">
-            <Avatar id={b.user_id} size={28} />
-            <div class="grow">
-              <div>{app.name(b.user_id)}</div>
-              {#if b.reason}<div class="hint">{b.reason}</div>{/if}
+      <div class="content">
+        {#if tab === 'profile'}
+          <h2>Il mio account</h2>
+          <div class="card">
+            <div class="user-row">
+              <Avatar id={app.me} size={80} />
+              <div class="user-info">
+                <div class="uname">{app.myProfile?.username}</div>
+                <div class="muted small">{app.isAdmin ? 'Admin' : 'Membro'}</div>
+              </div>
+              <button class="btn" onclick={() => avatarInput?.click()}>Cambia avatar</button>
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                bind:this={avatarInput}
+                onchange={(e) => {
+                  pickAvatar(e.currentTarget.files?.[0]);
+                  e.currentTarget.value = '';
+                }}
+              />
             </div>
-            <button class="btn" onclick={() => unban(b.user_id)}>Sbanna</button>
           </div>
-        {/each}
-        <p class="hint">Espelli, banna e muta in vocale dal menu di ogni membro (lista membri a destra nei canali chat).</p>
-      {:else}
-        <h2>Info</h2>
-        <p>Paper <span class="muted">v{version}</span></p>
-        <div class="inline">
-          <button class="btn" onclick={runUpdateCheck}>Controlla aggiornamenti</button>
-          {#if updateState}<span class="hint">{updateState}</span>{/if}
-        </div>
-      {/if}
 
-      {#if msg}
-        <p class="toast" class:bad={!msg.ok}>{msg.text}</p>
-      {/if}
+          <h3>Nome utente</h3>
+          <div class="inline">
+            <input class="field" bind:value={username} />
+            <button class="btn primary" onclick={saveUsername}>Salva</button>
+          </div>
+
+        {:else if tab === 'appearance'}
+          <h2>Aspetto</h2>
+          <h3>Tema</h3>
+          <div class="radios">
+            {#each themes as t (t.v)}
+              <label class="radio-row">
+                <input
+                  type="radio"
+                  name="theme"
+                  checked={prefs.theme === t.v}
+                  onchange={() => setTheme(t.v)}
+                />
+                <span class="radio-dot" class:on={prefs.theme === t.v}></span>
+                <span>{t.label}</span>
+              </label>
+            {/each}
+          </div>
+
+        {:else if tab === 'notifications'}
+          <h2>Notifiche</h2>
+          <div class="toggle-row">
+            <div>
+              <div class="row-title">Notifiche desktop</div>
+              <div class="muted small">Avvisi per i nuovi messaggi e per le chiamate.</div>
+            </div>
+            <button
+              class="switch"
+              class:on={prefs.notifications}
+              role="switch"
+              aria-checked={prefs.notifications}
+              aria-label="Notifiche desktop"
+              onclick={() => setPref('notifications', !prefs.notifications)}
+            >
+              <span></span>
+            </button>
+          </div>
+
+        {:else if tab === 'media'}
+          <AudioSettings />
+
+        {:else if tab === 'admin' && app.isAdmin}
+          <h2>Server</h2>
+          <h3>Nuova password del server</h3>
+          <div class="inline">
+            <input class="field" type="password" bind:value={newPass} placeholder="Almeno 6 caratteri" />
+            <button class="btn primary" disabled={newPass.length < 6} onclick={changePassword}>Cambia</button>
+          </div>
+
+          <h3>Utenti bannati</h3>
+          {#if !bans.length}
+            <p class="muted small">Nessuno.</p>
+          {/if}
+          {#each bans as b (b.user_id)}
+            <div class="ban">
+              <Avatar id={b.user_id} size={28} />
+              <div class="grow">
+                <div>{app.name(b.user_id)}</div>
+                {#if b.reason}<div class="muted small">{b.reason}</div>{/if}
+              </div>
+              <button class="btn" onclick={() => unban(b.user_id)}>Sbanna</button>
+            </div>
+          {/each}
+
+        {:else}
+          <h2>Info</h2>
+          <div class="card">
+            <div class="row-title">Paper</div>
+            <div class="muted small">Versione {version}</div>
+          </div>
+          <div class="inline">
+            <button class="btn" onclick={runUpdateCheck}>Controlla aggiornamenti</button>
+            {#if updateState}<span class="muted small">{updateState}</span>{/if}
+          </div>
+        {/if}
+
+        {#if msg}
+          <p class="toast" class:bad={!msg.ok}>{msg.text}</p>
+        {/if}
+      </div>
     </section>
   </div>
 </div>
+
+{#if cropFile}
+  <div class="crop-bg">
+    <AvatarCropper
+      file={cropFile}
+      onconfirm={(blob) => {
+        cropFile = null;
+        uploadAvatar(blob);
+      }}
+      oncancel={() => (cropFile = null)}
+    />
+  </div>
+{/if}
 
 <style>
   .bg {
     position: fixed;
     inset: 0;
     z-index: 70;
-    background: rgba(0, 0, 0, 0.35);
+    background: var(--bg);
+    display: flex;
+  }
+  .crop-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    background: rgba(0, 0, 0, 0.5);
     display: grid;
     place-items: center;
   }
   .panel {
-    width: min(760px, calc(100% - 40px));
-    height: min(640px, calc(100% - 40px));
+    flex: 1;
     display: grid;
-    grid-template-columns: 200px 1fr;
-    border-radius: var(--r-lg);
-    overflow: hidden;
-    background: var(--bg-elev);
-    box-shadow: var(--shadow);
+    grid-template-columns: 260px 1fr;
+    min-height: 0;
+    background: var(--bg);
   }
   nav {
     background: var(--bg-sidebar);
-    padding: 16px 10px;
+    padding: 60px 6px 16px 18px;
     display: flex;
     flex-direction: column;
     gap: 2px;
+    overflow-y: auto;
+  }
+  .group {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    padding: 14px 10px 6px;
   }
   nav button {
     text-align: left;
-    padding: 7px 10px;
+    height: 34px;
+    padding: 0 10px;
     border-radius: var(--r-sm);
     color: var(--text-2);
     display: flex;
     align-items: center;
     gap: 8px;
+    font-size: 15px;
+    font-weight: 500;
   }
   nav button:hover { background: var(--bg-hover); color: var(--text); }
-  nav button.active { background: var(--bg-active); color: var(--text); font-weight: 500; }
-  .logout { color: var(--red) !important; }
+  nav button.active { background: var(--bg-active); color: var(--text); }
+  .logout { color: var(--red) !important; margin-top: 8px; }
   .grow { flex: 1; }
+
   section {
     position: relative;
-    padding: 24px 28px;
     overflow-y: auto;
+    padding: 60px 40px;
+    display: flex;
+    justify-content: center;
+  }
+  .content {
+    width: 100%;
+    max-width: 680px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 10px;
   }
-  .close { position: absolute; top: 14px; right: 14px; }
-  h2 { margin: 0 0 12px; font-size: 18px; font-weight: 600; }
-  h3 { margin: 22px 0 6px; font-size: 14px; font-weight: 600; }
-  .label { margin-top: 10px; }
+  .close {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    color: var(--text-3);
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .close:hover { color: var(--text); }
+  .close :global(.icon-btn) { width: 36px; height: 36px; }
+
+  h2 { margin: 0 0 16px; font-size: 20px; font-weight: 600; color: var(--text); }
+  h3 {
+    margin: 22px 0 8px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--text-2);
+  }
+  .row-title { font-size: 16px; font-weight: 600; color: var(--text); }
+  .small { font-size: 13px; }
+  .card {
+    background: var(--bg-elev);
+    border-radius: var(--r);
+    padding: 16px;
+  }
+  .user-row { display: flex; align-items: center; gap: 16px; }
+  .user-info { flex: 1; min-width: 0; }
+  .uname { font-size: 18px; font-weight: 600; }
   .inline { display: flex; gap: 8px; align-items: center; }
-  .avatar-row { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
-  .check { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 13px; }
-  .hint { font-size: 12px; color: var(--text-3); margin: 6px 0 0; }
-  .ban { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
-  .toast {
-    margin-top: auto;
-    padding: 8px 12px;
-    border-radius: var(--r-sm);
-    background: color-mix(in srgb, var(--green) 15%, transparent);
-    font-size: 13px;
+  .inline .field { flex: 1; }
+
+  .radios { display: flex; flex-direction: column; gap: 4px; }
+  .radio-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: var(--r);
+    background: var(--bg-elev);
+    cursor: pointer;
+    font-size: 15px;
   }
-  .toast.bad { background: color-mix(in srgb, var(--red) 15%, transparent); }
+  .radio-row input { position: absolute; opacity: 0; pointer-events: none; }
+  .radio-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid var(--text-3);
+    display: grid;
+    place-items: center;
+    flex: none;
+  }
+  .radio-dot.on { border-color: var(--accent); }
+  .radio-dot.on::after {
+    content: '';
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    background: var(--bg-elev);
+    border-radius: var(--r);
+  }
+  .switch {
+    width: 44px;
+    height: 26px;
+    border-radius: 13px;
+    background: var(--bg-active);
+    position: relative;
+    flex: none;
+    transition: background 0.15s;
+  }
+  .switch span {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.15s;
+  }
+  .switch.on { background: var(--green); }
+  .switch.on span { transform: translateX(18px); }
+
+  .ban { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+  .grow { flex: 1; min-width: 0; }
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 16px;
+    border-radius: var(--r-sm);
+    background: color-mix(in srgb, var(--green) 20%, var(--bg-elev));
+    box-shadow: var(--shadow);
+    font-size: 13px;
+    z-index: 95;
+  }
+  .toast.bad { background: color-mix(in srgb, var(--red) 20%, var(--bg-elev)); }
 </style>

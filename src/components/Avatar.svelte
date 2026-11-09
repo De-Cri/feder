@@ -51,7 +51,15 @@
     transition: box-shadow 0.12s;
   }
   .av.speaking { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--green); }
-  img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+  .av img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+  }
   .dot {
     position: absolute;
     right: -1px;

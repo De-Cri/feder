@@ -1,7 +1,8 @@
 // Catena del microfono:
 //   mic (cancellazione eco + AGC del browser)
+//     → mono (downmix al centro)
 //     → soppressione rumore (nessuna / standard del browser / RNNoise AI)
-//     → noise gate opzionale (soglia di attivazione)
+//     → noise gate opzionale
 //     → guadagno di input
 //     → traccia inviata agli altri (+ analizzatore per i meter)
 import { NoiseGateWorkletNode, RnnoiseWorkletNode, loadRnnoise } from '@sapphi-red/web-noise-suppressor';
@@ -90,7 +91,18 @@ export class MicPipeline {
     const nodes: AudioNode[] = [];
     const src = c.createMediaStreamSource(raw);
     nodes.push(src);
-    let last: AudioNode = src;
+
+    // Forza il mono. Alcune interfacce audio danno il microfono su due canali (uno
+    // vuoto): senza questo passaggio la voce arriva solo da un lato. Il downmix la
+    // mette al centro. Se il volume cala di colpo, alza il guadagno di input.
+    const mono = c.createGain();
+    mono.channelCount = 1;
+    mono.channelCountMode = 'explicit';
+    mono.channelInterpretation = 'speakers';
+    src.connect(mono);
+    nodes.push(mono);
+
+    let last: AudioNode = mono;
     let aiFallback = false;
 
     if (o.noise === 'ai') {
