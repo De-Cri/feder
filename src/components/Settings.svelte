@@ -30,7 +30,8 @@
   const themes: { v: Theme; label: string }[] = [
     { v: 'system', label: 'Sincronizza con il sistema' },
     { v: 'light', label: 'Chiaro' },
-    { v: 'dark', label: 'Scuro' },
+    { v: 'dark', label: 'Scuro (grigio)' },
+    { v: 'black', label: 'Nero' },
   ];
 
   onMount(() => {

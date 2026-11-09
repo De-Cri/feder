@@ -7,7 +7,7 @@ import { configured } from './config';
 import type { NoiseMode } from './audio';
 import type { SoundKind } from './sounds';
 
-export type Theme = 'system' | 'light' | 'dark';
+export type Theme = 'system' | 'light' | 'dark' | 'black';
 
 export type Prefs = {
   theme: Theme;
@@ -35,7 +35,7 @@ export type Prefs = {
 };
 
 const DEVICE_KEYS = ['micId', 'camId', 'speakerId'] as const;
-const THEMES: Theme[] = ['system', 'light', 'dark'];
+const THEMES: Theme[] = ['system', 'light', 'dark', 'black'];
 const LOCAL_KEY = 'cerchio-prefs';
 const CHANGED_KEY = 'cerchio-prefs-changed';
 const OLD_THEME_KEY = 'paper.theme';
