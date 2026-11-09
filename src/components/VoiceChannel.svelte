@@ -196,7 +196,7 @@
           <input
             type="range"
             min="0"
-            max="1"
+            max="2"
             step="0.01"
             value={volOf(id, scr)}
             oninput={(e) => setVolume(id, scr, Number(e.currentTarget.value))}

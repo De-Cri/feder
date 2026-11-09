@@ -37,20 +37,23 @@ class ChannelLog {
 
   constructor(public id: number) {}
 
+  /** Una pagina di messaggi (i più recenti, o quelli prima di `before`), in ordine cronologico. */
+  private async page(before?: number): Promise<Message[]> {
+    let q = supabase.from('messages').select('*').eq('channel_id', this.id);
+    if (before !== undefined) q = q.lt('id', before);
+    const { data } = await q.order('id', { ascending: false }).limit(PAGE);
+    const rows = ((data ?? []) as Message[]).reverse();
+    this.hasMore = rows.length === PAGE;
+    return rows;
+  }
+
   async loadInitial() {
     if (this.loaded || this.loading) return;
     this.loading = true;
-    const { data } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('channel_id', this.id)
-      .order('id', { ascending: false })
-      .limit(PAGE);
-    const rows = (data ?? []) as Message[];
+    const rows = await this.page();
     // Unisce eventuali messaggi arrivati via realtime durante il fetch.
     const ids = new Set(rows.map((m) => m.id));
-    this.messages = [...rows.reverse(), ...this.messages.filter((m) => !ids.has(m.id))];
-    this.hasMore = rows.length === PAGE;
+    this.messages = [...rows, ...this.messages.filter((m) => !ids.has(m.id))];
     this.loaded = true;
     this.loading = false;
   }
@@ -58,16 +61,7 @@ class ChannelLog {
   async loadOlder() {
     if (!this.hasMore || this.loading || !this.messages.length) return;
     this.loading = true;
-    const { data } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('channel_id', this.id)
-      .lt('id', this.messages[0].id)
-      .order('id', { ascending: false })
-      .limit(PAGE);
-    const rows = (data ?? []) as Message[];
-    this.messages = [...rows.reverse(), ...this.messages];
-    this.hasMore = rows.length === PAGE;
+    this.messages = [...(await this.page(this.messages[0].id)), ...this.messages];
     this.loading = false;
   }
 
@@ -253,8 +247,7 @@ class AppState {
         for (const [key, metas] of Object.entries(state)) {
           // Più stati per la stessa persona (aggiornamenti ravvicinati, due PC):
           // vale il più recente, non l'ultimo della lista.
-          let best: Presence | null = null;
-          for (const m of metas) if (!best || (m.at ?? 0) >= (best.at ?? 0)) best = m;
+          const best = latest(metas);
           if (best) next[key] = { ...best, user_id: key };
         }
         // Il proprio stato è sempre quello locale (il server può essere un attimo indietro).
@@ -294,9 +287,8 @@ class AppState {
     this.healTimer = setTimeout(() => {
       this.healTimer = undefined;
       if (!this.lobby || !this.me || !this.lobbyJoined) return;
-      const metas = this.lobby.presenceState<Presence>()[this.me] ?? [];
-      const latest = metas.reduce<Presence | null>((b, m) => (!b || (m.at ?? 0) >= (b.at ?? 0) ? m : b), null);
-      if (latest && this.samePresence(latest)) {
+      const mine = latest(this.lobby.presenceState<Presence>()[this.me] ?? []);
+      if (mine && this.samePresence(mine)) {
         this.healAttempts = 0;
         return;
       }
@@ -354,12 +346,17 @@ class AppState {
     if (data) this.profiles[id] = data as Profile;
   }
 
-  private kicked() {
+  /** Chiude la chiamata e le iscrizioni e svuota i dati del server. */
+  private async reset() {
     this.onKicked?.();
-    this.unsubscribe();
+    await this.unsubscribe();
     this.channels = [];
     this.logs = {};
     this.online = {};
+  }
+
+  private async kicked() {
+    await this.reset();
     this.checkMembership();
   }
 
@@ -375,15 +372,16 @@ class AppState {
   }
 
   async signOut() {
-    this.onKicked?.();
-    await this.unsubscribe();
+    await this.reset();
     await supabase.auth.signOut();
     this.membership = 'unknown';
-    this.channels = [];
     this.members = [];
-    this.logs = {};
-    this.online = {};
   }
+}
+
+/** Più stati per la stessa persona (aggiornamenti ravvicinati, due PC): vale il più recente. */
+function latest(metas: Presence[]): Presence | null {
+  return metas.reduce<Presence | null>((b, m) => (!b || (m.at ?? 0) >= (b.at ?? 0) ? m : b), null);
 }
 
 export const app = new AppState();

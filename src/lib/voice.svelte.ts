@@ -25,6 +25,8 @@ type Signal = {
   candidate?: RTCIceCandidateInit | null;
   /** id dello stream dello schermo di chi invia (null = non condivide). */
   screen?: string | null;
+  /** id della connessione di chi invia: se cambia, l'altro l'ha ricreata da zero. */
+  sid?: string;
 };
 
 const STUN: RTCIceServer[] = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }];
@@ -96,6 +98,19 @@ export function preferHardwareCodec(pc: RTCPeerConnection, sender: RTCRtpSender,
   }
 }
 
+/**
+ * Vincoli di cattura dello schermo. Solo `ideal` non basta: su monitor 1440p/4K
+ * Chromium catturava a risoluzione nativa e ogni peer della mesh codificava quel
+ * flusso (CPU al limite = lag). Servono i `max`.
+ */
+function screenVideo(q: { fps: number; height: number }): MediaTrackConstraints {
+  return {
+    frameRate: { ideal: q.fps, max: q.fps },
+    height: { ideal: q.height, max: q.height },
+    width: { max: Math.round((q.height * 16) / 9) },
+  };
+}
+
 /** Aggiunge x-google-start/min-bitrate ai codec video dell'SDP (kbps). */
 export function boostVideoBitrate(sdp: string, start = 1500, min = 300): string {
   if (!sdp.includes('m=video')) return sdp;
@@ -104,10 +119,13 @@ export function boostVideoBitrate(sdp: string, start = 1500, min = 300): string 
   let inVideo = false;
   const seenFmtp = new Set<string>();
   const videoPts: string[] = [];
+  // chiude la sezione video aggiungendo le fmtp mancanti
+  const flush = () => {
+    for (const pt of videoPts) if (!seenFmtp.has(pt)) out.push(`a=fmtp:${pt} x-google-start-bitrate=${start};x-google-min-bitrate=${min}`);
+  };
   for (const line of lines) {
     if (line.startsWith('m=')) {
-      // chiude la sezione video precedente aggiungendo fmtp mancanti
-      if (inVideo) for (const pt of videoPts) if (!seenFmtp.has(pt)) out.push(`a=fmtp:${pt} x-google-start-bitrate=${start};x-google-min-bitrate=${min}`);
+      if (inVideo) flush();
       inVideo = line.startsWith('m=video');
       seenFmtp.clear();
       videoPts.length = 0;
@@ -130,7 +148,7 @@ export function boostVideoBitrate(sdp: string, start = 1500, min = 300): string 
   if (inVideo) {
     // sezione video in fondo: inserisce prima della riga vuota finale
     const tail = out.length && out[out.length - 1] === '' ? out.pop() : undefined;
-    for (const pt of videoPts) if (!seenFmtp.has(pt)) out.push(`a=fmtp:${pt} x-google-start-bitrate=${start};x-google-min-bitrate=${min}`);
+    flush();
     if (tail !== undefined) out.push(tail);
   }
   return out.join('\r\n');
@@ -165,6 +183,8 @@ class Peer {
   speaking = $state(false);
   connection = $state<RTCPeerConnectionState>('new');
   rev = $state(0);
+  sid = crypto.randomUUID();
+  remoteSid: string | undefined;
 
   constructor(
     public id: string,
@@ -242,10 +262,14 @@ class Peer {
     if (!this.polite) this.attachLocalTracks();
     else this.attachTimer = setTimeout(() => this.attachLocalTracks(), 2500);
 
-    // Watchdog: se dopo 10 s non è connesso, riavvia ICE.
+    // Watchdog: dopo 10 s non connesso riavvia ICE; dopo 20 s ricrea la connessione.
+    // Un segnale perso (offerta/risposta) altrimenti lascia un lato su "connessione…"
+    // per sempre, mentre l'altro resta sulla vecchia; il nuovo `sid` riallinea l'altro.
+    let stuck = 0;
     this.watchdog = setInterval(() => {
       const st = this.pc.connectionState;
-      if (st === 'connected' || st === 'closed') return;
+      if (st === 'connected' || st === 'closed') return void (stuck = 0);
+      if (++stuck >= 2) return room.recreate(id);
       if (!this.polite && this.pc.signalingState === 'stable') this.pc.restartIce();
     }, 10_000);
   }
@@ -297,6 +321,7 @@ class Peer {
   /** Contatori diagnostici (utili nei test). */
   stats = { sent: 0, recv: 0, candErr: 0, ignored: 0 };
   handle(sig: Signal) {
+    this.remoteSid ??= sig.sid;
     this.queue = this.queue.then(() => this.apply(sig));
     return this.queue;
   }
@@ -424,6 +449,14 @@ class VoiceRoom {
       const sig = payload as Signal;
       if (sig.to !== this.me || sig.from === this.me) return;
       if (!app.members.some((m) => m.user_id === sig.from)) return;
+      // L'altro ha ricreato la connessione (es. la presenza ci ha persi per un attimo)
+      // mentre noi teniamo la vecchia, ancora "connessa": la sua offerta nuova non
+      // attaccherebbe mai e lui resterebbe su "connessione…". Ricreiamo anche la nostra.
+      const old = this.peers[sig.from];
+      if (old?.remoteSid && sig.sid && sig.sid !== old.remoteSid) {
+        if (sig.description?.type !== 'offer') return; // residui della connessione vecchia
+        this.drop(sig.from);
+      }
       this.peer(sig.from).handle(sig);
     })
       .on('presence', { event: 'sync' }, () => {
@@ -497,12 +530,19 @@ class VoiceRoom {
     this.syncPresence();
   }
 
-  send(to: string, sig: Omit<Signal, 'from' | 'to'>) {
-    this.rt?.send({ type: 'broadcast', event: 'signal', payload: { ...sig, from: this.me, to } });
+  send(to: string, sig: Omit<Signal, 'from' | 'to' | 'sid'>) {
+    const sid = this.peers[to]?.sid;
+    this.rt?.send({ type: 'broadcast', event: 'signal', payload: { ...sig, from: this.me, to, sid } });
   }
 
   private peer(id: string): Peer {
     return (this.peers[id] ??= new Peer(id, this, this.ice));
+  }
+
+  recreate(id: string) {
+    if (!this.peers[id]) return;
+    this.drop(id);
+    this.peer(id);
   }
 
   drop(id: string) {
@@ -660,7 +700,7 @@ class VoiceRoom {
     let s: MediaStream;
     try {
       s = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: q.fps, max: q.fps }, ...(q.height ? { height: { ideal: q.height } } : {}) },
+        video: screenVideo(q),
         audio: prefs.screenAudio
           ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
           : false,
@@ -720,7 +760,7 @@ class VoiceRoom {
     const q = screenSettings();
     t.contentHint = q.hint;
     try {
-      await t.applyConstraints({ frameRate: { ideal: q.fps, max: q.fps }, ...(q.height ? { height: { ideal: q.height } } : {}) });
+      await t.applyConstraints(screenVideo(q));
     } catch {
       /* il sistema non permette di cambiarla al volo: varrà alla prossima condivisione */
     }
@@ -735,21 +775,22 @@ class VoiceRoom {
   }
 
   async tuneBitrate(p: Peer) {
-    const set = async (sender: RTCRtpSender | null, bitrate: number, degradation?: RTCDegradationPreference) => {
+    const set = async (sender: RTCRtpSender | null, bitrate: number, fps: number, degradation?: RTCDegradationPreference) => {
       if (!sender) return;
       try {
         const params = sender.getParameters();
         if (!params.encodings?.length) params.encodings = [{}];
         params.encodings[0].maxBitrate = bitrate;
+        params.encodings[0].maxFramerate = fps;
         if (degradation) params.degradationPreference = degradation;
         await sender.setParameters(params);
       } catch {
         /* non ancora negoziato: riprova a connessione avvenuta */
       }
     };
-    await set(p.camSender, CAM_BITRATE);
+    await set(p.camSender, CAM_BITRATE, 30);
     const q = screenSettings();
-    await set(p.screenSender, q.bitrate, q.degradation);
+    await set(p.screenSender, q.bitrate, q.fps, q.degradation);
   }
 
   private syncPresence() {
@@ -777,6 +818,17 @@ app.onMemberLeft = (id) => voice.drop(id);
   for (const p of Object.values(voice.peers)) {
     const stats = await p.pc.getStats();
     stats.forEach((r) => {
+      // rete tra voi (round-trip) dalla coppia ICE attiva
+      if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') {
+        rows.push({
+          con: app.name(p.id),
+          dir: 'rete',
+          kind: stats.get(r.localCandidateId)?.candidateType === 'relay' ? 'via TURN' : 'diretta',
+          limite: `ping ${Math.round((r.currentRoundTripTime ?? 0) * 1000)} ms`,
+          codec: r.availableOutgoingBitrate ? `${Math.round(r.availableOutgoingBitrate / 1000)} kbps disp.` : '',
+          stato: p.connection,
+        });
+      }
       if ((r.type === 'outbound-rtp' || r.type === 'inbound-rtp') && (r.kind === 'video' || r.kind === 'audio')) {
         rows.push({
           con: app.name(p.id),
@@ -794,29 +846,6 @@ app.onMemberLeft = (id) => voice.drop(id);
               ? `${Math.round((r.jitterBufferDelay / r.jitterBufferEmittedCount) * 1000)} ms`
               : '',
           codec: stats.get(r.codecId)?.mimeType ?? '',
-          stato: p.connection,
-        });
-      }
-    });
-  }
-  // rete tra voi (round-trip) dalla coppia ICE attiva
-  for (const p of Object.values(voice.peers)) {
-    const stats = await p.pc.getStats();
-    stats.forEach((r) => {
-      if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') {
-        const local = stats.get(r.localCandidateId);
-        rows.push({
-          con: app.name(p.id),
-          dir: 'rete',
-          kind: local?.candidateType === 'relay' ? 'via TURN' : 'diretta',
-          fps: '',
-          frames: '',
-          size: '',
-          limite: `ping ${Math.round((r.currentRoundTripTime ?? 0) * 1000)} ms`,
-          blocchi: '',
-          persi: '',
-          buffer: '',
-          codec: r.availableOutgoingBitrate ? `${Math.round(r.availableOutgoingBitrate / 1000)} kbps disp.` : '',
           stato: p.connection,
         });
       }

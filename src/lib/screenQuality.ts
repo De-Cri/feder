@@ -1,6 +1,6 @@
 // Qualità della condivisione schermo: risoluzione e fps liberi, con stima del
 // carico e avvisi quando si esagera.
-import { prefs } from './prefs.svelte';
+import { prefs, clampScreen } from './prefs.svelte';
 
 /** Le sole combinazioni permesse: oltre, il carico su PC e rete non regge in una chiamata a più persone. */
 export const SCREEN_OPTIONS = [
@@ -9,25 +9,16 @@ export const SCREEN_OPTIONS = [
   { height: 1080, fps: 30, label: '1080p · 30 fps' },
 ] as const;
 
-/** Riporta impostazioni vecchie o non valide alla combinazione permessa più vicina. */
-export function clampScreen(height: number, fps: number): { height: number; fps: number } {
-  if (height >= 1080 || height === 0) return { height: 1080, fps: 30 };
-  return { height: 720, fps: fps >= 45 ? 60 : 30 };
-}
-
 export type ScreenSettings = {
-  height: number; // 0 = nativa
+  height: number;
   fps: number;
   bitrate: number; // bps per spettatore
   hint: 'motion' | 'detail';
   degradation: RTCDegradationPreference;
 };
 
-/** Pixel stimati per una risoluzione (16:9; "nativa" = schermo attuale). */
-function pixels(height: number): number {
-  const h = height || (typeof screen !== 'undefined' ? screen.height * (devicePixelRatio || 1) : 1080);
-  return Math.round((h * 16) / 9) * h;
-}
+/** Pixel per una risoluzione 16:9. */
+const pixels = (h: number) => Math.round((h * 16) / 9) * h;
 
 export function screenSettings(): ScreenSettings {
   const { height, fps } = clampScreen(prefs.screenHeight, prefs.screenFps);
