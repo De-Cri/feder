@@ -85,6 +85,12 @@
     a?.setSinkId?.(sink || '').catch(() => {});
   });
 
+  // Le uscite audio (e i nomi) compaiono solo dopo il permesso del microfono:
+  // rileggi l'elenco quando parte la chiamata o il test.
+  $effect(() => {
+    if (active) refreshDevices();
+  });
+
   // Le modifiche alla catena ricreano il microfono (debounce per gli slider).
   let timer: ReturnType<typeof setTimeout> | undefined;
   function rebuild() {
@@ -254,7 +260,9 @@
   h2 { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
   h3 { margin: 20px 0 4px; font-size: 13px; font-weight: 600; color: var(--text-2); }
   .label { margin-top: 8px; }
-  select.field { appearance: auto; }
+  select.field { appearance: auto; font: inherit; color: inherit; }
+  /* Il fondo del select è semitrasparente: senza colori pieni la tendina di Windows esce bianca. */
+  select.field option { background: var(--bg-elev); color: var(--text); }
   .slider { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 13px; }
   .slider > span:first-child { width: 78px; color: var(--text-2); }
   .slider input { flex: 1; accent-color: var(--accent); }

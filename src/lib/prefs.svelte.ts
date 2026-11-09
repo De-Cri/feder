@@ -14,7 +14,7 @@ export type Prefs = {
   gateEnabled: boolean;
   gateDb: number; // soglia di attivazione, -80..-10
   outputVolume: number; // 0..1
-  userVolumes: Record<string, number>; // 0..1 per utente
+  userVolumes: Record<string, number>; // 0..2 per utente
   screenQuality: 'smooth' | 'sharp';
   screenAudio: boolean;
   sounds: Record<SoundKind, boolean>;

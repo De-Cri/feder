@@ -548,7 +548,13 @@ class VoiceRoom {
     let s: MediaStream;
     try {
       s = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: q.frameRate }, height: { ideal: q.height } },
+        // Solo `ideal` non basta: su monitor 1440p/4K Chromium catturava a risoluzione
+        // nativa e ogni peer della mesh codificava quel flusso (CPU al limite = lag).
+        video: {
+          frameRate: { ideal: q.frameRate, max: q.frameRate },
+          height: { ideal: q.height, max: q.height },
+          width: { max: Math.round((q.height * 16) / 9) },
+        },
         audio: prefs.screenAudio
           ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
           : false,
@@ -641,6 +647,7 @@ class VoiceRoom {
       if (!params.encodings?.length) params.encodings = [{}];
       const screen = this.videoKind === 'screen';
       params.encodings[0].maxBitrate = screen ? SCREEN[prefs.screenQuality].bitrate : CAM_BITRATE;
+      params.encodings[0].maxFramerate = screen ? SCREEN[prefs.screenQuality].frameRate : 30;
       if (screen) params.degradationPreference = prefs.screenQuality === 'sharp' ? 'maintain-resolution' : 'balanced';
       await s.setParameters(params);
     } catch {

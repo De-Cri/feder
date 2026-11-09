@@ -182,7 +182,7 @@
           <input
             type="range"
             min="0"
-            max="1"
+            max="2"
             step="0.01"
             value={userVolume(id)}
             oninput={(e) => setUserVolume(id, Number(e.currentTarget.value))}
