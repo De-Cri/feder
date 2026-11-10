@@ -10,6 +10,18 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.4.4',
+    date: '10 novembre 2026',
+    added: [
+      'Impostazioni con un nuovo stile, allineato alla barra laterale delle chat.',
+      'Nuove tendine per scegliere microfono, uscita audio e webcam.',
+    ],
+    test: [
+      'Impostazioni → Voce e video: apri le tendine di microfono, uscita audio e webcam e cambia dispositivo.',
+      'Controlla che nelle tendine non ci siano voci doppie "Predefinito - …" o "Comunicazioni - …".',
+    ],
+  },
+  {
     version: '0.4.3',
     date: '10 novembre 2026',
     added: [
@@ -40,22 +52,6 @@ export const RELEASES: Release[] = [
       'Mentre sei in vocale, entra in un altro canale: devi continuare a vedere chi c\'è nel primo.',
       'Mentre sei in chiamata dall\'app, apri Paper anche dal browser: gli altri devono vederti ancora in chiamata.',
       'Impostazioni → Aspetto → prova "Nero profondo".',
-    ],
-  },
-  {
-    version: '0.4.1',
-    date: '9 novembre 2026',
-    added: [
-      'Tema Nero, con i colori scuri di prima.',
-      'Condivisione schermo limitata alla qualità scelta (720p o 1080p): meno carico su PC con monitor 2K o 4K.',
-      'La voce si sblocca da sola se una connessione resta su "connessione…".',
-      'Volume degli amici fino al 200%.',
-      'Elenco dispositivi senza doppioni e tendine leggibili su Windows.',
-    ],
-    test: [
-      'Impostazioni → Aspetto → Nero.',
-      'In chiamata, tasto destro su un amico → porta il volume oltre il 100%.',
-      'Impostazioni → Voce e video: niente più voci doppie "Predefinito - …" o "Comunicazioni - …".',
     ],
   },
 ];
