@@ -1,3 +1,23 @@
+<script module lang="ts">
+  type SinkContext = AudioContext & { setSinkId?: (id: string) => Promise<void> };
+  // Un solo AudioContext per tutte le persone amplificate oltre il 100%, non uno
+  // a testa (ognuno è un thread audio con la sua uscita). Si chiude quando
+  // nessuno lo usa più.
+  let shared: SinkContext | null = null;
+  let users = 0;
+  function acquire(): SinkContext {
+    users++;
+    if (!shared || shared.state === 'closed') shared = new AudioContext();
+    return shared;
+  }
+  function release() {
+    if (--users > 0 || !shared) return;
+    users = 0;
+    shared.close().catch(() => {});
+    shared = null;
+  }
+</script>
+
 <script lang="ts">
   import { prefs } from '../lib/prefs.svelte';
 
@@ -8,12 +28,28 @@
   // ponytail: oltre il 100% l'AEC potrebbe non vedere l'audio amplificato; se torna eco, limitare a 1.
   let { stream, volume }: { stream: MediaStream; volume: number } = $props();
   let el: HTMLAudioElement | undefined = $state();
-  let ctx: (AudioContext & { setSinkId?: (id: string) => Promise<void> }) | undefined;
-  let gain: GainNode | undefined;
+  /** Amplificazione oltre il 100%: esiste solo mentre serve. */
+  let amp: { ctx: SinkContext; src: MediaStreamAudioSourceNode; gain: GainNode; stream: MediaStream } | null = null;
+
+  function stopAmp() {
+    if (!amp) return;
+    amp.src.disconnect();
+    amp.gain.disconnect();
+    amp = null;
+    release();
+  }
 
   $effect(() => {
     if (el && el.srcObject !== stream) el.srcObject = stream;
     el?.play().catch(() => {});
+  });
+  // Rimosso il componente (persona uscita, stream finita): stacca subito lo stream.
+  $effect(() => {
+    const a = el;
+    if (!a) return;
+    return () => {
+      a.srcObject = null;
+    };
   });
 
   $effect(() => {
@@ -22,17 +58,20 @@
     if (v <= 1) {
       el.muted = false;
       el.volume = v;
-      if (gain) gain.gain.value = 0;
+      stopAmp(); // non serve più: niente grafo audio acceso a guadagno 0
       return;
     }
-    if (!ctx) {
-      ctx = new AudioContext();
-      gain = ctx.createGain();
-      ctx.createMediaStreamSource(stream).connect(gain).connect(ctx.destination);
+    if (amp && amp.stream !== stream) stopAmp();
+    if (!amp) {
+      const ctx = acquire();
+      const gain = ctx.createGain();
+      const src = ctx.createMediaStreamSource(stream);
+      src.connect(gain).connect(ctx.destination);
       ctx.setSinkId?.(prefs.speakerId || '').catch(() => {});
+      amp = { ctx, src, gain, stream };
     }
-    ctx.resume().catch(() => {});
-    gain!.gain.value = v;
+    amp.ctx.resume().catch(() => {});
+    amp.gain.gain.value = v;
     el.muted = true;
   });
 
@@ -40,12 +79,10 @@
     const sink = prefs.speakerId;
     const a = el as (HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> }) | undefined;
     if (a?.setSinkId) a.setSinkId(sink || '').catch(() => {});
-    ctx?.setSinkId?.(sink || '').catch(() => {});
+    amp?.ctx.setSinkId?.(sink || '').catch(() => {});
   });
 
-  $effect(() => () => {
-    ctx?.close().catch(() => {});
-  });
+  $effect(() => () => stopAmp());
 </script>
 
 <audio bind:this={el} autoplay></audio>

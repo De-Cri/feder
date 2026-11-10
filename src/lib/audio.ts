@@ -30,6 +30,18 @@ export function audioContext(): AudioContext {
   return ctx;
 }
 
+// Catene del microfono attive (chiamata, test nelle impostazioni). Quando non ce
+// n'è più nessuna il contesto si chiude: libera il thread audio, i worklet e la
+// memoria WASM di RNNoise invece di tenerli vivi fino alla chiusura dell'app.
+let pipelines = 0;
+function release() {
+  if (--pipelines > 0 || !ctx) return;
+  pipelines = 0;
+  const c = ctx;
+  ctx = null;
+  c.close().catch(() => {});
+}
+
 let rnnoiseWasm: Promise<ArrayBuffer> | null = null;
 const loadedWorklets = new WeakMap<AudioContext, Set<string>>();
 
@@ -57,6 +69,7 @@ export class MicPipeline {
   private analyserNode: AnalyserNode;
   private nodes: AudioNode[] = [];
   private buf: Float32Array<ArrayBuffer>;
+  private stopped = false;
 
   private constructor(raw: MediaStream, out: MediaStream, gain: GainNode, an: AnalyserNode, nodes: AudioNode[]) {
     this.raw = raw;
@@ -77,6 +90,18 @@ export class MicPipeline {
       autoGainControl: o.autoGain,
       channelCount: 1,
     });
+    // Conta subito: un'altra catena che si ferma mentre questa si crea non deve
+    // chiudere il contesto sotto i nostri piedi.
+    pipelines++;
+    try {
+      return await MicPipeline.build(o, audio);
+    } catch (e) {
+      release();
+      throw e;
+    }
+  }
+
+  private static async build(o: MicOptions, audio: (deviceId?: string) => MediaTrackConstraints): Promise<MicPipeline> {
     let raw: MediaStream;
     let deviceFallback = false;
     try {
@@ -156,7 +181,8 @@ export class MicPipeline {
   }
 
   setGain(v: number) {
-    this.gainNode.gain.setTargetAtTime(v, audioContext().currentTime, 0.02);
+    // il contesto di questa catena (audioContext() ne ricreerebbe uno se chiuso)
+    this.gainNode.gain.setTargetAtTime(v, this.gainNode.context.currentTime, 0.02);
   }
 
   /** Livello in dBFS (≈ -100 silenzio, 0 massimo). */
@@ -169,6 +195,8 @@ export class MicPipeline {
   }
 
   stop() {
+    if (this.stopped) return;
+    this.stopped = true;
     this.raw.getTracks().forEach((t) => t.stop());
     this.track.stop();
     for (const n of this.nodes) {
@@ -179,6 +207,8 @@ export class MicPipeline {
       }
       if (n instanceof RnnoiseWorkletNode) n.destroy?.();
     }
+    this.nodes = [];
+    release();
   }
 }
 
