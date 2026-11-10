@@ -12,7 +12,10 @@
     "release": "node scripts/release.mjs",
     "electron:dev": "node scripts/electron-dev.mjs",
     "electron:build": "npm run build && electron-builder --linux --publish never",
-    "wizard": "node scripts/wizard.mjs"
+    "wizard": "node scripts/wizard.mjs",
+    "mem": "node scripts/mem.mjs",
+    "test:voice": "node tests/voice/all.cjs",
+    "test:memory": "node tests/voice/memory.cjs"
   },
   "dependencies": {
     "electron-updater": "^6.8.11"
@@ -30,6 +33,7 @@
     "@tsconfig/svelte": "^5.0.8",
     "electron": "^45.2.3",
     "electron-builder": "^26.18.0",
+    "playwright": "^1.65.0",
     "svelte": "^5.57.3",
     "svelte-check": "^4.7.8",
     "typescript": "^5.9.3",

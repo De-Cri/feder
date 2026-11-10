@@ -29,3 +29,12 @@ app.channels = [3, 4].map((id) => ({ id, name: 'v' + id, kind: 'voice', position
 
 // L'audio della chiamata vive fuori dalla schermata vocale (come in Shell).
 mount(VoiceAudio, { target: document.body });
+
+// ?ui=1: mostra anche la schermata vocale vera (riquadri video), per i test di memoria.
+if (new URLSearchParams(location.search).has('ui')) {
+  const { default: VoiceChannel } = await import('../../src/components/VoiceChannel.svelte');
+  const target = document.createElement('div');
+  target.style.cssText = 'width:1000px;height:700px;display:flex;flex-direction:column';
+  document.body.appendChild(target);
+  mount(VoiceChannel, { target, props: { channel: app.channels[0] } });
+}
