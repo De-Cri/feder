@@ -1,5 +1,10 @@
+<script module lang="ts">
+  // Posizione dello scroll per canale, finché l'app resta aperta.
+  const scrollMemory = new Map<number, { top: number; bottom: boolean }>();
+</script>
+
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import { supabase } from '../lib/supabase';
   import { app, type Channel, type Message } from '../lib/state.svelte';
   import { time, day, splitLinks, errorText } from '../lib/util';
@@ -18,7 +23,9 @@
   let error = $state<string | null>(null);
   let dragging = $state(false);
   let fileInput: HTMLInputElement;
-  let stick = true;
+  // Se torni in un canale dove non eri in fondo, non ti riportiamo in fondo.
+  const saved = untrack(() => scrollMemory.get(channel.id)); // il componente è ricreato a ogni cambio canale
+  let stick = !saved || saved.bottom;
 
   const MAX = 50 * 1024 * 1024;
 
@@ -43,7 +50,9 @@
   onMount(async () => {
     await log.loadInitial();
     await tick();
-    scroller.scrollTop = scroller.scrollHeight;
+    // Torna dove eri rimasto in questo canale (in fondo se eri in fondo o è la prima volta).
+    if (saved && !saved.bottom) scroller.scrollTop = saved.top;
+    else scroller.scrollTop = scroller.scrollHeight;
     input?.focus();
   });
 
@@ -58,6 +67,8 @@
   });
 
   async function onScroll() {
+    const bottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
+    scrollMemory.set(channel.id, { top: scroller.scrollTop, bottom });
     if (scroller.scrollTop < 120 && log.hasMore && !log.loading) {
       const before = scroller.scrollHeight;
       stick = false;

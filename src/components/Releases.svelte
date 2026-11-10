@@ -14,14 +14,13 @@
   <header>
     <Icon name="megaphone" size={18} />
     <h2>novità</h2>
-    <span class="muted">Le ultime versioni di Paper e come provarle</span>
   </header>
 
   <div class="scroller">
     {#each RELEASES as r, i (r.version)}
       <article>
         <div class="head">
-          <span class="ver">Paper {r.version}</span>
+          <span class="ver">Feder {r.version}</span>
           {#if i === 0}<span class="tag">ultima</span>{/if}
           <span class="date">{r.date}</span>
         </div>
@@ -57,16 +56,6 @@
     min-width: 0;
   }
   h2 { font-size: 15px; font-weight: 600; margin: 0; color: var(--text); }
-  .muted {
-    margin-left: 6px;
-    padding-left: 12px;
-    border-left: 1px solid var(--border-strong);
-    font-size: 13px;
-    color: var(--text-3);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
   .scroller {
     flex: 1;
     overflow-y: auto;

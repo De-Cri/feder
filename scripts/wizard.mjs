@@ -350,7 +350,7 @@ async function buildInCloud() {
 }
 
 // ---- main -------------------------------------------------------------------
-console.log(c.b('\n  Paper — installazione guidata'));
+console.log(c.b('\n  Feder — installazione guidata'));
 console.log(c.dim(`  Sistema: ${WIN ? 'Windows' : LINUX ? `Linux (${DISTRO})` : platform}${DRY ? ' · DRY-RUN' : ''}`));
 
 const cfg = JSON.parse(readFileSync('cerchio.config.json', 'utf8'));

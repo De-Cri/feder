@@ -18,6 +18,8 @@ export type Message = {
   attachment_size: number | null;
   created_at: string;
 };
+export const POKE_MAX = 120;
+
 export type Presence = {
   user_id: string;
   at?: number; // quando è stato pubblicato (per scartare stati vecchi)
@@ -115,6 +117,10 @@ class AppState {
   channels = $state<Channel[]>([]);
   voiceMutes = $state<Record<string, true>>({});
   online = $state<Record<string, Presence>>({});
+  /** Poke ricevuti (come su TeamSpeak), mostrati finché non li chiudi. */
+  pokes = $state<{ key: number; from: string; text: string }[]>([]);
+  private pokeKey = 0;
+  private lastPoke: Record<string, number> = {};
   logs: Record<number, ChannelLog> = {};
   unread = $state<Record<number, number>>({});
 
@@ -294,6 +300,15 @@ class AppState {
       }
       this.detectCalls(next);
       this.online = next;
+    }).on('broadcast', { event: 'poke' }, ({ payload }) => {
+      if (this.lobby !== ch) return;
+      const { from, to, text } = (payload ?? {}) as { from?: string; to?: string; text?: string };
+      if (to !== this.me || !from || !this.members.some((m) => m.user_id === from)) return;
+      const msg = String(text ?? '').slice(0, POKE_MAX);
+      if (this.pokes.length >= 5) this.pokes = this.pokes.slice(-4); // niente pila infinita
+      this.pokes = [...this.pokes, { key: ++this.pokeKey, from, text: msg }];
+      playSound('poke');
+      notify(`${this.name(from)} ti ha fatto un poke`, msg || 'Poke!');
     }).subscribe(async (status) => {
       if (this.lobby !== ch) return; // canale vecchio, già sostituito o chiuso da noi
       this.lobbyJoined = status === 'SUBSCRIBED';
@@ -312,6 +327,19 @@ class AppState {
         }, 3000);
       }
     });
+  }
+
+  /** Manda un poke a qualcuno (max uno ogni 3 s per persona). false = troppo presto o non connesso. */
+  poke(to: string, text: string): boolean {
+    const now = Date.now();
+    if (!this.lobby || !this.lobbyJoined || !this.me || now - (this.lastPoke[to] ?? 0) < 3000) return false;
+    this.lastPoke[to] = now;
+    this.lobby.send({ type: 'broadcast', event: 'poke', payload: { from: this.me, to, text: text.trim().slice(0, POKE_MAX) } });
+    return true;
+  }
+
+  closePoke(key: number) {
+    this.pokes = this.pokes.filter((p) => p.key !== key);
   }
 
   /** Il server ha il nostro stato attuale (cercando tra gli stati di QUESTA copia dell'app). */

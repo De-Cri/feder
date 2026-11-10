@@ -46,7 +46,7 @@ jobs:
         run: |
           TAG=${{ steps.v.outputs.tag }}
           gh release view "$TAG" -R "${{ github.repository }}" >/dev/null 2>&1 || gh release create "$TAG" -R "${{ github.repository }}" \
-            --title "Paper $TAG" \
+            --title "Feder $TAG" \
             --notes "Windows: scarica il file -setup.exe. Linux: .AppImage (qualsiasi distro), .deb (Ubuntu/Debian) o .rpm (Fedora). Chi ha già l'app riceve l'aggiornamento in automatico."
 
   windows:
@@ -76,7 +76,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ needs.create-release.outputs.tag }}
-          releaseName: 'Paper ${{ needs.create-release.outputs.tag }}'
+          releaseName: 'Feder ${{ needs.create-release.outputs.tag }}'
           releaseDraft: false
           prerelease: false
 

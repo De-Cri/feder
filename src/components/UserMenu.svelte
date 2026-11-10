@@ -7,6 +7,7 @@
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
   import VolumeSlider from './VolumeSlider.svelte';
+  import PokeItem from './PokeItem.svelte';
 
   // Menu del tasto destro su una persona. Usato da lista membri, sidebar vocale e chat.
   let {
@@ -86,12 +87,13 @@
       <Icon name={vol > 0 ? 'volume' : 'mic-off'} size={15} />
       {vol > 0 ? 'Silenzia per me' : 'Riattiva audio'}
     </button>
+    {#if app.presence[id]?.deaf}<PokeItem {id} onsent={onclose} />{/if}
   {/if}
 
   {#if app.isAdmin}
     <div class="sep"></div>
     <button class="item" onclick={() => run('admin_set_contributor', { p_user: id, p_on: !member?.contributor })}>
-      <Icon name="code" size={15} />
+      <Icon name="sword" size={15} />
       {member?.contributor ? 'Togli badge Contributor' : 'Dai badge Contributor'}
     </button>
   {/if}

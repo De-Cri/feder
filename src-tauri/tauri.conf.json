@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Paper",
+  "productName": "Feder",
   "version": "0.4.5",
   "identifier": "app.cerchio.desktop",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Paper",
+        "title": "Feder",
         "width": 1180,
         "height": 760,
         "minWidth": 820,
@@ -45,7 +45,8 @@
     ],
     "windows": {
       "nsis": {
-        "installMode": "currentUser"
+        "installMode": "currentUser",
+        "installerHooks": "./windows/hooks.nsh"
       }
     }
   },

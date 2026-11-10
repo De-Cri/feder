@@ -27,7 +27,7 @@
           <div class="grid">
             {#each group.list as s (s.id)}
               <button class="src" onclick={() => choose(s.id)}>
-                <img src={s.thumb} alt="" draggable="false" />
+                <img src={s.thumb || undefined} alt="" draggable="false" />
                 <span>{s.name}</span>
               </button>
             {/each}

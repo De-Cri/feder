@@ -1,4 +1,4 @@
-# Sviluppare Paper insieme
+# Sviluppare Feder insieme
 
 Il codice sta nel repo **privato** `cerchio` (il nome del repo è rimasto quello vecchio: cambiarlo romperebbe gli aggiornamenti automatici). Gli installer vengono pubblicati nel repo pubblico `cerchio-releases`.
 

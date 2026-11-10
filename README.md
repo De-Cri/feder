@@ -1,4 +1,4 @@
-# Paper
+# Feder
 
 Un Discord privato per pochi amici: **un solo server**, **2 canali chat**, **2 canali voce/video**, un solo admin.
 App desktop per **Windows** (Tauri 2, circa 4 MB) e **Linux** (Electron, perché la webview di sistema su Linux spesso non ha WebRTC). Il backend è Supabase free, la voce viaggia P2P (WebRTC). **Costo: 0 €.**

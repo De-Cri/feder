@@ -1,4 +1,4 @@
-# Paper - avvio del wizard su Windows.
+# Feder - avvio del wizard su Windows.
 # Se manca Node.js (serve per il wizard) chiede il permesso e lo installa con winget.
 $ErrorActionPreference = 'Continue'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8

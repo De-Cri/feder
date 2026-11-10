@@ -94,6 +94,7 @@
 
   const count = $derived(tiles.length);
   const cols = $derived(count <= 1 ? 1 : count <= 4 ? 2 : 3);
+  const rows = $derived(Math.max(1, Math.ceil(count / cols)));
 </script>
 
 {#snippet tileView(t: Tile, isFocused: boolean)}
@@ -148,7 +149,7 @@
           </div>
         {/if}
       {:else}
-        <div class="grid" style="--cols:{cols}">
+        <div class="grid" style="--cols:{cols}; --rows:{rows}">
           {#each tiles as t (t.key)}
             {@render tileView(t, false)}
           {/each}
@@ -199,10 +200,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    container-type: size;
   }
+  /* Riquadri 16:9: la griglia non può essere più larga di quanto ci sta in altezza,
+     altrimenti con la finestra larga e bassa i riquadri escono sopra e sotto. */
   .grid {
-    width: 100%;
-    max-width: 1200px;
+    width: min(100%, 1200px, calc((100cqh - (var(--rows) - 1) * 10px) / var(--rows) * 16 / 9 * var(--cols) + (var(--cols) - 1) * 10px));
     display: grid;
     grid-template-columns: repeat(var(--cols), 1fr);
     gap: 10px;

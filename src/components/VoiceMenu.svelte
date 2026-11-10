@@ -5,6 +5,7 @@
   import { supabase } from '../lib/supabase';
   import Icon from './Icon.svelte';
   import VolumeSlider from './VolumeSlider.svelte';
+  import PokeItem from './PokeItem.svelte';
 
   // Menu del tasto destro su una persona in vocale: volume, silenzio, mute admin.
   // Si chiude con un clic o un tasto destro fuori dal menu, oppure con Esc.
@@ -59,6 +60,7 @@
     <Icon name={vol > 0 ? 'volume' : 'mic-off'} size={15} />
     {vol > 0 ? (screen ? 'Silenzia la stream' : 'Silenzia per me') : 'Riattiva audio'}
   </button>
+  {#if !screen && app.presence[id]?.deaf}<PokeItem {id} onsent={onclose} />{/if}
   {#if app.isAdmin && !screen}
     <button onclick={toggleVoiceMute}>
       <Icon name="mic-off" size={15} />
