@@ -1,5 +1,5 @@
 /* Paper: stile ispirato a Discord. Tema chiaro/scuro: di default segue il sistema,
-   data-theme="light", "dark" (grigio), "black"/"black-blue" (nero, come prima) o "oled" (nero profondo) (impostato da lib/theme.ts) lo forza. */
+   data-theme="light", "dark" (grigio), "black" (nero, come prima) o "oled" (nero profondo) (impostato da lib/theme.ts) lo forza. */
 
 :root,
 :root[data-theme='light'] {
@@ -72,9 +72,8 @@
   }
 }
 
-/* Nero: la palette scura delle versioni precedenti alla 0.4 (anche "Nero blu"). */
-:root[data-theme='black'],
-:root[data-theme='black-blue'] {
+/* Nero: la palette scura delle versioni precedenti alla 0.4. */
+:root[data-theme='black'] {
   --bg: #1e1e20;
   --bg-sidebar: #19191b;
   --bg-elev: #2a2a2d;
@@ -90,12 +89,6 @@
   --accent-soft: rgba(88, 101, 242, 0.2);
   --shadow: 0 8px 30px rgba(0, 0, 0, 0.45), 0 0 0 0.5px rgba(255, 255, 255, 0.1);
   color-scheme: dark;
-}
-
-/* Nero blu: identico alla 0.3.0, con l'accento blu di allora. */
-:root[data-theme='black-blue'] {
-  --accent: #0a84ff;
-  --accent-soft: rgba(10, 132, 255, 0.2);
 }
 
 /* Nero profondo: quasi nero, per la sera e gli schermi OLED. */
@@ -206,3 +199,33 @@ input, textarea {
 ::-webkit-scrollbar-track { background: transparent; }
 
 .selectable { user-select: text; -webkit-user-select: text; }
+/* Pannelli laterali: sidebar chat, lista membri e menu impostazioni usano questa stessa classe. */
+.side {
+  background: var(--bg-sidebar);
+}
+/* Voci di navigazione: stesse misure nella sidebar delle chat e nelle impostazioni. */
+.nav-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 16px 8px 6px;
+}
+.nav-label:first-child { padding-top: 4px; }
+
+.nav-item {
+  width: 100%;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-2);
+  text-align: left;
+}
+.nav-item:hover { background: var(--bg-hover); color: var(--text); }
+.nav-item.active { background: var(--bg-active); color: var(--text); }

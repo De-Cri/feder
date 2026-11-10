@@ -10,6 +10,22 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.4.3',
+    date: '10 novembre 2026',
+    added: [
+      'Barra laterale più pulita: i controlli della chiamata (microfono, audio, webcam, schermo, termina) sono in basso a sinistra, sempre a portata di mano.',
+      'Canale vocale più spazioso: niente più barra dei pulsanti sotto i riquadri.',
+      'La lista membri resta sempre aperta nei canali di testo.',
+      'Ritaglio della foto profilo: l\'immagine si sposta nel verso in cui trascini.',
+      'Tolto il tema Nero blu: chi lo usava passa a Nero.',
+    ],
+    test: [
+      'Entra in un canale vocale e usa i pulsanti in basso nella barra laterale: microfono, audio, webcam, schermo e termina chiamata.',
+      'Apri un canale di testo: a destra c\'è la lista membri. In un canale vocale non deve comparire.',
+      'Impostazioni → Account → cambia foto e trascinala: deve seguire il mouse.',
+    ],
+  },
+  {
     version: '0.4.2',
     date: '10 novembre 2026',
     added: [
@@ -23,7 +39,7 @@ export const RELEASES: Release[] = [
       'Entra in un canale vocale e accendi/spegni microfono e webcam più volte di fila: chi è fuori dalla chiamata deve vederti sempre nel canale giusto (al massimo con qualche secondo di ritardo).',
       'Mentre sei in vocale, entra in un altro canale: devi continuare a vedere chi c\'è nel primo.',
       'Mentre sei in chiamata dall\'app, apri Paper anche dal browser: gli altri devono vederti ancora in chiamata.',
-      'Impostazioni → Aspetto → prova "Nero blu" e "Nero profondo".',
+      'Impostazioni → Aspetto → prova "Nero profondo".',
     ],
   },
   {
@@ -40,22 +56,6 @@ export const RELEASES: Release[] = [
       'Impostazioni → Aspetto → Nero.',
       'In chiamata, tasto destro su un amico → porta il volume oltre il 100%.',
       'Impostazioni → Voce e video: niente più voci doppie "Predefinito - …" o "Comunicazioni - …".',
-    ],
-  },
-  {
-    version: '0.4.0',
-    date: '9 novembre 2026',
-    added: [
-      'Menù con il tasto destro sulle persone: volume e "silenzia per me"; per gli admin anche muta, espelli e banna.',
-      'Ritaglio della foto profilo.',
-      'Impostazioni ridisegnate.',
-      'Le preferenze (tema, audio, volumi) sono le stesse nell\'app e nel browser.',
-      'Microfono in mono: la voce arriva al centro anche con interfacce audio a due canali.',
-    ],
-    test: [
-      'Tasto destro su un membro nella lista a destra, o su chi è in vocale nella barra laterale.',
-      'Impostazioni → Il mio account → cambia foto e ritagliala.',
-      'Cambia tema o un volume nell\'app, poi apri Paper dal browser: trovi le stesse impostazioni.',
     ],
   },
 ];

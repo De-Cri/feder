@@ -120,7 +120,6 @@ class AppState {
 
   view = $state<number>(1); // canale visualizzato (testo o voce, o RELEASES_VIEW)
   releasesUnseen = $state(hasUnseenRelease()); // pallino "nuovo" sul canale novità
-  showMembers = $state(true);
   settingsOpen = $state(false);
   focused = $state(true);
 

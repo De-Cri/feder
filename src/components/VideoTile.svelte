@@ -94,14 +94,15 @@
     position: relative;
     border-radius: var(--r-lg);
     background: var(--bg-tile);
+    border: 1px solid var(--border-strong);
     display: grid;
     place-items: center;
     overflow: hidden;
     aspect-ratio: 16 / 9;
     min-width: 0;
-    transition: box-shadow 0.12s;
+    transition: border-color 0.12s;
   }
-  .tile.speaking { box-shadow: inset 0 0 0 2px var(--green); }
+  .tile.speaking { border-color: var(--green); }
   .tile.focused { aspect-ratio: auto; height: 100%; }
   video { width: 100%; height: 100%; object-fit: cover; background: #000; }
   .tile.focused video, .tile.screen video { object-fit: contain; }

@@ -21,7 +21,7 @@
   }
 </script>
 
-<aside>
+<aside class="side">
   {#snippet row(id: string, role: string, isOnline: boolean)}
     <button
       class="member"
@@ -64,10 +64,12 @@
 
 <style>
   aside {
-    background: var(--bg-sidebar);
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     border-left: 1px solid var(--border);
     overflow-y: auto;
-    padding: 8px 10px;
+    padding: 4px 10px 12px;
   }
   .section {
     font-size: 11px;
@@ -75,14 +77,16 @@
     color: var(--text-3);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    padding: 14px 8px 6px;
+    padding: 16px 8px 6px;
   }
+  .section:first-child { padding-top: 4px; }
   .member {
     width: 100%;
+    height: 36px;
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 5px 8px;
+    padding: 0 8px;
     border-radius: var(--r-sm);
     text-align: left;
   }
