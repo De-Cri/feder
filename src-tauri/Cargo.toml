@@ -1,6 +1,6 @@
 [package]
 name = "cerchio"
-version = "0.4.3"
+version = "0.4.4"
 description = "Cerchio — chat e vocale privati per pochi amici"
 edition = "2021"
 rust-version = "1.80"
