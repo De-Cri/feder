@@ -12,4 +12,9 @@ contextBridge.exposeInMainWorld('cerchio', {
   },
   pickSource: (id) => ipcRenderer.send('screen:picked', id),
   setBackground: (background) => ipcRenderer.send('background', !!background),
+  // Finestra minimizzata/nascosta: l'interfaccia smette di disegnare i video.
+  onWindowHidden: (cb) => {
+    ipcRenderer.removeAllListeners('window:hidden');
+    ipcRenderer.on('window:hidden', (_e, hidden) => cb(!!hidden));
+  },
 });

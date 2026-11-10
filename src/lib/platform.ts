@@ -12,6 +12,7 @@ type ElectronBridge = {
   onPickSource(cb: (sources: ScreenSource[]) => void): void;
   pickSource(id: string | null): void;
   setBackground?(background: boolean): void;
+  onWindowHidden?(cb: (hidden: boolean) => void): void;
 };
 
 const electron = (globalThis as { cerchio?: ElectronBridge }).cerchio;
@@ -103,4 +104,37 @@ export async function setBackgroundMode(background: boolean) {
   } catch {
     /* non supportato: nessun problema */
   }
+}
+
+// ---- Finestra nascosta/minimizzata ------------------------------------------
+// In Electron, con backgroundThrottling disattivato (serve alla chiamata),
+// document.hidden resta sempre false anche a finestra minimizzata: lo stato vero
+// arriva dal processo principale. Altrove basta la Page Visibility API.
+let winHidden = false;
+const hiddenListeners = new Set<(hidden: boolean) => void>();
+
+/** true se la finestra è minimizzata o nascosta (nessuno vede la pagina). */
+export function isHidden(): boolean {
+  return winHidden || (typeof document !== 'undefined' && document.hidden);
+}
+
+function emitHidden() {
+  const h = isHidden();
+  for (const cb of hiddenListeners) cb(h);
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', emitHidden);
+  electron?.onWindowHidden?.((h) => {
+    winHidden = h;
+    emitHidden();
+  });
+}
+
+/** Avvisa quando la finestra viene nascosta o torna visibile. Restituisce la funzione per smettere. */
+export function onHiddenChange(cb: (hidden: boolean) => void): () => void {
+  hiddenListeners.add(cb);
+  return () => {
+    hiddenListeners.delete(cb);
+  };
 }

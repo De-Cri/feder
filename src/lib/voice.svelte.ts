@@ -6,7 +6,8 @@ import { supabase } from './supabase';
 import { app, presenceBudget as budget } from './state.svelte';
 import { prefs, micOptions } from './prefs.svelte';
 import { config } from './config';
-import { MicPipeline } from './audio';
+import { MicPipeline, audioContext } from './audio';
+import { isHidden } from './platform';
 import { playSound } from './sounds';
 import { screenSettings } from './screenQuality';
 
@@ -49,19 +50,20 @@ async function loadIceServers(): Promise<RTCIceServer[]> {
 
 // ---------------------------------------------------------------------------
 // "Sta parlando" per gli stream remoti (AnalyserNode sul contesto condiviso).
+// Usa lo stesso AudioContext del microfono: un contesto in più vuol dire un altro
+// thread audio e un'altra uscita aperta, solo per misurare un livello.
 // ---------------------------------------------------------------------------
-let meterCtx: AudioContext | null = null;
 function analyser(stream: MediaStream, onLevel: (speaking: boolean) => void): () => void {
   try {
-    meterCtx ??= new AudioContext();
-    if (meterCtx.state === 'suspended') meterCtx.resume();
-    const src = meterCtx.createMediaStreamSource(stream);
-    const an = meterCtx.createAnalyser();
+    const c = audioContext();
+    const src = c.createMediaStreamSource(stream);
+    const an = c.createAnalyser();
     an.fftSize = 512;
     src.connect(an);
     const buf = new Uint8Array(an.fftSize);
     let hold = 0;
     const t = setInterval(() => {
+      if (isHidden()) return; // finestra nascosta: nessuno vede l'indicatore
       an.getByteTimeDomainData(buf);
       let sum = 0;
       for (const v of buf) sum += (v - 128) * (v - 128);
@@ -73,6 +75,7 @@ function analyser(stream: MediaStream, onLevel: (speaking: boolean) => void): ()
     return () => {
       clearInterval(t);
       src.disconnect();
+      an.disconnect();
     };
   } catch {
     return () => {};
@@ -169,6 +172,8 @@ class Peer {
   screenSender: RTCRtpSender | null = null;
   screenAudioSender: RTCRtpSender | null = null;
   private stopAnalyser: (() => void) | null = null;
+  /** Chiave dello stream audio su cui gira l'analizzatore. */
+  private analysedKey: string | null = null;
   private streamMap = new Map<string, MediaStream>();
 
   /** id dello stream dello schermo dell'altro (undefined = versione vecchia, non lo manda). */
@@ -240,11 +245,14 @@ class Peer {
           this.audioStreams = [...this.audioStreams, { key, stream: s }];
         }
         if (!s.getTracks().includes(track)) s.addTrack(track);
-        if (!this.stopAnalyser) this.stopAnalyser = analyser(s, (v) => (this.speaking = v));
+        if (!this.stopAnalyser) {
+          this.stopAnalyser = analyser(s, (v) => (this.speaking = v));
+          this.analysedKey = key;
+        }
       }
       track.onmute = track.onunmute = () => this.refresh();
       track.onended = () => {
-        this.stream.removeTrack(track);
+        this.forget(track);
         this.refresh();
       };
       this.refresh();
@@ -296,6 +304,55 @@ class Peer {
   /** Le tracce aggiunte dopo (webcam/schermo) passano di qui solo se già collegato. */
   get ready() {
     return this.attached;
+  }
+
+  /**
+   * Una traccia remota non arriverà più (l'altro ha tolto webcam/schermo, o è
+   * finita): via da tutti i riferimenti, così <video>/<audio> e i loro buffer
+   * vengono liberati invece di restare agganciati a una traccia muta.
+   */
+  private forget(track: MediaStreamTrack) {
+    this.stream.removeTrack(track);
+    if (track === this.camTrack) {
+      this.camTrack = null;
+      this.camView = null;
+    }
+    if (track === this.screenTrack) {
+      this.screenTrack = null;
+      this.screenView = null;
+    }
+    if (track.kind !== 'audio') return;
+    for (const [key, s] of this.streamMap) {
+      if (!s.getTracks().includes(track)) continue;
+      s.removeTrack(track);
+      if (s.getTracks().length) continue;
+      this.streamMap.delete(key);
+      this.audioStreams = this.audioStreams.filter((a) => a.key !== key);
+      if (this.analysedKey === key) {
+        this.stopAnalyser?.();
+        this.stopAnalyser = null;
+        this.analysedKey = null;
+        this.speaking = false;
+      }
+    }
+  }
+
+  /**
+   * Dopo ogni negoziazione: i transceiver su cui l'altro non invia più
+   * (removeTrack dall'altra parte → sendonly/inactive) hanno una traccia
+   * che resterebbe muta per sempre. Chromium non la chiude: lo facciamo noi.
+   */
+  private prune() {
+    let changed = false;
+    for (const tr of this.pc.getTransceivers()) {
+      const d = tr.currentDirection;
+      if (d !== 'sendonly' && d !== 'inactive' && d !== 'stopped') continue;
+      const t = tr.receiver.track;
+      if (!this.stream.getTracks().includes(t)) continue;
+      this.forget(t);
+      changed = true;
+    }
+    if (changed) this.refresh();
   }
 
   refresh() {
@@ -352,6 +409,7 @@ class Peer {
           await pc.setLocalDescription();
           this.room.send(this.id, { description: pc.localDescription!.toJSON(), screen: this.room.screenStreamIdIfActive });
         }
+        this.prune(); // negoziazione conclusa (risposta applicata): direzioni aggiornate
       } else if (sig.candidate !== undefined) {
         this.stats.recv++;
         try {
@@ -370,8 +428,15 @@ class Peer {
     clearTimeout(this.attachTimer);
     clearInterval(this.watchdog);
     this.stopAnalyser?.();
+    this.stopAnalyser = null;
     this.pc.close();
     this.stream.getTracks().forEach((t) => t.stop());
+    // Niente riferimenti residui: i componenti che li mostrano li rilasciano subito.
+    this.streamMap.clear();
+    this.audioStreams = [];
+    this.camView = this.screenView = null;
+    this.camTrack = this.screenTrack = null;
+    this.speaking = false;
   }
 }
 
@@ -573,6 +638,7 @@ class VoiceRoom {
         this.localSpeaking = false;
         return;
       }
+      if (isHidden()) return; // finestra nascosta: l'indicatore non si vede
       const threshold = prefs.gateEnabled ? prefs.gateDb : SPEAKING_DB;
       if (this.mic.levelDb() > threshold) hold = 3;
       else if (hold > 0) hold--;
