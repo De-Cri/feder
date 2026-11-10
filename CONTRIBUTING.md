@@ -48,11 +48,33 @@ Ad ogni Pull Request GitHub controlla da solo che il codice compili (workflow **
 
 ## Test
 
+La prima volta: `npx playwright install chromium` (scarica il browser per i test).
+
 ```bash
-# chiamate simulate in Chromium (3 utenti), presenza, schermo
-npx vite --config tests/voice/vite.config.ts &
-node tests/voice/run.cjs && node tests/voice/presence.cjs && node tests/voice/screen.cjs
+npm run test:voice      # tutte le chiamate simulate in Chromium: voce, presenza, schermo, limiti, memoria
+npm run test:memory     # solo la caccia alle perdite di memoria (10 giri; `-- 30` per 30 giri)
 ```
+
+Il server di test parte da solo. `test:memory` accende e spegne schermo e webcam da entrambe le parti
+e controlla che dopo ogni giro non resti niente in più (canali WebRTC, AudioContext, `<video>`/`<audio>`,
+nodi, listener, heap JS dopo il garbage collector). Se qualcosa cresce, fallisce e dice cosa.
+Lancialo prima di una PR che tocca `voice.svelte.ts`, `audio.ts` o i componenti della vocale.
+
+## Quanta RAM usa l'app
+
+Con Feder aperto (l'app installata, non serve il codice in esecuzione):
+
+```bash
+npm run mem                 # una riga ogni 2 s; Ctrl+C per il riepilogo
+npm run mem -- --for 600    # 10 minuti, poi si ferma da solo
+npm run mem -- --once       # una sola misura
+```
+
+Somma tutti i processi dell'app e li divide per tipo (pagina, GPU, audio, rete, webcam/schermo…).
+Su Windows il numero è lo stesso della colonna *Memoria* del Task Manager; su Linux è la memoria privata
+(USS): `top`/`htop` sommati danno di più perché contano più volte le parti condivise.
+Salva un CSV (`mem-….csv`) per confrontare due prove. Per cercare una perdita: ripeti la stessa azione
+(es. avvia/ferma lo schermo 10 volte) e guarda se il totale continua a salire o si stabilizza.
 
 ## Da non fare
 
