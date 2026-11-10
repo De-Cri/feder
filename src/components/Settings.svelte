@@ -125,9 +125,9 @@
 
 <div class="bg" role="presentation" onclick={() => (app.settingsOpen = false)}>
   <div class="panel" role="dialog" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
-    <nav>
-      <div class="group">Impostazioni utente</div>
-      <button class:active={tab === 'profile'} onclick={() => (tab = 'profile')}>Il mio account</button>
+    <nav class="side">
+      <div class="group">Impostazioni</div>
+      <button class:active={tab === 'profile'} onclick={() => (tab = 'profile')}>Account</button>
       <button class:active={tab === 'media'} onclick={() => (tab = 'media')}>Voce e video</button>
       <button class:active={tab === 'notifications'} onclick={() => (tab = 'notifications')}>Notifiche</button>
       <button class:active={tab === 'appearance'} onclick={() => (tab = 'appearance')}>Aspetto</button>
@@ -137,7 +137,7 @@
         <button class:active={tab === 'admin'} onclick={() => (tab = 'admin')}>Server</button>
       {/if}
 
-      <div class="group">App</div>
+      <div class="group spaced">App</div>
       <button class:active={tab === 'about'} onclick={() => (tab = 'about')}>Info</button>
 
       <span class="grow"></span>
@@ -154,7 +154,7 @@
 
       <div class="content">
         {#if tab === 'profile'}
-          <h2>Il mio account</h2>
+          <h2>Account</h2>
           <div class="card">
             <div class="user-row">
               <Avatar id={app.me} size={80} />
@@ -297,30 +297,35 @@
   .panel {
     flex: 1;
     display: grid;
-    grid-template-columns: 260px 1fr;
+    grid-template-columns: 240px minmax(0, 1fr);
     min-height: 0;
     background: var(--bg);
   }
+
   nav {
     background: var(--bg-sidebar);
-    padding: 60px 6px 16px 18px;
+    border-right: 1px solid var(--border);
+    padding: 12px 10px 12px;
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-height: 0;
     overflow-y: auto;
   }
   .group {
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 11px;
+    font-weight: 600;
     color: var(--text-3);
     text-transform: uppercase;
-    letter-spacing: 0.02em;
-    padding: 14px 10px 6px;
+    letter-spacing: 0.06em;
+    padding: 16px 8px 6px;
   }
+  .group:first-child { padding-top: 4px; }
+  .group.spaced { margin-top: 12px; }
   nav button {
-    text-align: left;
+    width: 100%;
     height: 34px;
-    padding: 0 10px;
+    padding: 0 8px;
     border-radius: var(--r-sm);
     color: var(--text-2);
     display: flex;
@@ -328,16 +333,27 @@
     gap: 8px;
     font-size: 15px;
     font-weight: 500;
+    text-align: left;
   }
   nav button:hover { background: var(--bg-hover); color: var(--text); }
   nav button.active { background: var(--bg-active); color: var(--text); }
-  .logout { color: var(--red) !important; margin-top: 8px; }
-  .grow { flex: 1; }
+  .grow { flex: 1; min-width: 0; }
+
+  /* "Esci" come il footer della sidebar: linea intera in alto. */
+  .logout {
+    width: calc(100% + 20px);
+    height: 48px;
+    margin: 8px -10px -12px;
+    padding: 0 18px;
+    border-radius: 0;
+    border-top: 1px solid var(--border);
+    color: var(--red) !important;
+  }
 
   section {
     position: relative;
     overflow-y: auto;
-    padding: 60px 40px;
+    padding: 60px 40px 150px;
     display: flex;
     justify-content: center;
   }
@@ -361,7 +377,6 @@
     font-weight: 600;
   }
   .close:hover { color: var(--text); }
-  .close :global(.icon-btn) { width: 36px; height: 36px; }
 
   h2 { margin: 0 0 16px; font-size: 20px; font-weight: 600; color: var(--text); }
   h3 {
@@ -387,6 +402,7 @@
 
   .radios { display: flex; flex-direction: column; gap: 4px; }
   .radio-row {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -447,7 +463,6 @@
   .switch.on span { transform: translateX(18px); }
 
   .ban { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
-  .grow { flex: 1; min-width: 0; }
   .toast {
     position: fixed;
     bottom: 24px;
