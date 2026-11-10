@@ -111,16 +111,36 @@ function createWindow() {
   win.on('focus', () => sendHidden(false)); // riserva: se un "restore" non arriva, il focus basta
 
   win.loadURL(DEV_URL || 'app://cerchio/index.html');
-  win.on('closed', () => (win = null));
+  win.on('closed', () => {
+    win = null;
+    pendingPick?.(null);
+    pendingPick = null;
+  });
 }
 
+// Una sola richiesta di scelta alla volta, un solo ascoltatore fisso: prima ogni
+// condivisione aggiungeva un ipcMain.once, e se la risposta non arrivava (pagina
+// ricaricata) restava appeso con tutte le anteprime in memoria.
+let pendingPick = null;
+ipcMain.on('screen:picked', (_e, id) => {
+  const resolve = pendingPick;
+  pendingPick = null;
+  resolve?.(id);
+});
+
+// Anteprime in JPEG: molto più leggere dei PNG (base64 via IPC e decodifica
+// nella pagina a ogni apertura del selettore).
+const thumbURL = (img) => (img.isEmpty() ? '' : `data:image/jpeg;base64,${img.toJPEG(70).toString('base64')}`);
+
 function askScreenSource(sources) {
+  pendingPick?.(null); // la richiesta precedente non ha avuto risposta: annullata
+  pendingPick = null;
   return new Promise((resolve) => {
     if (!win) return resolve(null);
-    ipcMain.once('screen:picked', (_e, id) => resolve(id));
+    pendingPick = resolve;
     win.webContents.send(
       'screen:pick',
-      sources.map((s) => ({ id: s.id, name: s.name, thumb: s.thumbnail.toDataURL() })),
+      sources.map((s) => ({ id: s.id, name: s.name, thumb: thumbURL(s.thumbnail) })),
     );
   });
 }
