@@ -4,6 +4,7 @@
   import { prefs, savePrefs, userVolume, screenVolume } from '../lib/prefs.svelte';
   import { supabase } from '../lib/supabase';
   import Icon from './Icon.svelte';
+  import VolumeSlider from './VolumeSlider.svelte';
 
   // Menu del tasto destro su una persona in vocale: volume, silenzio, mute admin.
   // Si chiude con un clic o un tasto destro fuori dal menu, oppure con Esc.
@@ -53,18 +54,7 @@
 
 <div class="menu" bind:this={panel} style="left:{left}px; top:{top}px" role="presentation" oncontextmenu={(e) => e.preventDefault()}>
   <div class="menu-title">{screen ? `Stream di ${app.name(id)}` : app.name(id)}</div>
-  <label class="vol">
-    <span>{screen ? 'Audio stream' : 'Volume'}</span>
-    <input
-      type="range"
-      min="0"
-      max="2"
-      step="0.01"
-      value={vol}
-      oninput={(e) => setVol(Number(e.currentTarget.value))}
-    />
-    <span class="pct">{Math.round(vol * 100)}%</span>
-  </label>
+  <VolumeSlider label={screen ? 'Audio stream' : 'Volume'} value={vol} onchange={setVol} />
   <button onclick={() => setVol(vol > 0 ? 0 : 1)}>
     <Icon name={vol > 0 ? 'volume' : 'mic-off'} size={15} />
     {vol > 0 ? (screen ? 'Silenzia la stream' : 'Silenzia per me') : 'Riattiva audio'}
@@ -81,16 +71,13 @@
   .menu {
     position: fixed;
     z-index: 41;
-    width: 240px;
+    width: 260px;
     padding: 6px;
     border-radius: var(--r);
     background: var(--bg-elev);
     box-shadow: var(--shadow);
   }
   .menu-title { font-size: 11px; color: var(--text-3); padding: 4px 8px 6px; font-weight: 600; }
-  .vol { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px; font-size: 13px; }
-  .vol input { flex: 1; accent-color: var(--accent); }
-  .pct { width: 36px; text-align: right; color: var(--text-2); font-size: 12px; }
   .menu button {
     width: 100%;
     display: flex;

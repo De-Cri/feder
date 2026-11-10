@@ -10,6 +10,22 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.4.5',
+    date: '10 novembre 2026',
+    added: [
+      'Meno RAM in chiamata: webcam e schermi chiusi vengono liberati subito e, con la finestra minimizzata, i video non vengono più disegnati (audio e microfono continuano).',
+      'Volume degli amici regolabile a passi di 1% (rotellina o frecce) e percentuale scrivibile a mano.',
+      'Badge Contributor per chi ha contribuito al codice; passa il mouse sui badge per vedere Admin o Contributor.',
+      'Più spazio tra i nomi in vocale e nella lista membri.',
+      'Barra laterale più pulita: tolti avatar e nome in basso e l\'avviso sulla qualità della stream.',
+    ],
+    test: [
+      'In chiamata, tasto destro su un amico: porta il volume da 82 a 83 con la rotellina o scrivendo il numero.',
+      'Lista membri: passa il mouse sullo scudo dell\'admin e sull\'icona </> dei contributor.',
+      'In chiamata con webcam o schermo accesi, minimizza Paper: devi continuare a sentire e gli altri a vederti.',
+    ],
+  },
+  {
     version: '0.4.4',
     date: '10 novembre 2026',
     added: [
@@ -35,23 +51,6 @@ export const RELEASES: Release[] = [
       'Entra in un canale vocale e usa i pulsanti in basso nella barra laterale: microfono, audio, webcam, schermo e termina chiamata.',
       'Apri un canale di testo: a destra c\'è la lista membri. In un canale vocale non deve comparire.',
       'Impostazioni → Account → cambia foto e trascinala: deve seguire il mouse.',
-    ],
-  },
-  {
-    version: '0.4.2',
-    date: '10 novembre 2026',
-    added: [
-      'La barra laterale si aggiorna sempre: prima, dopo tanti cambi di microfono, webcam o schermo, il server chiudeva la connessione e non si vedeva più chi era in chiamata.',
-      'Se la connessione con il server cade, Paper si ricollega da solo.',
-      'Paper aperto su app e browser insieme: gli altri ti vedono in chiamata senza "sfarfallii".',
-      'Nuovi temi: Nero blu (identico a prima della 0.4) e Nero profondo (quasi nero).',
-      'Questo canale con le novità.',
-    ],
-    test: [
-      'Entra in un canale vocale e accendi/spegni microfono e webcam più volte di fila: chi è fuori dalla chiamata deve vederti sempre nel canale giusto (al massimo con qualche secondo di ritardo).',
-      'Mentre sei in vocale, entra in un altro canale: devi continuare a vedere chi c\'è nel primo.',
-      'Mentre sei in chiamata dall\'app, apri Paper anche dal browser: gli altri devono vederti ancora in chiamata.',
-      'Impostazioni → Aspetto → prova "Nero profondo".',
     ],
   },
 ];

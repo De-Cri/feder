@@ -105,11 +105,6 @@
         </button>
       {/if}
     </div>
-
-    <div class="me-row">
-      <Avatar id={app.me} size={30} status="online" />
-      <div class="uname">{app.myProfile?.username}</div>
-    </div>
   </footer>
 </aside>
 
@@ -146,7 +141,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    height: 28px;
+    height: 34px;
     padding: 0 8px 0 30px;
     border-radius: var(--r-sm);
     color: var(--text-2);
@@ -168,10 +163,8 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 8px 10px 10px 14px;
+    padding: 10px;
     border-top: 1px solid var(--border);
   }
   .actions { display: flex; flex-wrap: wrap; gap: 6px; }
-  .me-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  .uname { font-weight: 500; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

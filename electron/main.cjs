@@ -98,6 +98,18 @@ function createWindow() {
     }
   });
 
+  // Con backgroundThrottling disattivato la pagina non sa di essere minimizzata
+  // (document.hidden resta false) e continua a disegnare tutti i video. Glielo
+  // diciamo noi: smette di renderizzare i riquadri, audio e invio restano attivi.
+  const sendHidden = (hidden) => {
+    if (win && !win.webContents.isDestroyed()) win.webContents.send('window:hidden', hidden);
+  };
+  win.on('minimize', () => sendHidden(true));
+  win.on('hide', () => sendHidden(true));
+  win.on('restore', () => sendHidden(false));
+  win.on('show', () => sendHidden(!!win?.isMinimized()));
+  win.on('focus', () => sendHidden(false)); // riserva: se un "restore" non arriva, il focus basta
+
   win.loadURL(DEV_URL || 'app://cerchio/index.html');
   win.on('closed', () => (win = null));
 }

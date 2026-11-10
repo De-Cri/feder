@@ -1,5 +1,6 @@
 <script lang="ts">
   import { app } from '../lib/state.svelte';
+  import { isHidden, onHiddenChange } from '../lib/platform';
   import Avatar from './Avatar.svelte';
   import Icon from './Icon.svelte';
 
@@ -36,26 +37,54 @@
   } = $props();
 
   let video: HTMLVideoElement | undefined = $state();
+  let tile: HTMLDivElement | undefined = $state();
   const p = $derived(app.presence[id]);
+
+  // Il video si collega solo se qualcuno può vederlo: finestra minimizzata/nascosta
+  // o riquadro fuori dalla vista → srcObject = null, così il lettore libera i suoi
+  // fotogrammi e smette di disegnare. Le tracce restano vive: l'audio continua e
+  // gli altri continuano a vedere la tua webcam/il tuo schermo.
+  let hidden = $state(isHidden());
+  let inView = $state(true);
+  const show = $derived(!hidden && inView);
+  $effect(() => onHiddenChange((h) => (hidden = h)));
+  $effect(() => {
+    if (!tile || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver((es) => (inView = es[es.length - 1].isIntersecting), { rootMargin: '200px' });
+    io.observe(tile);
+    return () => io.disconnect();
+  });
 
   $effect(() => {
     void rev;
-    if (video && video.srcObject !== stream) video.srcObject = stream;
-    video?.play().catch(() => {});
+    const v = video;
+    if (!v) return;
+    const src = show ? stream : null;
+    if (v.srcObject !== src) v.srcObject = src;
+    if (src) v.play().catch(() => {});
+  });
+  // Quando il <video> sparisce (video spento, riquadro chiuso) stacca lo stream
+  // subito, invece di aspettare il garbage collector.
+  $effect(() => {
+    const v = video;
+    if (!v) return;
+    return () => {
+      v.srcObject = null;
+    };
   });
 
   // Se il video è attivo ma non arriva nessuna immagine, lo diciamo invece di mostrare nero.
   let noFrames = $state(false);
   $effect(() => {
     noFrames = false;
-    if (!hasVideo || !video) return;
+    if (!hasVideo || !video || !show) return;
     const v = video;
     const t = setInterval(() => (noFrames = v.videoWidth === 0 || v.readyState < 2), 4000);
     return () => clearInterval(t);
   });
 </script>
 
-<div class="tile" class:speaking class:focused class:screen role="presentation" {ondblclick} {oncontextmenu}>
+<div bind:this={tile} class="tile" class:speaking class:focused class:screen role="presentation" {ondblclick} {oncontextmenu}>
   {#if hasVideo && stream}
     <video bind:this={video} autoplay playsinline muted class:mirror={mirror && !screen}></video>
     {#if noFrames}<div class="waiting">Nessuna immagine ricevuta…</div>{/if}

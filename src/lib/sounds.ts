@@ -54,6 +54,8 @@ const PATTERNS: Record<SoundKind, Note[]> = {
 
 let ctx: AudioContext | null = null;
 let sinkApplied = '';
+// Tra un suono e l'altro il contesto si sospende: niente thread audio acceso a vuoto.
+let idle: ReturnType<typeof setTimeout> | undefined;
 
 function context(): AudioContext {
   if (!ctx || ctx.state === 'closed') {
@@ -116,6 +118,8 @@ export function playSound(kind: SoundKind, force = false) {
     }
     const end = Math.max(...PATTERNS[kind].map((n) => n.t + n.d)) + 0.2;
     setTimeout(() => master.disconnect(), end * 1000);
+    clearTimeout(idle);
+    idle = setTimeout(() => ctx?.state === 'running' && ctx.suspend().catch(() => {}), end * 1000 + 2000);
   } catch {
     /* audio non disponibile */
   }

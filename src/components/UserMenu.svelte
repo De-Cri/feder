@@ -6,6 +6,7 @@
   import { errorText } from '../lib/util';
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
+  import VolumeSlider from './VolumeSlider.svelte';
 
   // Menu del tasto destro su una persona. Usato da lista membri, sidebar vocale e chat.
   let {
@@ -27,6 +28,7 @@
   let error = $state<string | null>(null);
 
   const isMe = $derived(id === app.me);
+  const member = $derived(app.members.find((m) => m.user_id === id));
   const vol = $derived(userVolume(id));
   const left = $derived(Math.max(8, Math.min(x, window.innerWidth - 272)));
   const top = $derived(Math.max(8, Math.min(y, window.innerHeight - 360)));
@@ -73,32 +75,28 @@
     <Avatar {id} size={32} />
     <div class="who">
       <div class="name">{app.name(id)}</div>
-      <div class="role">{app.members.find((m) => m.user_id === id)?.role === 'admin' ? 'Admin' : 'Membro'}</div>
+      <div class="role">{member?.role === 'admin' ? 'Admin' : 'Membro'}{member?.contributor ? ' · Contributor' : ''}</div>
     </div>
   </div>
 
   {#if !isMe}
     <div class="sep"></div>
-    <label class="vol">
-      <span>Volume</span>
-      <input
-        type="range"
-        min="0"
-        max="2"
-        step="0.01"
-        value={vol}
-        oninput={(e) => setVol(Number(e.currentTarget.value))}
-      />
-      <span class="pct">{Math.round(vol * 100)}%</span>
-    </label>
+    <VolumeSlider label="Volume" value={vol} onchange={setVol} />
     <button class="item" onclick={() => setVol(vol > 0 ? 0 : 1)}>
       <Icon name={vol > 0 ? 'volume' : 'mic-off'} size={15} />
       {vol > 0 ? 'Silenzia per me' : 'Riattiva audio'}
     </button>
   {/if}
 
-  {#if app.isAdmin && !isMe}
+  {#if app.isAdmin}
     <div class="sep"></div>
+    <button class="item" onclick={() => run('admin_set_contributor', { p_user: id, p_on: !member?.contributor })}>
+      <Icon name="code" size={15} />
+      {member?.contributor ? 'Togli badge Contributor' : 'Dai badge Contributor'}
+    </button>
+  {/if}
+
+  {#if app.isAdmin && !isMe}
     <button class="item" onclick={() => run('admin_set_voice_mute', { p_user: id, p_muted: !app.voiceMutes[id] })}>
       <Icon name="mic-off" size={15} />
       {app.voiceMutes[id] ? 'Togli mute in vocale' : 'Muta in vocale'}
@@ -129,9 +127,6 @@
   .name { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .role { font-size: 11px; color: var(--text-3); }
   .sep { height: 1px; background: var(--border); margin: 4px 0; }
-  .vol { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 13px; }
-  .vol input { flex: 1; accent-color: var(--accent); }
-  .pct { width: 40px; text-align: right; color: var(--text-2); font-size: 12px; }
   .item {
     width: 100%;
     display: flex;
