@@ -22,7 +22,7 @@
 </script>
 
 <aside class="side">
-  {#snippet row(id: string, role: string, isOnline: boolean)}
+  {#snippet row(id: string, role: string, contributor: boolean, isOnline: boolean)}
     <button
       class="member"
       class:off={!isOnline}
@@ -32,16 +32,17 @@
       <Avatar {id} size={30} status={isOnline ? 'online' : 'offline'} />
       <span class="name">{app.name(id)}</span>
       {#if role === 'admin'}<span class="admin" title="Admin"><Icon name="shield" size={13} /></span>{/if}
+      {#if contributor}<span class="contrib" title="Contributor su GitHub"><Icon name="code" size={13} /></span>{/if}
       {#if app.voiceMutes[id]}<span class="muted-ic" title="Silenziato dall’admin"><Icon name="mic-off" size={13} /></span>{/if}
       {#if app.presence[id]?.voice}<span class="in-voice" title="In vocale"><Icon name="volume" size={13} /></span>{/if}
     </button>
   {/snippet}
 
   <div class="section">Online — {online.length}</div>
-  {#each online as m (m.user_id)}{@render row(m.user_id, m.role, true)}{/each}
+  {#each online as m (m.user_id)}{@render row(m.user_id, m.role, !!m.contributor, true)}{/each}
   {#if offline.length}
     <div class="section">Offline — {offline.length}</div>
-    {#each offline as m (m.user_id)}{@render row(m.user_id, m.role, false)}{/each}
+    {#each offline as m (m.user_id)}{@render row(m.user_id, m.role, !!m.contributor, false)}{/each}
   {/if}
 </aside>
 
@@ -82,7 +83,7 @@
   .section:first-child { padding-top: 4px; }
   .member {
     width: 100%;
-    height: 36px;
+    height: 42px;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -94,6 +95,7 @@
   .member.off { opacity: 0.5; }
   .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 500; }
   .admin { color: var(--orange); display: flex; }
+  .contrib { color: var(--accent); display: flex; }
   .muted-ic { color: var(--red); display: flex; }
   .in-voice { color: var(--green); display: flex; }
 </style>

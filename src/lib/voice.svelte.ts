@@ -8,7 +8,7 @@ import { prefs, micOptions } from './prefs.svelte';
 import { config } from './config';
 import { MicPipeline } from './audio';
 import { playSound } from './sounds';
-import { screenSettings, screenWarning } from './screenQuality';
+import { screenSettings } from './screenQuality';
 
 export const rtcSupported =
   typeof RTCPeerConnection !== 'undefined' &&
@@ -726,8 +726,6 @@ class VoiceRoom {
       this.screenAudioTrack = audio;
       this.screenStream.addTrack(audio);
     }
-    const w = screenWarning(Math.max(1, Object.keys(this.peers).length));
-    this.notice = w.level !== 'ok' ? 'Stream ad alta qualità: se a chi guarda scatta, passa a 720p · 30 fps nelle impostazioni.' : null;
     this.forReadyPeers((p) => {
       p.screenSender = p.pc.addTrack(track, this.screenStream);
       preferHardwareCodec(p.pc, p.screenSender);

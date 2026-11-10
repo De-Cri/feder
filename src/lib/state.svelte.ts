@@ -5,7 +5,7 @@ import { playSound } from './sounds';
 import { hasUnseenRelease } from './releases';
 
 export type Profile = { id: string; username: string; avatar_path: string | null };
-export type Member = { user_id: string; role: 'admin' | 'member'; joined_at: string };
+export type Member = { user_id: string; role: 'admin' | 'member'; joined_at: string; contributor?: boolean };
 export type Channel = { id: number; name: string; kind: 'text' | 'voice'; position: number };
 export type Message = {
   id: number;
