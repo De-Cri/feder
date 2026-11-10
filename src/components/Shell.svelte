@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { app, RELEASES_VIEW } from '../lib/state.svelte';
+  import { app } from '../lib/state.svelte';
   import { checkUpdate, setBackgroundMode, type UpdateInfo } from '../lib/platform';
   import { voice } from '../lib/voice.svelte';
   import Sidebar from './Sidebar.svelte';
@@ -10,9 +10,12 @@
   import Settings from './Settings.svelte';
   import ScreenPicker from './ScreenPicker.svelte';
   import VoiceAudio from './VoiceAudio.svelte';
-  import Releases from './Releases.svelte';
 
-  const current = $derived(app.channels.find((c) => c.id === app.view));
+  // Il canale aperto, separato per tipo: così TypeScript sa sempre quale prop passare.
+  const current = $derived(app.channels.find((c) => c.id === app.view) ?? null);
+  const textChannel = $derived(current && current.kind === 'text' ? current : null);
+  const voiceChannel = $derived(current && current.kind === 'voice' ? current : null);
+
   let update = $state<UpdateInfo | null>(null);
   let installing = $state(false);
 
@@ -40,7 +43,7 @@
   });
 </script>
 
-<div class="shell" class:members={app.showMembers && current?.kind === 'text'}>
+<div class="shell">
   <Sidebar />
   <main>
     {#if update}
@@ -56,19 +59,17 @@
         >
       </div>
     {/if}
-    {#if app.view === RELEASES_VIEW}
-      <Releases />
-    {:else if current?.kind === 'text'}
-      {#key current.id}
-        <TextChannel channel={current} />
+
+    {#if textChannel}
+      {#key textChannel.id}
+        <TextChannel channel={textChannel} />
       {/key}
-    {:else if current?.kind === 'voice'}
-      <VoiceChannel channel={current} />
+    {:else if voiceChannel}
+      <VoiceChannel channel={voiceChannel} />
     {/if}
   </main>
-  {#if app.showMembers && current?.kind === 'text'}
-    <MemberList />
-  {/if}
+
+  <MemberList />
 </div>
 
 {#if app.settingsOpen}
@@ -82,10 +83,9 @@
   .shell {
     height: 100%;
     display: grid;
-    grid-template-columns: 240px 1fr;
+    grid-template-columns: 240px minmax(0, 1fr) 240px;
     grid-template-rows: 100%;
   }
-  .shell.members { grid-template-columns: 240px 1fr 220px; }
   main {
     min-width: 0;
     min-height: 0;

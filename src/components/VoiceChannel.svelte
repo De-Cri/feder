@@ -1,11 +1,10 @@
 <script lang="ts">
   import { app, type Channel } from '../lib/state.svelte';
-  import { voice, rtcSupported, screenShareSupported } from '../lib/voice.svelte';
-  import { prefs, savePrefs, userVolume, screenVolume } from '../lib/prefs.svelte';
-  import { supabase } from '../lib/supabase';
-  import Icon from './Icon.svelte';
+  import { voice, rtcSupported } from '../lib/voice.svelte';
+  import { prefs, savePrefs, screenVolume } from '../lib/prefs.svelte';
   import Avatar from './Avatar.svelte';
   import VideoTile from './VideoTile.svelte';
+  import VoiceMenu from './VoiceMenu.svelte';
 
   let { channel }: { channel: Channel } = $props();
 
@@ -79,29 +78,43 @@
   });
 
   function openMenu(e: MouseEvent, id: string, screen = false) {
-    if (id === app.me) return;
     e.preventDefault();
-    menu = { id, screen, x: Math.min(e.clientX, window.innerWidth - 250), y: Math.min(e.clientY, window.innerHeight - 170) };
+    if (id === app.me) {
+      menu = null;
+      return;
+    }
+    menu = { id, screen, x: e.clientX, y: e.clientY };
   }
 
-  function setVolume(id: string, screen: boolean, v: number) {
-    if (screen) prefs.screenVolumes[id] = v;
-    else prefs.userVolumes[id] = v;
+  // Silenzia o riattiva l'audio della condivisione schermo di qualcuno (per te).
+  function toggleScreenAudio(id: string) {
+    prefs.screenVolumes[id] = screenVolume(id) > 0 ? 0 : 1;
     savePrefs();
   }
-  const volOf = (id: string, screen: boolean) => (screen ? screenVolume(id) : userVolume(id));
-
 
   const count = $derived(tiles.length);
   const cols = $derived(count <= 1 ? 1 : count <= 4 ? 2 : 3);
 </script>
 
-<div class="voice">
-  <header>
-    <Icon name="volume" size={18} />
-    <h2>{channel.name}</h2>
-  </header>
+{#snippet tileView(t: Tile, isFocused: boolean)}
+  <VideoTile
+    id={t.id}
+    stream={t.stream}
+    hasVideo={t.hasVideo}
+    rev={t.rev}
+    speaking={t.speaking}
+    mirror={t.mirror}
+    screen={t.screen}
+    focused={isFocused}
+    audioMuted={t.screen && screenVolume(t.id) === 0}
+    ontoggleaudio={t.screen && t.id !== app.me ? () => toggleScreenAudio(t.id) : undefined}
+    connecting={t.connecting}
+    ondblclick={() => (focus = isFocused ? null : t.key)}
+    oncontextmenu={(e) => openMenu(e, t.id, t.screen)}
+  />
+{/snippet}
 
+<div class="voice">
   {#if !rtcSupported}
     <div class="empty">
       <h3>Vocale non disponibile</h3>
@@ -125,134 +138,36 @@
     <div class="stage" class:focus={!!focused}>
       {#if focused}
         <div class="main">
-          <VideoTile
-            id={focused.id}
-            stream={focused.stream}
-            hasVideo={focused.hasVideo}
-            rev={focused.rev}
-            speaking={focused.speaking}
-            mirror={focused.mirror}
-            screen={focused.screen}
-            audioMuted={focused.screen && screenVolume(focused.id) === 0}
-            ontoggleaudio={focused.screen && focused.id !== app.me ? () => setVolume(focused.id, true, screenVolume(focused.id) > 0 ? 0 : 1) : undefined}
-            connecting={focused.connecting}
-            focused
-            ondblclick={() => (focus = null)}
-            oncontextmenu={(e) => openMenu(e, focused.id, focused.screen)}
-          />
+          {@render tileView(focused, true)}
         </div>
         {#if strip.length}
           <div class="strip">
             {#each strip as t (t.key)}
-              <div class="mini">
-                <VideoTile
-                  id={t.id}
-                  stream={t.stream}
-                  hasVideo={t.hasVideo}
-                  rev={t.rev}
-                  speaking={t.speaking}
-                  mirror={t.mirror}
-                  screen={t.screen}
-              audioMuted={t.screen && screenVolume(t.id) === 0}
-              ontoggleaudio={t.screen && t.id !== app.me ? () => setVolume(t.id, true, screenVolume(t.id) > 0 ? 0 : 1) : undefined}
-                  connecting={t.connecting}
-                  ondblclick={() => (focus = t.key)}
-                  oncontextmenu={(e) => openMenu(e, t.id, t.screen)}
-                />
-              </div>
+              <div class="mini">{@render tileView(t, false)}</div>
             {/each}
           </div>
         {/if}
       {:else}
         <div class="grid" style="--cols:{cols}">
           {#each tiles as t (t.key)}
-            <VideoTile
-              id={t.id}
-              stream={t.stream}
-              hasVideo={t.hasVideo}
-              rev={t.rev}
-              speaking={t.speaking}
-              mirror={t.mirror}
-              screen={t.screen}
-              audioMuted={t.screen && screenVolume(t.id) === 0}
-              ontoggleaudio={t.screen && t.id !== app.me ? () => setVolume(t.id, true, screenVolume(t.id) > 0 ? 0 : 1) : undefined}
-              connecting={t.connecting}
-              ondblclick={() => (focus = t.key)}
-              oncontextmenu={(e) => openMenu(e, t.id, t.screen)}
-            />
+            {@render tileView(t, false)}
           {/each}
         </div>
       {/if}
     </div>
 
     {#if menu}
-      {@const id = menu.id}
-      {@const scr = menu.screen}
-      <div class="backdrop" role="presentation" onclick={() => (menu = null)}></div>
-      <div class="menu" style="left:{menu.x}px; top:{menu.y}px">
-        <div class="menu-title">{scr ? `Stream di ${app.name(id)}` : app.name(id)}</div>
-        <label class="vol">
-          <span>{scr ? 'Audio stream' : 'Voce'}</span>
-          <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.01"
-            value={volOf(id, scr)}
-            oninput={(e) => setVolume(id, scr, Number(e.currentTarget.value))}
-          />
-          <span class="pct">{Math.round(volOf(id, scr) * 100)}%</span>
-        </label>
-        <button onclick={() => setVolume(id, scr, volOf(id, scr) > 0 ? 0 : 1)}>
-          <Icon name={volOf(id, scr) > 0 ? 'volume' : 'mic-off'} size={15} />
-          {volOf(id, scr) > 0 ? (scr ? 'Silenzia la stream' : 'Silenzia per me') : 'Riattiva audio'}
-        </button>
-        {#if app.isAdmin && !scr}
-          <button
-            onclick={async () => {
-              menu = null;
-              await supabase.rpc('admin_set_voice_mute', { p_user: id, p_muted: !app.voiceMutes[id] });
-            }}
-          >
-            <Icon name="mic-off" size={15} />
-            {app.voiceMutes[id] ? 'Togli mute (admin)' : 'Muta per tutti (admin)'}
-          </button>
-        {/if}
-      </div>
+      <VoiceMenu
+        id={menu.id}
+        x={menu.x}
+        y={menu.y}
+        screen={menu.screen}
+        onclose={() => (menu = null)}
+      />
     {/if}
 
     {#if voice.error}<p class="err center">{voice.error}</p>{/if}
     {#if voice.notice}<p class="muted center">{voice.notice}</p>{/if}
-
-    <div class="controls">
-      <button
-        class="ctl"
-        class:off={!voice.micOn || voice.adminMuted}
-        title={voice.adminMuted ? 'Silenziato dall’admin' : 'Microfono'}
-        onclick={() => voice.toggleMic()}
-      >
-        <Icon name={voice.micOn && !voice.adminMuted ? 'mic' : 'mic-off'} size={20} />
-      </button>
-      <button class="ctl" class:off={voice.deaf} title="Audio" onclick={() => voice.toggleDeaf()}>
-        <Icon name={voice.deaf ? 'headphones-off' : 'headphones'} size={20} />
-      </button>
-      <button class="ctl" class:on={voice.camOn} title="Webcam" onclick={() => voice.toggleCam()}>
-        <Icon name={voice.camOn ? 'video' : 'video-off'} size={20} />
-      </button>
-      {#if screenShareSupported}
-        <button
-          class="ctl"
-          class:on={voice.screenOn}
-          title={voice.screenOn ? 'Interrompi condivisione' : 'Condividi schermo'}
-          onclick={() => voice.toggleScreen()}
-        >
-          <Icon name="screen" size={20} />
-        </button>
-      {/if}
-      <button class="ctl leave" title="Esci" onclick={() => voice.leave()}>
-        <Icon name="leave" size={20} />
-      </button>
-    </div>
   {/if}
 </div>
 
@@ -263,17 +178,6 @@
     display: flex;
     flex-direction: column;
   }
-  header {
-    height: 52px;
-    flex: none;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 20px;
-    border-bottom: 1px solid var(--border);
-    color: var(--text-2);
-  }
-  h2 { font-size: 15px; font-weight: 600; margin: 0; color: var(--text); }
   .empty {
     flex: 1;
     display: flex;
@@ -308,52 +212,5 @@
   .main { width: 100%; flex: 1; min-height: 0; }
   .strip { flex: none; display: flex; gap: 10px; justify-content: safe center; overflow-x: auto; }
   .mini { width: 176px; flex: none; }
-  .controls {
-    flex: none;
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    padding: 12px 0 20px;
-  }
-  .ctl {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    background: var(--bg-active);
-    color: var(--text);
-    transition: background 0.12s, transform 0.08s;
-  }
-  .ctl:hover { background: var(--border-strong); }
-  .ctl:active { transform: scale(0.95); }
-  .ctl.on { background: var(--accent); color: #fff; }
-  .ctl.off { background: var(--text); color: var(--bg); }
-  .ctl.leave { background: var(--red); color: #fff; }
-  .center { text-align: center; font-size: 13px; margin: 0; }
-  .backdrop { position: fixed; inset: 0; z-index: 40; }
-  .menu {
-    position: fixed;
-    z-index: 41;
-    width: 240px;
-    padding: 6px;
-    border-radius: var(--r);
-    background: var(--bg-elev);
-    box-shadow: var(--shadow);
-  }
-  .menu-title { font-size: 11px; color: var(--text-3); padding: 4px 8px 6px; font-weight: 600; }
-  .vol { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px; font-size: 13px; }
-  .vol input { flex: 1; accent-color: var(--accent); }
-  .pct { width: 36px; text-align: right; color: var(--text-2); font-size: 12px; }
-  .menu button {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 8px;
-    border-radius: var(--r-sm);
-    font-size: 13px;
-    text-align: left;
-  }
-  .menu button:hover { background: var(--accent); color: #fff; }
+  .center { text-align: center; font-size: 13px; margin: 0; padding-bottom: 8px; }
 </style>

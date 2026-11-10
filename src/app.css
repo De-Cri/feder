@@ -1,5 +1,5 @@
-/* Paper: stile ispirato a Discord. Tema chiaro/scuro: di default segue il sistema,
-   data-theme="light", "dark" (grigio), "black"/"black-blue" (nero, come prima) o "oled" (nero profondo) (impostato da lib/theme.ts) lo forza. */
+/* Paper: stile ispirato a Discord. Il tema è impostato da prefs.svelte.ts con data-theme su <html>.
+   Senza attributo vale il tema di sistema. */
 
 :root,
 :root[data-theme='light'] {
@@ -33,25 +33,7 @@
   color-scheme: light;
 }
 
-:root[data-theme='dark'] {
-  --bg: #313338;
-  --bg-sidebar: #2b2d31;
-  --bg-elev: #2b2d31;
-  --bg-hover: rgba(255, 255, 255, 0.04);
-  --bg-active: #3f4147;
-  --bg-input: #383a40;
-  --bg-tile: #1e1f22;
-  --border: rgba(0, 0, 0, 0.2);
-  --border-strong: #4e5058;
-  --text: #f2f3f5;
-  --text-2: #dbdee1;
-  --text-3: #949ba4;
-  --accent-soft: rgba(88, 101, 242, 0.2);
-  --shadow: 0 8px 16px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.2);
-  color-scheme: dark;
-}
-
-/* Tema di sistema scuro (nessuna scelta esplicita). */
+/* Tema di sistema scuro: vale solo se non è stato scelto un tema. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     --bg: #313338;
@@ -72,48 +54,60 @@
   }
 }
 
-/* Nero: la palette scura delle versioni precedenti alla 0.4 (anche "Nero blu"). */
-:root[data-theme='black'],
-:root[data-theme='black-blue'] {
-  --bg: #1e1e20;
-  --bg-sidebar: #19191b;
-  --bg-elev: #2a2a2d;
-  --bg-hover: rgba(255, 255, 255, 0.055);
-  --bg-active: rgba(255, 255, 255, 0.09);
-  --bg-input: rgba(255, 255, 255, 0.06);
-  --bg-tile: #2a2a2d;
-  --border: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.13);
-  --text: #f5f5f7;
-  --text-2: #a1a1a6;
-  --text-3: #6e6e73;
+/* Scuro (grigio) */
+:root[data-theme='dark'] {
+  --bg: #313338;
+  --bg-sidebar: #2b2d31;
+  --bg-elev: #2b2d31;
+  --bg-hover: rgba(255, 255, 255, 0.04);
+  --bg-active: #3f4147;
+  --bg-input: #383a40;
+  --bg-tile: #1e1f22;
+  --border: rgba(0, 0, 0, 0.2);
+  --border-strong: #4e5058;
+  --text: #f2f3f5;
+  --text-2: #dbdee1;
+  --text-3: #949ba4;
   --accent-soft: rgba(88, 101, 242, 0.2);
-  --shadow: 0 8px 30px rgba(0, 0, 0, 0.45), 0 0 0 0.5px rgba(255, 255, 255, 0.1);
+  --shadow: 0 8px 16px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.2);
   color-scheme: dark;
 }
 
-/* Nero blu: identico alla 0.3.0, con l'accento blu di allora. */
-:root[data-theme='black-blue'] {
-  --accent: #0a84ff;
-  --accent-soft: rgba(10, 132, 255, 0.2);
+/* Nero (come nel secondo screenshot): stima dagli screenshot */
+:root[data-theme='black'] {
+  --bg: #1e1f22;
+  --bg-sidebar: #1a1b1e;
+  --bg-elev: #2b2d31;
+  --bg-hover: rgba(255, 255, 255, 0.04);
+  --bg-active: #35373c;
+  --bg-input: #1a1b1e;
+  --bg-tile: #2b2d31;
+  --border: #111214;
+  --border-strong: #3a3c42;
+  --text: #f2f3f5;
+  --text-2: #b5bac1;
+  --text-3: #80848e;
+  --accent-soft: rgba(88, 101, 242, 0.2);
+  --shadow: 0 8px 16px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  color-scheme: dark;
 }
 
-/* Nero profondo: quasi nero, per la sera e gli schermi OLED. */
-:root[data-theme='oled'] {
-  --bg: #0e0e10;
-  --bg-sidebar: #08080a;
-  --bg-elev: #1a1a1d;
-  --bg-hover: rgba(255, 255, 255, 0.05);
-  --bg-active: rgba(255, 255, 255, 0.08);
-  --bg-input: rgba(255, 255, 255, 0.05);
+/* Nero profondo (come nel primo screenshot): stima dagli screenshot */
+:root[data-theme='deep-black'] {
+  --bg: #121214;
+  --bg-sidebar: #0e0e10;
+  --bg-elev: #17171a;
+  --bg-hover: rgba(255, 255, 255, 0.04);
+  --bg-active: #1f1f23;
+  --bg-input: #0e0e10;
   --bg-tile: #1a1a1d;
-  --border: rgba(255, 255, 255, 0.06);
-  --border-strong: rgba(255, 255, 255, 0.12);
-  --text: #f5f5f7;
-  --text-2: #a1a1a6;
-  --text-3: #6e6e73;
-  --accent-soft: rgba(88, 101, 242, 0.22);
-  --shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 0 0.5px rgba(255, 255, 255, 0.1);
+  --border: #1c1c20;
+  --border-strong: #2a2a2f;
+  --text: #f2f3f5;
+  --text-2: #b5bac1;
+  --text-3: #6d717a;
+  --accent-soft: rgba(88, 101, 242, 0.2);
+  --shadow: 0 8px 16px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
   color-scheme: dark;
 }
 
@@ -206,3 +200,33 @@ input, textarea {
 ::-webkit-scrollbar-track { background: transparent; }
 
 .selectable { user-select: text; -webkit-user-select: text; }
+/* Pannelli laterali: sidebar chat, lista membri e menu impostazioni usano questa stessa classe. */
+.side {
+  background: var(--bg-sidebar);
+}
+/* Voci di navigazione: stesse misure nella sidebar delle chat e nelle impostazioni. */
+.nav-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 16px 8px 6px;
+}
+.nav-label:first-child { padding-top: 4px; }
+
+.nav-item {
+  width: 100%;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-2);
+  text-align: left;
+}
+.nav-item:hover { background: var(--bg-hover); color: var(--text); }
+.nav-item.active { background: var(--bg-active); color: var(--text); }

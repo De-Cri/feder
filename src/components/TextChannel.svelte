@@ -185,15 +185,6 @@
   <header>
     <Icon name="hash" size={18} />
     <h2>{channel.name}</h2>
-    <span class="spacer"></span>
-    <button
-      class="icon-btn"
-      class:on={app.showMembers}
-      title="Membri"
-      onclick={() => (app.showMembers = !app.showMembers)}
-    >
-      <Icon name="users" size={18} />
-    </button>
   </header>
 
   <div class="scroller" bind:this={scroller} onscroll={onScroll}>
