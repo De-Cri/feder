@@ -31,8 +31,8 @@
     >
       <Avatar {id} size={30} status={isOnline ? 'online' : 'offline'} />
       <span class="name">{app.name(id)}</span>
-      {#if role === 'admin'}<span class="admin" title="Admin"><Icon name="shield" size={13} /></span>{/if}
-      {#if contributor}<span class="contrib" title="Contributor su GitHub"><Icon name="code" size={13} /></span>{/if}
+      {#if role === 'admin'}<span class="badge admin" data-tip="Admin" aria-label="Admin"><Icon name="shield" size={13} /></span>{/if}
+      {#if contributor}<span class="badge contrib" data-tip="Contributor" aria-label="Contributor"><Icon name="code" size={13} /></span>{/if}
       {#if app.voiceMutes[id]}<span class="muted-ic" title="Silenziato dall’admin"><Icon name="mic-off" size={13} /></span>{/if}
       {#if app.presence[id]?.voice}<span class="in-voice" title="In vocale"><Icon name="volume" size={13} /></span>{/if}
     </button>
@@ -96,6 +96,24 @@
   .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 500; }
   .admin { color: var(--orange); display: flex; }
   .contrib { color: var(--accent); display: flex; }
+  /* Tooltip immediato sui badge (il title nativo arriva in ritardo o non compare). */
+  .badge { position: relative; }
+  .badge:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: -6px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--bg-elev);
+    box-shadow: var(--shadow);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 5;
+  }
   .muted-ic { color: var(--red); display: flex; }
   .in-voice { color: var(--green); display: flex; }
 </style>
