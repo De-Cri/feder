@@ -171,6 +171,12 @@ class Peer {
   camSender: RTCRtpSender | null = null;
   screenSender: RTCRtpSender | null = null;
   screenAudioSender: RTCRtpSender | null = null;
+  /**
+   * Sender rimasti fermi dopo aver spento webcam/schermo. Alla riaccensione si
+   * riusa lo stesso transceiver: con addTrack ne nasceva uno nuovo ogni volta
+   * (+2 per ogni condivisione schermo, da entrambe le parti, mai liberati).
+   */
+  idle: Partial<Record<SenderKey, RTCRtpSender>> = {};
   private stopAnalyser: (() => void) | null = null;
   /** Chiave dello stream audio su cui gira l'analizzatore. */
   private analysedKey: string | null = null;
@@ -440,6 +446,8 @@ class Peer {
   }
 }
 
+type SenderKey = 'camSender' | 'screenSender' | 'screenAudioSender';
+
 // ---------------------------------------------------------------------------
 class VoiceRoom {
   channelId = $state<number | null>(null);
@@ -703,15 +711,43 @@ class VoiceRoom {
     for (const p of Object.values(this.peers)) if (p.ready) fn(p); // gli altri ricevono tutto quando si collegano
   }
 
-  private removeSender(p: Peer, key: 'camSender' | 'screenSender' | 'screenAudioSender') {
+  private removeSender(p: Peer, key: SenderKey) {
     const sender = p[key];
     if (!sender) return;
     try {
+      // Il transceiver resta (smette solo di inviare): chi guarda vede la traccia
+      // spegnersi come prima, e alla prossima accensione lo riusiamo.
       p.pc.removeTrack(sender);
+      p.idle[key] = sender;
     } catch {
       /* connessione già chiusa */
     }
     p[key] = null;
+  }
+
+  /**
+   * Inizia a inviare `track`: sul transceiver usato l'ultima volta per lo stesso
+   * scopo se c'è (stessa riga SDP, niente transceiver nuovi a ogni accensione),
+   * altrimenti con addTrack come sempre. Per chi riceve è identico: la riga torna
+   * attiva con lo stesso id di stream, quindi anche le versioni vecchie la
+   * riconoscono (schermo o webcam) come prima.
+   */
+  private addSender(p: Peer, key: SenderKey, track: MediaStreamTrack, stream: MediaStream): RTCRtpSender {
+    const old = p.idle[key];
+    delete p.idle[key];
+    const tr = old && p.pc.getTransceivers().find((t) => t.sender === old);
+    if (old && tr && tr.direction !== 'stopped' && tr.currentDirection !== 'stopped' && !old.track) {
+      try {
+        old.setStreams?.(stream);
+        void old.replaceTrack(track).catch(() => {});
+        // l'inverso di removeTrack: recvonly → sendrecv, inactive → sendonly
+        tr.direction = tr.direction === 'inactive' || tr.direction === 'sendonly' ? 'sendonly' : 'sendrecv';
+        return old;
+      } catch {
+        /* non riusabile: se ne crea uno nuovo */
+      }
+    }
+    return p.pc.addTrack(track, stream);
   }
 
   async toggleCam() {
@@ -739,7 +775,7 @@ class VoiceRoom {
     this.camOn = true;
     track.onended = () => this.camTrack === track && this.stopCam();
     this.forReadyPeers((p) => {
-      p.camSender = p.pc.addTrack(track, this.localStream);
+      p.camSender = this.addSender(p, 'camSender', track, this.localStream);
       this.tuneBitrate(p);
     });
     this.localRev++;
@@ -751,6 +787,7 @@ class VoiceRoom {
     if (!t) return;
     for (const p of Object.values(this.peers)) this.removeSender(p, 'camSender');
     this.localStream.removeTrack(t);
+    t.onended = null;
     t.stop();
     this.camTrack = null;
     this.camPreview = null;
@@ -778,8 +815,10 @@ class VoiceRoom {
       return; // annullato dall'utente
     }
     const track = s.getVideoTracks()[0];
-    if (!track) return;
-    if (this.channelId === null) return s.getTracks().forEach((t) => t.stop());
+    const audio = s.getAudioTracks()[0] ?? null;
+    // Tracce in più che non usiamo: fermate subito, altrimenti la cattura resta aperta.
+    for (const t of s.getTracks()) if (t !== track && t !== audio) t.stop();
+    if (!track || this.channelId === null) return s.getTracks().forEach((t) => t.stop());
     track.contentHint = q.hint;
     track.onended = () => this.screenTrack === track && this.stopScreen(); // "Interrompi condivisione" del sistema
     this.screenTrack = track;
@@ -787,15 +826,14 @@ class VoiceRoom {
     this.screenPreview = new MediaStream([track]);
     this.screenOn = true;
     // Audio di sistema/scheda (Windows: spunta "Condividi audio" nel selettore).
-    const audio = s.getAudioTracks()[0] ?? null;
     if (audio) {
       this.screenAudioTrack = audio;
       this.screenStream.addTrack(audio);
     }
     this.forReadyPeers((p) => {
-      p.screenSender = p.pc.addTrack(track, this.screenStream);
+      p.screenSender = this.addSender(p, 'screenSender', track, this.screenStream);
       preferHardwareCodec(p.pc, p.screenSender);
-      if (audio) p.screenAudioSender = p.pc.addTrack(audio, this.screenStream);
+      if (audio) p.screenAudioSender = this.addSender(p, 'screenAudioSender', audio, this.screenStream);
       this.tuneBitrate(p);
     });
     this.localRev++;
@@ -810,6 +848,7 @@ class VoiceRoom {
     for (const t of [this.screenTrack, this.screenAudioTrack]) {
       if (!t) continue;
       this.screenStream.removeTrack(t);
+      t.onended = null;
       t.stop();
     }
     const had = !!this.screenTrack;
