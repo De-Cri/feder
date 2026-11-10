@@ -39,7 +39,7 @@ export const RELEASES: Release[] = [
       'Entra in un canale vocale e accendi/spegni microfono e webcam più volte di fila: chi è fuori dalla chiamata deve vederti sempre nel canale giusto (al massimo con qualche secondo di ritardo).',
       'Mentre sei in vocale, entra in un altro canale: devi continuare a vedere chi c\'è nel primo.',
       'Mentre sei in chiamata dall\'app, apri Paper anche dal browser: gli altri devono vederti ancora in chiamata.',
-      'Impostazioni → Aspetto → prova "Nero blu" e "Nero profondo".',
+      'Impostazioni → Aspetto → prova "Nero profondo".',
     ],
   },
   {
