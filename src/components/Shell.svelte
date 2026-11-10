@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { app, RELEASES_VIEW } from '../lib/state.svelte';
-  import { checkUpdate, setBackgroundMode, type UpdateInfo } from '../lib/platform';
+  import { checkUpdate, setBackgroundMode, isHidden, onHiddenChange, type UpdateInfo } from '../lib/platform';
   import { voice } from '../lib/voice.svelte';
   import Sidebar from './Sidebar.svelte';
   import TextChannel from './TextChannel.svelte';
@@ -21,20 +21,20 @@
   let installing = $state(false);
 
   // Finestra nascosta e nessuna chiamata → modalità a basso consumo.
-  let hidden = $state(typeof document !== 'undefined' && document.hidden);
+  // isHidden() vede anche la finestra minimizzata in Electron (lì document.hidden resta false).
+  let hidden = $state(isHidden());
   $effect(() => {
     const low = hidden && voice.channelId === null;
     setBackgroundMode(low);
   });
 
   onMount(() => {
-    const onVis = () => (hidden = document.hidden);
-    document.addEventListener('visibilitychange', onVis);
+    const offHidden = onHiddenChange((h) => (hidden = h));
     checkUpdate().then((u) => (update = u));
     const t = setInterval(() => checkUpdate().then((u) => u && (update = u)), 6 * 3600_000);
     return () => {
       clearInterval(t);
-      document.removeEventListener('visibilitychange', onVis);
+      offHidden();
     };
   });
 
