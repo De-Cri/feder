@@ -25,7 +25,7 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("errore avviando Paper");
+        .expect("errore avviando Feder");
 }
 
 /// Finestra nascosta e nessuna chiamata in corso: chiede a WebView2 di usare

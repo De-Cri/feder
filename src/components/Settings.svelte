@@ -248,7 +248,7 @@
         {:else}
           <h2>Info</h2>
           <div class="card">
-            <div class="row-title">Paper</div>
+            <div class="row-title">Feder</div>
             <div class="muted small">Versione {version}</div>
           </div>
           <div class="inline">

@@ -1,4 +1,4 @@
-// Paper — contenitore Electron (Linux; utile anche per sviluppare su Windows).
+// Feder — contenitore Electron (Linux; utile anche per sviluppare su Windows).
 // Su Linux la webview di sistema (WebKitGTK) spesso non ha WebRTC: Electron
 // porta con sé Chromium, così voce, video e condivisione schermo funzionano sempre.
 const {
@@ -62,7 +62,7 @@ function createWindow() {
     height: 760,
     minWidth: 820,
     minHeight: 520,
-    title: 'Paper',
+    title: 'Feder',
     show: false,
     autoHideMenuBar: true,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1e1e20' : '#ffffff',

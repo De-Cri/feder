@@ -49,7 +49,7 @@
   <form class="card" onsubmit={submit}>
     <div class="logo"><Logo size={48} /></div>
     <h1>{mode === 'login' ? 'Bentornato' : 'Crea un account'}</h1>
-    <p class="muted sub">Paper — solo per pochi.</p>
+    <p class="muted sub">Feder — solo per pochi.</p>
 
     <label class="label" for="email">Email</label>
     <input id="email" class="field" type="email" autocomplete="email" bind:value={email} required />

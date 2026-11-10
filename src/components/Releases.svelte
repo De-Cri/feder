@@ -20,7 +20,7 @@
     {#each RELEASES as r, i (r.version)}
       <article>
         <div class="head">
-          <span class="ver">Paper {r.version}</span>
+          <span class="ver">Feder {r.version}</span>
           {#if i === 0}<span class="tag">ultima</span>{/if}
           <span class="date">{r.date}</span>
         </div>
