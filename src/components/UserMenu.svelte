@@ -91,7 +91,7 @@
   {#if app.isAdmin}
     <div class="sep"></div>
     <button class="item" onclick={() => run('admin_set_contributor', { p_user: id, p_on: !member?.contributor })}>
-      <Icon name="code" size={15} />
+      <Icon name="sword" size={15} />
       {member?.contributor ? 'Togli badge Contributor' : 'Dai badge Contributor'}
     </button>
   {/if}

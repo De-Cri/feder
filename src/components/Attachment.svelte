@@ -91,6 +91,12 @@
     place-items: center;
     padding: 40px;
   }
-  .lightbox img { max-width: 100%; max-height: 100%; border-radius: var(--r); }
+  /* Misure sulla finestra (non sulla griglia): l'immagine si ridimensiona insieme alla finestra. */
+  .lightbox img {
+    max-width: calc(100vw - 80px);
+    max-height: calc(100vh - 80px);
+    object-fit: contain;
+    border-radius: var(--r);
+  }
   .dl { position: absolute; bottom: 20px; right: 20px; background: rgba(255,255,255,0.15); color: #fff; }
 </style>
