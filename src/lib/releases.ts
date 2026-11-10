@@ -10,6 +10,24 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.4.6',
+    date: '10 novembre 2026',
+    added: [
+      'Paper ora si chiama Feder, con la piuma come icona.',
+      'La RAM non cresce più a ogni condivisione schermo o webcam: prima ogni avvio lasciava in memoria un canale in più per ogni persona.',
+      'Poke: tasto destro su chi ha l\'audio disattivato → Poke, con un messaggio facoltativo. Gli arriva un avviso con un suono.',
+      'Le chat si ricordano dove eri rimasto: tornando in un canale non ti ritrovi sempre in fondo.',
+      'In vocale, con la finestra larga, le webcam non vengono più tagliate sopra e sotto.',
+      'Le immagini aperte si ridimensionano insieme alla finestra.',
+      'Il badge dei contributor ora è una spada.',
+    ],
+    test: [
+      'Avvia e ferma la condivisione schermo più volte: la RAM non deve salire a ogni giro.',
+      'Chiedi a un amico di disattivare l\'audio, poi tasto destro sul suo nome → Poke.',
+      'Scorri in alto in una chat, passa a un altro canale e torna: devi essere dove eri.',
+    ],
+  },
+  {
     version: '0.4.5',
     date: '10 novembre 2026',
     added: [
@@ -21,7 +39,7 @@ export const RELEASES: Release[] = [
     ],
     test: [
       'In chiamata, tasto destro su un amico: porta il volume da 82 a 83 con la rotellina o scrivendo il numero.',
-      'Lista membri: passa il mouse sullo scudo dell\'admin e sull\'icona </> dei contributor.',
+      'Lista membri: passa il mouse sullo scudo dell\'admin e sulla spada dei contributor.',
       'In chiamata con webcam o schermo accesi, minimizza Paper: devi continuare a sentire e gli altri a vederti.',
     ],
   },
@@ -35,22 +53,6 @@ export const RELEASES: Release[] = [
     test: [
       'Impostazioni → Voce e video: apri le tendine di microfono, uscita audio e webcam e cambia dispositivo.',
       'Controlla che nelle tendine non ci siano voci doppie "Predefinito - …" o "Comunicazioni - …".',
-    ],
-  },
-  {
-    version: '0.4.3',
-    date: '10 novembre 2026',
-    added: [
-      'Barra laterale più pulita: i controlli della chiamata (microfono, audio, webcam, schermo, termina) sono in basso a sinistra, sempre a portata di mano.',
-      'Canale vocale più spazioso: niente più barra dei pulsanti sotto i riquadri.',
-      'La lista membri resta sempre aperta nei canali di testo.',
-      'Ritaglio della foto profilo: l\'immagine si sposta nel verso in cui trascini.',
-      'Tolto il tema Nero blu: chi lo usava passa a Nero.',
-    ],
-    test: [
-      'Entra in un canale vocale e usa i pulsanti in basso nella barra laterale: microfono, audio, webcam, schermo e termina chiamata.',
-      'Apri un canale di testo: a destra c\'è la lista membri. In un canale vocale non deve comparire.',
-      'Impostazioni → Account → cambia foto e trascinala: deve seguire il mouse.',
     ],
   },
 ];
