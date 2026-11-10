@@ -59,7 +59,7 @@ const defaults: Prefs = {
   screenFps: 30,
   screenMode: 'motion',
   screenAudio: true,
-  sounds: { selfJoin: true, selfLeave: true, join: true, leave: true, call: true, message: true, mute: true, unmute: true },
+  sounds: { selfJoin: true, selfLeave: true, join: true, leave: true, call: true, message: true, mute: true, unmute: true, poke: true },
   soundVolume: 0.6,
 };
 

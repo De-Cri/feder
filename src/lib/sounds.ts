@@ -2,7 +2,7 @@
 // Ognuno si può disattivare dalle impostazioni; il volume è unico.
 import { prefs } from './prefs.svelte';
 
-export type SoundKind = 'selfJoin' | 'selfLeave' | 'join' | 'leave' | 'call' | 'message' | 'mute' | 'unmute';
+export type SoundKind = 'selfJoin' | 'selfLeave' | 'join' | 'leave' | 'call' | 'message' | 'mute' | 'unmute' | 'poke';
 
 export const SOUND_LABELS: Record<SoundKind, string> = {
   selfJoin: 'Entri in un canale vocale',
@@ -13,6 +13,7 @@ export const SOUND_LABELS: Record<SoundKind, string> = {
   message: 'Nuovo messaggio',
   mute: 'Microfono / audio disattivato',
   unmute: 'Microfono / audio riattivato',
+  poke: 'Qualcuno ti fa un poke',
 };
 
 // Note in Hz (scala di La maggiore, suona "morbida").
@@ -48,6 +49,12 @@ const PATTERNS: Record<SoundKind, Note[]> = {
     { f: N.E6, t: 1.04, d: 0.45, g: 0.9 },
   ],
   message: [{ f: N.B5, t: 0, d: 0.12, g: 0.6 }, { f: N.E6, t: 0.05, d: 0.16, g: 0.5 }],
+  // tre colpetti decisi: si sente anche sopra un gioco
+  poke: [
+    { f: N.E6, t: 0, d: 0.1, g: 1, type: 'triangle' },
+    { f: N.E6, t: 0.16, d: 0.1, g: 1, type: 'triangle' },
+    { f: N.A5, t: 0.32, d: 0.22, g: 1, type: 'triangle' },
+  ],
   mute: [{ f: N.E4, t: 0, d: 0.09, g: 0.7, type: 'triangle' }],
   unmute: [{ f: N.A4, t: 0, d: 0.09, g: 0.7, type: 'triangle' }],
 };
