@@ -7,7 +7,7 @@ import { configured } from './config';
 import type { NoiseMode } from './audio';
 import type { SoundKind } from './sounds';
 
-export type Theme = 'system' | 'light' | 'dark' | 'black' | 'black-blue' | 'oled';
+export type Theme = 'system' | 'light' | 'dark' | 'black' | 'oled';
 
 export type Prefs = {
   theme: Theme;
@@ -35,7 +35,7 @@ export type Prefs = {
 };
 
 const DEVICE_KEYS = ['micId', 'camId', 'speakerId'] as const;
-const THEMES: Theme[] = ['system', 'light', 'dark', 'black', 'black-blue', 'oled'];
+const THEMES: Theme[] = ['system', 'light', 'dark', 'black', 'oled'];
 const LOCAL_KEY = 'cerchio-prefs';
 const CHANGED_KEY = 'cerchio-prefs-changed';
 const OLD_THEME_KEY = 'paper.theme';
@@ -90,6 +90,7 @@ function normalize(raw: any): Prefs {
   }
   delete raw.noiseSuppression;
 
+  if (raw.theme === 'black-blue') raw.theme = 'black'; // "Nero blu" tolto: stessa palette di "Nero"
   if (!THEMES.includes(raw.theme)) raw.theme = 'system';
 
   return { ...defaults, ...raw, sounds: { ...defaults.sounds, ...(raw.sounds ?? {}) } };

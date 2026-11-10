@@ -120,7 +120,6 @@
     {/if}
     <div class="mask"></div>
   </div>
-  <p class="hint">Trascina per spostare, usa lo zoom per ingrandire.</p>
   <label class="zoom">
     <span>Zoom</span>
     <input
@@ -149,7 +148,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     padding: 20px;
     width: fit-content;
     border-radius: var(--r-lg);
@@ -157,7 +156,6 @@
     box-shadow: var(--shadow);
   }
   h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--text); }
-  .hint { margin: 0; font-size: 12px; color: var(--text-3); }
   .frame {
     position: relative;
     overflow: hidden;

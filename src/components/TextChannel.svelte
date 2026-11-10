@@ -291,7 +291,6 @@
     color: var(--text-2);
   }
   h2 { font-size: 15px; font-weight: 600; margin: 0; color: var(--text); }
-  .spacer { flex: 1; }
   .scroller {
     flex: 1;
     overflow-y: auto;

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { app } from '../lib/state.svelte';
+  import { app, RELEASES_VIEW } from '../lib/state.svelte';
   import { checkUpdate, setBackgroundMode, type UpdateInfo } from '../lib/platform';
   import { voice } from '../lib/voice.svelte';
   import Sidebar from './Sidebar.svelte';
@@ -10,6 +10,7 @@
   import Settings from './Settings.svelte';
   import ScreenPicker from './ScreenPicker.svelte';
   import VoiceAudio from './VoiceAudio.svelte';
+  import Releases from './Releases.svelte';
 
   // Il canale aperto, separato per tipo: così TypeScript sa sempre quale prop passare.
   const current = $derived(app.channels.find((c) => c.id === app.view) ?? null);
@@ -43,7 +44,7 @@
   });
 </script>
 
-<div class="shell">
+<div class="shell" class:members={!!textChannel}>
   <Sidebar />
   <main>
     {#if update}
@@ -60,7 +61,9 @@
       </div>
     {/if}
 
-    {#if textChannel}
+    {#if app.view === RELEASES_VIEW}
+      <Releases />
+    {:else if textChannel}
       {#key textChannel.id}
         <TextChannel channel={textChannel} />
       {/key}
@@ -69,7 +72,10 @@
     {/if}
   </main>
 
-  <MemberList />
+  <!-- La lista membri si vede solo nei canali di testo. -->
+  {#if textChannel}
+    <MemberList />
+  {/if}
 </div>
 
 {#if app.settingsOpen}
@@ -83,9 +89,10 @@
   .shell {
     height: 100%;
     display: grid;
-    grid-template-columns: 240px minmax(0, 1fr) 240px;
+    grid-template-columns: 240px minmax(0, 1fr);
     grid-template-rows: 100%;
   }
+  .shell.members { grid-template-columns: 240px minmax(0, 1fr) 240px; }
   main {
     min-width: 0;
     min-height: 0;
