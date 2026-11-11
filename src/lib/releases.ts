@@ -10,6 +10,24 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.4.7',
+    date: '11 novembre 2026',
+    added: [
+      'Messaggi privati: "Messaggi" in basso a sinistra apre una schermata a parte, con le tue chat e "Nuova chat" per cercare un membro.',
+      'I messaggi privati sono cifrati end-to-end: nemmeno il server li può leggere. All\'attivazione ricevi un codice di recupero da conservare, serve solo su un altro dispositivo.',
+      'I messaggi privati spariscono dopo 30 giorni, tranne quelli a cui metti la stellina.',
+      'Lo schermo condiviso non va più in primo piano da solo: clicca per guardarlo, doppio click per ingrandirlo. Chi non guarda non lo scarica.',
+      'Microfono e cuffie sempre visibili in basso a sinistra: puoi mutarti prima di entrare in chiamata.',
+      'Tasto destro sul microfono: volume di ingresso con il livello in tempo reale e volume di uscita.',
+      'Cursori del volume ridisegnati, senza il riquadro bianco sulla percentuale.',
+    ],
+    test: [
+      'Messaggi → Attiva, salva il codice e scrivi a un amico che li ha attivati.',
+      'Mutati prima di entrare in un canale vocale: devi entrare già mutato.',
+      'Quando qualcuno condivide lo schermo, clicca il riquadro per guardarlo e la X per chiuderlo.',
+    ],
+  },
+  {
     version: '0.4.6',
     date: '10 novembre 2026',
     added: [
@@ -41,18 +59,6 @@ export const RELEASES: Release[] = [
       'In chiamata, tasto destro su un amico: porta il volume da 82 a 83 con la rotellina o scrivendo il numero.',
       'Lista membri: passa il mouse sullo scudo dell\'admin e sulla spada dei contributor.',
       'In chiamata con webcam o schermo accesi, minimizza Paper: devi continuare a sentire e gli altri a vederti.',
-    ],
-  },
-  {
-    version: '0.4.4',
-    date: '10 novembre 2026',
-    added: [
-      'Impostazioni con un nuovo stile, allineato alla barra laterale delle chat.',
-      'Nuove tendine per scegliere microfono, uscita audio e webcam.',
-    ],
-    test: [
-      'Impostazioni → Voce e video: apri le tendine di microfono, uscita audio e webcam e cambia dispositivo.',
-      'Controlla che nelle tendine non ci siano voci doppie "Predefinito - …" o "Comunicazioni - …".',
     ],
   },
 ];
