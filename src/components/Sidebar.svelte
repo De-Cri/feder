@@ -1,19 +1,12 @@
 <script lang="ts">
   import { app, RELEASES_VIEW } from '../lib/state.svelte';
-  import { voice, screenShareSupported } from '../lib/voice.svelte';
+  import { voice } from '../lib/voice.svelte';
   import Icon from './Icon.svelte';
+  import CallControls from './CallControls.svelte';
   import Avatar from './Avatar.svelte';
   import VoiceMenu from './VoiceMenu.svelte';
-  import MicMenu from './MicMenu.svelte';
 
   let menu = $state<{ id: string; x: number; y: number } | null>(null);
-  let micMenu = $state<DOMRect | null>(null);
-
-  // Tasto destro sul microfono: volumi di ingresso/uscita e livello.
-  function openMicMenu(e: MouseEvent) {
-    e.preventDefault();
-    micMenu = (e.currentTarget as HTMLElement).getBoundingClientRect();
-  }
 
   function openVoice(id: number) {
     app.view = id;
@@ -73,56 +66,13 @@
         <Icon name="settings" size={17} />
       </button>
 
-      {#if voice.channelId !== null}
-        <button
-          class="icon-btn"
-          class:bad={!voice.micOn || voice.adminMuted}
-          class:open={micMenu !== null}
-          title={voice.adminMuted ? 'Silenziato dall’admin' : voice.micOn ? 'Disattiva microfono' : 'Attiva microfono'}
-          onclick={() => voice.toggleMic()}
-          oncontextmenu={openMicMenu}
-        >
-          <Icon name={voice.micOn && !voice.adminMuted ? 'mic' : 'mic-off'} size={17} />
-        </button>
-        <button
-          class="icon-btn"
-          class:bad={voice.deaf}
-          title={voice.deaf ? 'Riattiva audio' : 'Disattiva audio'}
-          onclick={() => voice.toggleDeaf()}
-        >
-          <Icon name={voice.deaf ? 'headphones-off' : 'headphones'} size={17} />
-        </button>
-        <button
-          class="icon-btn"
-          class:on={voice.camOn}
-          title={voice.camOn ? 'Spegni webcam' : 'Accendi webcam'}
-          onclick={() => voice.toggleCam()}
-        >
-          <Icon name={voice.camOn ? 'video' : 'video-off'} size={17} />
-        </button>
-        {#if screenShareSupported}
-          <button
-            class="icon-btn"
-            class:on={voice.screenOn}
-            title={voice.screenOn ? 'Interrompi condivisione' : 'Condividi schermo'}
-            onclick={() => voice.toggleScreen()}
-          >
-            <Icon name="screen" size={17} />
-          </button>
-        {/if}
-        <button class="icon-btn bad" title="Termina chiamata" onclick={() => voice.leave()}>
-          <Icon name="leave" size={17} />
-        </button>
-      {/if}
+      <CallControls />
     </div>
   </footer>
 </aside>
 
 {#if menu}
   <VoiceMenu id={menu.id} x={menu.x} y={menu.y} onclose={() => (menu = null)} />
-{/if}
-{#if micMenu && voice.channelId !== null}
-  <MicMenu anchor={micMenu} onclose={() => (micMenu = null)} />
 {/if}
 
 <style>
@@ -180,6 +130,4 @@
     border-top: 1px solid var(--border);
   }
   .actions { display: flex; flex-wrap: wrap; gap: 6px; }
-  .icon-btn.open { background: var(--bg-active); color: var(--text); }
-  .icon-btn.open.bad { color: var(--red); }
 </style>

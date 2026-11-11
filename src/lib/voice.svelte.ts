@@ -28,6 +28,8 @@ type Signal = {
   screen?: string | null;
   /** id della connessione di chi invia: se cambia, l'altro l'ha ricreata da zero. */
   sid?: string;
+  /** chi invia guarda (true) o no (false) il tuo schermo condiviso */
+  watch?: boolean;
 };
 
 const STUN: RTCIceServer[] = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }];
@@ -171,6 +173,9 @@ class Peer {
   camSender: RTCRtpSender | null = null;
   screenSender: RTCRtpSender | null = null;
   screenAudioSender: RTCRtpSender | null = null;
+  /** L'altro guarda il mio schermo? Se no, la mia stream verso di lui va in pausa.
+   *  Parte da true: le versioni vecchie non lo dicono e lo mostrano sempre. */
+  wantsScreen = true;
   /**
    * Sender rimasti fermi dopo aver spento webcam/schermo. Alla riaccensione si
    * riusa lo stesso transceiver: con addTrack ne nasceva uno nuovo ogni volta
@@ -464,6 +469,8 @@ class VoiceRoom {
   error = $state<string | null>(null);
   notice = $state<string | null>(null);
   joining = $state(false);
+  /** Condivisioni schermo che hai scelto di guardare (chiave = id di chi condivide). */
+  watching = $state<Record<string, true>>({});
 
   me = '';
   mic: MicPipeline | null = null;
@@ -529,6 +536,13 @@ class VoiceRoom {
       if (old?.remoteSid && sig.sid && sig.sid !== old.remoteSid) {
         if (sig.description?.type !== 'offer') return; // residui della connessione vecchia
         this.drop(sig.from);
+      }
+      if (sig.watch !== undefined) {
+        if (old && old.wantsScreen !== sig.watch) {
+          old.wantsScreen = sig.watch;
+          void this.tuneBitrate(old);
+        }
+        return;
       }
       this.peer(sig.from).handle(sig);
     })
@@ -601,6 +615,7 @@ class VoiceRoom {
     this.channelId = null;
     this.joining = false;
     this.localSpeaking = false;
+    this.watching = {};
     app.myPresence.voice = null;
     app.room = { channel: null, ids: [] };
     this.syncPresence();
@@ -881,22 +896,24 @@ class VoiceRoom {
   }
 
   async tuneBitrate(p: Peer) {
-    const set = async (sender: RTCRtpSender | null, bitrate: number, fps: number, degradation?: RTCDegradationPreference) => {
+    const set = async (sender: RTCRtpSender | null, enc: RTCRtpEncodingParameters, degradation?: RTCDegradationPreference) => {
       if (!sender) return;
       try {
         const params = sender.getParameters();
         if (!params.encodings?.length) params.encodings = [{}];
-        params.encodings[0].maxBitrate = bitrate;
-        params.encodings[0].maxFramerate = fps;
+        Object.assign(params.encodings[0], enc);
         if (degradation) params.degradationPreference = degradation;
         await sender.setParameters(params);
       } catch {
         /* non ancora negoziato: riprova a connessione avvenuta */
       }
     };
-    await set(p.camSender, CAM_BITRATE, 30);
+    await set(p.camSender, { maxBitrate: CAM_BITRATE, maxFramerate: 30 });
     const q = screenSettings();
-    await set(p.screenSender, q.bitrate, q.fps, q.degradation);
+    // Chi non guarda il mio schermo non lo riceve: niente codifica né banda sprecate.
+    const active = p.wantsScreen;
+    await set(p.screenSender, { maxBitrate: q.bitrate, maxFramerate: q.fps, active }, q.degradation);
+    await set(p.screenAudioSender, { active });
   }
 
   private syncPresence() {

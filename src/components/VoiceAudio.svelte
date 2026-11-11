@@ -12,10 +12,18 @@
   // di un amico e continuare a sentire lui.
   function volumeOf(id: string, screen: boolean) {
     if (voice.deaf) return 0;
-    if (screen) return prefs.outputVolume * screenVolume(id);
+    if (screen) return voice.watching[id] ? prefs.outputVolume * screenVolume(id) : 0;
     if (app.voiceMutes[id]) return 0;
     return prefs.outputVolume * userVolume(id);
   }
+
+  // Schermi condivisi: chi condivide sa se lo guardi, così se non lo guardi non te lo manda.
+  // Condivisione finita → la prossima volta che riparte va riaperta con un click.
+  const sharing = (id: string) => !!app.presence[id]?.screen || !!voice.peers[id]?.hasScreen;
+  $effect(() => {
+    for (const id of Object.keys(voice.watching)) if (!sharing(id)) delete voice.watching[id];
+    for (const p of peers) if (sharing(p.id)) voice.send(p.id, { watch: !!voice.watching[p.id] });
+  });
 
   // Mute imposto dall'admin: applicato appena cambia, ovunque tu sia nell'app.
   $effect(() => {

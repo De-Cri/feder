@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { app } from '../lib/state.svelte';
+  import { voice } from '../lib/voice.svelte';
   import { prefs, savePrefs, userVolume, screenVolume } from '../lib/prefs.svelte';
   import { supabase } from '../lib/supabase';
   import Icon from './Icon.svelte';
@@ -60,6 +61,12 @@
     <Icon name={vol > 0 ? 'volume' : 'mic-off'} size={15} />
     {vol > 0 ? (screen ? 'Silenzia la stream' : 'Silenzia per me') : 'Riattiva audio'}
   </button>
+  {#if screen && voice.watching[id]}
+    <button onclick={() => { delete voice.watching[id]; onclose(); }}>
+      <Icon name="screen" size={15} />
+      Smetti di guardare
+    </button>
+  {/if}
   {#if !screen && app.presence[id]?.deaf}<PokeItem {id} onsent={onclose} />{/if}
   {#if app.isAdmin && !screen}
     <button onclick={toggleVoiceMute}>
