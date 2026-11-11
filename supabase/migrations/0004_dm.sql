@@ -7,7 +7,7 @@
 --
 -- - I messaggi si leggono solo se sei mittente o destinatario (RLS); in tempo reale
 --   arrivano solo a quei due (postgres_changes rispetta l'RLS), niente broadcast.
--- - Si scrive solo con send_dm: limiti anti-spam e anti-broadcast lato server.
+-- - Si scrive solo con dm_send: limiti anti-spam e anti-broadcast lato server.
 -- - Dopo 30 giorni un messaggio sparisce per chi non gli ha messo la stellina;
 --   quando non ce l'ha più nessuno viene cancellato (dm_purge, senza pg_cron).
 -- =============================================================================
