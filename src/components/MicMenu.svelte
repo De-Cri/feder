@@ -77,7 +77,11 @@
   </div>
 
   <VolumeSlider label="Ingresso" value={prefs.inputGain} onchange={setGain} />
-  <div class="meter" class:idle={!live} title={live ? 'Livello del microfono' : 'Microfono disattivato'}>
+  <div
+    class="meter"
+    class:idle={!live || !voice.mic}
+    title={!voice.mic ? 'Il livello si vede in chiamata' : live ? 'Livello del microfono' : 'Microfono disattivato'}
+  >
     <div class="fill" style="transform:scaleX({level})"></div>
     {#if prefs.gateEnabled}<div class="gate" style="left:{gatePos}%"></div>{/if}
   </div>

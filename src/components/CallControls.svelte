@@ -1,5 +1,6 @@
 <script lang="ts">
   // Pulsanti della chiamata, in basso a sinistra nella barra laterale.
+  // Microfono e cuffie ci sono sempre (così entri in chiamata già mutato), il resto solo in chiamata.
   import { voice, screenShareSupported } from '../lib/voice.svelte';
   import Icon from './Icon.svelte';
   import MicMenu from './MicMenu.svelte';
@@ -32,27 +33,29 @@
 >
   <Icon name={voice.deaf ? 'headphones-off' : 'headphones'} {size} />
 </button>
-<button
-  class="icon-btn"
-  class:on={voice.camOn}
-  title={voice.camOn ? 'Spegni webcam' : 'Accendi webcam'}
-  onclick={() => voice.toggleCam()}
->
-  <Icon name={voice.camOn ? 'video' : 'video-off'} {size} />
-</button>
-{#if screenShareSupported}
+{#if voice.channelId !== null}
   <button
     class="icon-btn"
-    class:on={voice.screenOn}
-    title={voice.screenOn ? 'Interrompi condivisione' : 'Condividi schermo'}
-    onclick={() => voice.toggleScreen()}
+    class:on={voice.camOn}
+    title={voice.camOn ? 'Spegni webcam' : 'Accendi webcam'}
+    onclick={() => voice.toggleCam()}
   >
-    <Icon name="screen" {size} />
+    <Icon name={voice.camOn ? 'video' : 'video-off'} {size} />
+  </button>
+  {#if screenShareSupported}
+    <button
+      class="icon-btn"
+      class:on={voice.screenOn}
+      title={voice.screenOn ? 'Interrompi condivisione' : 'Condividi schermo'}
+      onclick={() => voice.toggleScreen()}
+    >
+      <Icon name="screen" {size} />
+    </button>
+  {/if}
+  <button class="icon-btn bad" title="Termina chiamata" onclick={() => voice.leave()}>
+    <Icon name="leave" {size} />
   </button>
 {/if}
-<button class="icon-btn bad" title="Termina chiamata" onclick={() => voice.leave()}>
-  <Icon name="leave" {size} />
-</button>
 
 {#if micMenu}
   <MicMenu anchor={micMenu} onclose={() => (micMenu = null)} />

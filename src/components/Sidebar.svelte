@@ -66,9 +66,7 @@
         <Icon name="settings" size={17} />
       </button>
 
-      {#if voice.channelId !== null}
-        <CallControls />
-      {/if}
+      <CallControls />
     </div>
   </footer>
 </aside>
