@@ -11,7 +11,8 @@
   import AvatarCropper from './AvatarCropper.svelte';
 
   type Tab = 'profile' | 'appearance' | 'notifications' | 'media' | 'admin' | 'about';
-  let tab = $state<Tab>('profile');
+  let tab = $state<Tab>(app.settingsTab as Tab);
+  app.settingsTab = 'profile'; // la prossima apertura normale riparte dal profilo
   let msg = $state<{ ok: boolean; text: string } | null>(null);
 
   // profilo

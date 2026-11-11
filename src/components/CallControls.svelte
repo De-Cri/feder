@@ -2,17 +2,27 @@
   // Pulsanti della chiamata: nella barra laterale o sotto la chiamata (Impostazioni → Aspetto).
   import { voice, screenShareSupported } from '../lib/voice.svelte';
   import Icon from './Icon.svelte';
+  import MicMenu from './MicMenu.svelte';
 
   let { big = false }: { big?: boolean } = $props();
   const size = $derived(big ? 20 : 17);
+
+  // Tasto destro sul microfono: volumi di ingresso/uscita e livello.
+  let micMenu = $state<DOMRect | null>(null);
+  function openMicMenu(e: MouseEvent) {
+    e.preventDefault();
+    micMenu = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  }
 </script>
 
 <button
   class="icon-btn"
   class:big
   class:bad={!voice.micOn || voice.adminMuted}
+  class:open={micMenu !== null}
   title={voice.adminMuted ? 'Silenziato dall’admin' : voice.micOn ? 'Disattiva microfono' : 'Attiva microfono'}
   onclick={() => voice.toggleMic()}
+  oncontextmenu={openMicMenu}
 >
   <Icon name={voice.micOn && !voice.adminMuted ? 'mic' : 'mic-off'} {size} />
 </button>
@@ -49,7 +59,13 @@
   <Icon name="leave" {size} />
 </button>
 
+{#if micMenu}
+  <MicMenu anchor={micMenu} onclose={() => (micMenu = null)} />
+{/if}
+
 <style>
+  .open { background: var(--bg-active); color: var(--text); }
+  .open.bad { color: var(--red); }
   .big { width: 44px; height: 44px; border-radius: var(--r); background: var(--bg-elev); }
   .big:hover { background: var(--bg-hover); }
   .big.leave { width: 64px; background: var(--red); color: #fff; }
