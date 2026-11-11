@@ -123,16 +123,12 @@
           </button>
         {:else if creating}
           <h2>{resetting ? 'Nuovo codice di recupero' : 'Messaggi privati cifrati'}</h2>
-          <p class="muted">
-            {#if resetting}
+          {#if resetting}
+            <p class="muted">
               Con un codice nuovo i messaggi che hai già non potrai più leggerli tu; chi ti ha scritto
               continuerà a vederli.
-            {:else}
-              Solo tu e chi ti risponde potete leggerli, nemmeno il server. Ti daremo un codice di recupero da
-              conservare: serve solo su un altro dispositivo.
-            {/if}
-          </p>
-          {#if !resetting}
+            </p>
+          {:else}
             <p class="why">
               <strong>Perché?</strong> Su Discord e app simili i messaggi privati non sono cifrati end-to-end:
               chi gestisce il servizio può leggerli. Qui no, per proteggere la tua privacy.
