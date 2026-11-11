@@ -4,8 +4,16 @@
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
   import VoiceMenu from './VoiceMenu.svelte';
+  import MicMenu from './MicMenu.svelte';
 
   let menu = $state<{ id: string; x: number; y: number } | null>(null);
+  let micMenu = $state<DOMRect | null>(null);
+
+  // Tasto destro sul microfono: volumi di ingresso/uscita e livello.
+  function openMicMenu(e: MouseEvent) {
+    e.preventDefault();
+    micMenu = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  }
 
   function openVoice(id: number) {
     app.view = id;
@@ -69,8 +77,10 @@
         <button
           class="icon-btn"
           class:bad={!voice.micOn || voice.adminMuted}
+          class:open={micMenu !== null}
           title={voice.adminMuted ? 'Silenziato dall’admin' : voice.micOn ? 'Disattiva microfono' : 'Attiva microfono'}
           onclick={() => voice.toggleMic()}
+          oncontextmenu={openMicMenu}
         >
           <Icon name={voice.micOn && !voice.adminMuted ? 'mic' : 'mic-off'} size={17} />
         </button>
@@ -110,6 +120,9 @@
 
 {#if menu}
   <VoiceMenu id={menu.id} x={menu.x} y={menu.y} onclose={() => (menu = null)} />
+{/if}
+{#if micMenu && voice.channelId !== null}
+  <MicMenu anchor={micMenu} onclose={() => (micMenu = null)} />
 {/if}
 
 <style>
@@ -167,4 +180,6 @@
     border-top: 1px solid var(--border);
   }
   .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .icon-btn.open { background: var(--bg-active); color: var(--text); }
+  .icon-btn.open.bad { color: var(--red); }
 </style>

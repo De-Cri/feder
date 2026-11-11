@@ -127,6 +127,8 @@ class AppState {
   view = $state<number>(1); // canale visualizzato (testo o voce, o RELEASES_VIEW)
   releasesUnseen = $state(hasUnseenRelease()); // pallino "nuovo" sul canale novità
   settingsOpen = $state(false);
+  // scheda da mostrare alla prossima apertura delle impostazioni (es. 'media' dal menu del microfono)
+  settingsTab = $state<string>('profile');
   focused = $state(true);
 
   /** Stato pubblicato in presence (aggiornato dalla stanza vocale). */
