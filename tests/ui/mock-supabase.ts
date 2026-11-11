@@ -1,4 +1,5 @@
 // Mock con dati finti per vedere la UI senza backend (solo sviluppo/screenshot).
+import { createIdentity, encryptDm, type Identity } from '../../src/lib/dmcrypto';
 const ME = 'u1';
 const now = Date.now();
 const iso = (minAgo: number) => new Date(now - minAgo * 60_000).toISOString();
@@ -32,6 +33,77 @@ const db: Record<string, any[]> = {
   ].map((m) => ({ attachment_path: null, attachment_name: null, attachment_mime: null, attachment_size: null, ...m })),
 };
 
+// Messaggi privati: marco, giulia e fede hanno attivato (chiavi vere), luca e ale no.
+db.dm_keys = [];
+db.dm_messages = [];
+db.dm_stars = [];
+const peers: Record<string, Identity> = {};
+const peersReady = (async () => {
+  for (const u of ['u2', 'u3', 'u5']) {
+    peers[u] = (await createIdentity('mock-pin')).identity;
+    db.dm_keys.push({ user_id: u, public_key: peers[u].publicKey });
+  }
+})();
+let myKey: any = null;
+let dmId = 100;
+async function seedDms(myPub: string) {
+  await peersReady;
+  const add = async (from: string, to: string, peer: string, text: string, minAgo: number) => {
+    const p = peers[peer];
+    const { body, iv } = await encryptDm(p, myPub, from, to, text);
+    db.dm_messages.push({
+      id: ++dmId, sender: from, recipient: to, iv, body, created_at: iso(minAgo),
+      sender_pub: from === ME ? myPub : p.publicKey, recipient_pub: to === ME ? myPub : p.publicKey,
+    });
+  };
+  await add('u2', ME, 'u2', 'oh hai visto la patch nuova?', 60 * 24 * 27);
+  await add(ME, 'u2', 'u2', 'sì, il codice del server è questo: 4471-KQ', 60 * 24 * 27 - 2);
+  db.dm_stars.push({ user_id: ME, message_id: dmId });
+  await add('u2', ME, 'u2', 'stasera ci sei? 🎮', 35);
+  await add('u2', ME, 'u2', 'ti aspetto in Lounge', 34);
+  await add(ME, 'u2', 'u2', 'arrivo tra 10 minuti', 20);
+  await add('u3', ME, 'u3', 'mi passi il link della release quando puoi?', 5);
+}
+
+function rpcResult(data: any, error: any = null) {
+  const p: any = Promise.resolve({ data, error });
+  p.single = () => Promise.resolve({ data: Array.isArray(data) ? data[0] ?? null : data, error });
+  p.maybeSingle = p.single;
+  return p;
+}
+
+async function dmRpc(fn: string, args: any) {
+  if (fn === 'dm_my_key') return myKey ? [myKey] : [];
+  if (fn === 'dm_set_key') {
+    myKey = { public_key: args.p_public, wrapped_key: args.p_wrapped, salt: args.p_salt, iv: args.p_iv, iterations: args.p_iterations };
+    db.dm_keys = [...db.dm_keys.filter((k) => k.user_id !== ME), { user_id: ME, public_key: args.p_public }];
+    await seedDms(args.p_public);
+    return null;
+  }
+  if (fn === 'dm_conversations') {
+    const by: Record<string, any> = {};
+    for (const m of db.dm_messages) {
+      const peer = m.sender === ME ? m.recipient : m.sender;
+      if (!by[peer] || by[peer].last_id < m.id) by[peer] = { peer, last_id: m.id, last_at: m.created_at, last_sender: m.sender };
+    }
+    return Object.values(by);
+  }
+  if (fn === 'dm_send') {
+    const row = {
+      id: ++dmId, sender: ME, recipient: args.p_to, iv: args.p_iv, body: args.p_body, created_at: new Date().toISOString(),
+      sender_pub: myKey.public_key, recipient_pub: args.p_recipient_pub,
+    };
+    db.dm_messages.push(row);
+    return row;
+  }
+  if (fn === 'dm_star') {
+    db.dm_stars = db.dm_stars.filter((s) => s.message_id !== args.p_id);
+    if (args.p_on) db.dm_stars.push({ user_id: ME, message_id: args.p_id });
+    return null;
+  }
+  return 'ok';
+}
+
 function builder(table: string) {
   let rows = [...(db[table] ?? [])];
   if (table === 'members' && !joined) rows = rows.filter((r) => r.user_id !== ME);
@@ -40,6 +112,11 @@ function builder(table: string) {
     select: () => b,
     eq: (k: string, v: any) => ((rows = rows.filter((r) => r[k] === v)), b),
     lt: (k: string, v: any) => ((rows = rows.filter((r) => r[k] < v)), b),
+    or: (expr: string) => {
+      const pairs = [...expr.matchAll(/sender\.eq\.([^,)]+),recipient\.eq\.([^,)]+)/g)];
+      rows = rows.filter((r) => pairs.some((x) => r.sender === x[1] && r.recipient === x[2]));
+      return b;
+    },
     order: (k: string, o?: { ascending?: boolean }) => (
       (rows = rows.sort((a, c) => (a[k] > c[k] ? 1 : -1) * (o?.ascending === false ? -1 : 1))), b
     ),
@@ -85,12 +162,18 @@ export const supabase: any = {
     signInWithPassword: async () => { setTimeout(() => setSession({ user: { id: ME } }), 300); return { data: {}, error: null }; },
   },
   from: builder,
-  rpc: async (fn: string, args: any) => {
+  rpc: (fn: string, args: any) => {
     if (fn === 'join_server') {
-      if (args.p_password !== 'segreta') return { data: 'wrong_password', error: null };
+      if (args.p_password !== 'segreta') return rpcResult('wrong_password');
       joined = true;
     }
-    return { data: 'ok', error: null };
+    if (fn.startsWith('dm_')) {
+      const p: any = dmRpc(fn, args).then((data) => ({ data, error: null }));
+      p.single = () => p.then((r: any) => ({ ...r, data: Array.isArray(r.data) ? r.data[0] ?? null : r.data }));
+      p.maybeSingle = p.single;
+      return p;
+    }
+    return rpcResult('ok');
   },
   realtime: { setAuth: async () => {} },
   channel: () => new Ch(),

@@ -8,6 +8,7 @@
   import Avatar from './Avatar.svelte';
   import VolumeSlider from './VolumeSlider.svelte';
   import PokeItem from './PokeItem.svelte';
+  import { dm } from '../lib/dm.svelte';
 
   // Menu del tasto destro su una persona. Usato da lista membri, sidebar vocale e chat.
   let {
@@ -88,6 +89,11 @@
       {vol > 0 ? 'Silenzia per me' : 'Riattiva audio'}
     </button>
     {#if app.presence[id]?.deaf}<PokeItem {id} onsent={onclose} />{/if}
+    {#if dm.status !== 'off'}
+      <button class="item" onclick={() => { dm.enter(id); onclose(); }}>
+        <Icon name="chat" size={15} /> Messaggio privato
+      </button>
+    {/if}
   {/if}
 
   {#if app.isAdmin}
