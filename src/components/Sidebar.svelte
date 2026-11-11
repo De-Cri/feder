@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { app, RELEASES_VIEW } from '../lib/state.svelte';
+  import { app, RELEASES_VIEW, DM_VIEW } from '../lib/state.svelte';
+  import { dm } from '../lib/dm.svelte';
+  import DmList from './DmList.svelte';
   import { voice } from '../lib/voice.svelte';
   import Icon from './Icon.svelte';
   import CallControls from './CallControls.svelte';
@@ -27,40 +29,57 @@
 
 <aside class="side">
   <nav>
-    <div class="nav-label">Chat</div>
-    {#each app.textChannels as c (c.id)}
-      <button class="nav-item" class:active={app.view === c.id} onclick={() => (app.view = c.id)}>
-        <Icon name="hash" size={16} />
-        <span class="name">{c.name}</span>
-        {#if app.unread[c.id]}<span class="badge">{app.unread[c.id]}</span>{/if}
-      </button>
-    {/each}
-    <button class="nav-item" class:active={app.view === RELEASES_VIEW} onclick={() => (app.view = RELEASES_VIEW)}>
-      <Icon name="megaphone" size={16} />
-      <span class="name">novità</span>
-      {#if app.releasesUnseen}<span class="badge">nuovo</span>{/if}
-    </button>
-
-    <div class="nav-label">Voce</div>
-    {#each app.voiceChannels as c (c.id)}
-      <button class="nav-item" class:active={app.view === c.id} onclick={() => openVoice(c.id)}>
-        <Icon name="volume" size={16} />
-        <span class="name">{c.name}</span>
-      </button>
-      {#each app.inVoice(c.id) as p (p.user_id)}
-        <div class="participant" role="presentation" oncontextmenu={(e) => openMenu(e, p.user_id)}>
-          <Avatar id={p.user_id} size={20} speaking={speaking(p.user_id)} />
-          <span class="pname">{app.name(p.user_id)}</span>
-          {#if p.screen}<span class="live">LIVE</span>{/if}
-          {#if p.cam}<Icon name="video" size={13} />{/if}
-          {#if p.deaf}<Icon name="headphones-off" size={13} />
-          {:else if !p.mic || app.voiceMutes[p.user_id]}<Icon name="mic-off" size={13} />{/if}
-        </div>
+    {#if app.view === DM_VIEW}
+      <DmList />
+    {:else}
+      <div class="nav-label">Chat</div>
+      {#each app.textChannels as c (c.id)}
+        <button class="nav-item" class:active={app.view === c.id} onclick={() => (app.view = c.id)}>
+          <Icon name="hash" size={16} />
+          <span class="name">{c.name}</span>
+          {#if app.unread[c.id]}<span class="badge">{app.unread[c.id]}</span>{/if}
+        </button>
       {/each}
-    {/each}
+      <button class="nav-item" class:active={app.view === RELEASES_VIEW} onclick={() => (app.view = RELEASES_VIEW)}>
+        <Icon name="megaphone" size={16} />
+        <span class="name">novità</span>
+        {#if app.releasesUnseen}<span class="badge">nuovo</span>{/if}
+      </button>
+
+      <div class="nav-label">Voce</div>
+      {#each app.voiceChannels as c (c.id)}
+        <button class="nav-item" class:active={app.view === c.id} onclick={() => openVoice(c.id)}>
+          <Icon name="volume" size={16} />
+          <span class="name">{c.name}</span>
+        </button>
+        {#each app.inVoice(c.id) as p (p.user_id)}
+          <div class="participant" role="presentation" oncontextmenu={(e) => openMenu(e, p.user_id)}>
+            <Avatar id={p.user_id} size={20} speaking={speaking(p.user_id)} />
+            <span class="pname">{app.name(p.user_id)}</span>
+            {#if p.screen}<span class="live">LIVE</span>{/if}
+            {#if p.cam}<Icon name="video" size={13} />{/if}
+            {#if p.deaf}<Icon name="headphones-off" size={13} />
+            {:else if !p.mic || app.voiceMutes[p.user_id]}<Icon name="mic-off" size={13} />{/if}
+          </div>
+        {/each}
+      {/each}
+    {/if}
   </nav>
 
   <footer>
+    <!-- Messaggi privati: schermata separata dal server. Nascosto se il server non li supporta. -->
+    {#if dm.status !== 'off'}
+      <button
+        class="nav-item dm-entry"
+        class:active={app.view === DM_VIEW}
+        title={app.view === DM_VIEW ? 'Torna ai canali' : 'Messaggi privati'}
+        onclick={() => (app.view === DM_VIEW ? dm.leave() : dm.enter())}
+      >
+        <Icon name="chat" size={16} />
+        <span class="name">Messaggi</span>
+        {#if dm.unreadChats}<span class="badge">{dm.unreadChats}</span>{/if}
+      </button>
+    {/if}
     <div class="actions">
       <button class="icon-btn" title="Impostazioni" onclick={() => (app.settingsOpen = true)}>
         <Icon name="settings" size={17} />
@@ -130,4 +149,5 @@
     border-top: 1px solid var(--border);
   }
   .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dm-entry { font-size: 14px; }
 </style>

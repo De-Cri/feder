@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { app, RELEASES_VIEW } from '../lib/state.svelte';
+  import { app, RELEASES_VIEW, DM_VIEW } from '../lib/state.svelte';
+  import { dm } from '../lib/dm.svelte';
+  import DmView from './DmView.svelte';
   import { checkUpdate, setBackgroundMode, isHidden, onHiddenChange, type UpdateInfo } from '../lib/platform';
   import { voice } from '../lib/voice.svelte';
   import Sidebar from './Sidebar.svelte';
@@ -30,12 +32,14 @@
   });
 
   onMount(() => {
+    dm.init();
     const offHidden = onHiddenChange((h) => (hidden = h));
     checkUpdate().then((u) => (update = u));
     const t = setInterval(() => checkUpdate().then((u) => u && (update = u)), 6 * 3600_000);
     return () => {
       clearInterval(t);
       offHidden();
+      dm.stop();
     };
   });
 
@@ -64,6 +68,8 @@
 
     {#if app.view === RELEASES_VIEW}
       <Releases />
+    {:else if app.view === DM_VIEW}
+      <DmView />
     {:else if textChannel}
       {#key textChannel.id}
         <TextChannel channel={textChannel} />

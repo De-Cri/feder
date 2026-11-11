@@ -35,6 +35,8 @@ const PAGE = 50;
 
 /** `app.view` del canale "novità" (note di rilascio, non è un canale del server). */
 export const RELEASES_VIEW = -1;
+/** `app.view` della schermata dei messaggi privati (separata dal server). */
+export const DM_VIEW = -2;
 
 /** Identifica questa copia dell'app nella presenza (la chiave è l'utente, condivisa tra dispositivi). */
 const DEVICE = crypto.randomUUID();
@@ -124,7 +126,7 @@ class AppState {
   logs: Record<number, ChannelLog> = {};
   unread = $state<Record<number, number>>({});
 
-  view = $state<number>(1); // canale visualizzato (testo o voce, o RELEASES_VIEW)
+  view = $state<number>(1); // canale visualizzato (testo o voce, o RELEASES_VIEW / DM_VIEW)
   releasesUnseen = $state(hasUnseenRelease()); // pallino "nuovo" sul canale novità
   settingsOpen = $state(false);
   // scheda da mostrare alla prossima apertura delle impostazioni (es. 'media' dal menu del microfono)
@@ -138,6 +140,8 @@ class AppState {
   private lobby: RealtimeChannel | null = null;
   onKicked: (() => void) | null = null;
   onMemberLeft: ((id: string) => void) | null = null;
+  /** Chiamato prima dell'uscita dall'account (i messaggi privati cancellano la chiave locale). */
+  onSignOut: (() => Promise<void>) | null = null;
 
   get me(): string | null {
     return this.session?.user.id ?? null;
@@ -471,6 +475,7 @@ class AppState {
   }
 
   async signOut() {
+    await this.onSignOut?.();
     await this.reset();
     await supabase.auth.signOut();
     this.membership = 'unknown';

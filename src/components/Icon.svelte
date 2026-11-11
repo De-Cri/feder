@@ -27,16 +27,22 @@
     check: 'M20 6 9 17l-5-5',
     lock: 'M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM7 11V7a5 5 0 0 1 10 0v4',
     expand: 'M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7',
+    chat: 'M7.9 20A9 9 0 1 0 4 16.1L2 22z',
+    'arrow-left': 'M19 12H5M12 19l-7-7 7-7',
+    star: 'M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8-6.2-3.2-6.2 3.2L7 14.2 2 9.3l6.9-1z',
+    plus: 'M12 5v14M5 12h14',
+    copy: 'M10 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2zM4 16a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2',
+    search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3',
     megaphone: 'M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 1 1-5.8-1.6',
   };
-  let { name, size = 18, stroke = 1.75 }: { name: string; size?: number; stroke?: number } = $props();
+  let { name, size = 18, stroke = 1.75, filled = false }: { name: string; size?: number; stroke?: number; filled?: boolean } = $props();
 </script>
 
 <svg
   width={size}
   height={size}
   viewBox="0 0 24 24"
-  fill="none"
+  fill={filled ? 'currentColor' : 'none'}
   stroke="currentColor"
   stroke-width={stroke}
   stroke-linecap="round"
