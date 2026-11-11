@@ -45,6 +45,10 @@ const peersReady = (async () => {
   }
 })();
 let myKey: any = null;
+// ?dm=locked: chiave già sul server ma non su questo dispositivo (schermata di sblocco)
+if (new URLSearchParams(location.search).get('dm') === 'locked') {
+  myKey = { public_key: 'x'.repeat(88), wrapped_key: 'x'.repeat(208), salt: 'x'.repeat(24), iv: 'x'.repeat(16), iterations: 600000 };
+}
 let dmId = 100;
 async function seedDms(myPub: string) {
   await peersReady;

@@ -6,13 +6,12 @@ import { app, DM_VIEW } from './state.svelte';
 import { notify } from './notify';
 import { playSound } from './sounds';
 import {
-  createIdentity, unlockIdentity, encryptDm, decryptDm, loadLocal, saveLocal, clearLocal,
+  createIdentity, generateCode, unlockIdentity, encryptDm, decryptDm, loadLocal, saveLocal, clearLocal,
   type Identity, type WrappedKey,
 } from './dmcrypto';
 
 export const DM_MAX = 2000; // caratteri per messaggio
 export const DM_DAYS = 30;
-export const PIN_MIN = 8;
 const PAGE = 50;
 const READ_KEY = 'feder-dm-read';
 
@@ -26,8 +25,9 @@ type Row = {
   body: string;
   created_at: string;
 };
-/** text null = non leggibile (es. PIN reimpostato dopo l'invio). */
+/** text null = non leggibile (es. codice rigenerato dopo l'invio). */
 export type DmMessage = { id: number; sender: string; recipient: string; created_at: string; text: string | null };
+export type Prepared = { code: string; identity: Identity; wrapped: WrappedKey };
 export type Conversation = { peer: string; lastId: number; lastAt: string; lastSender: string };
 
 const ERRORS: Record<string, string> = {
@@ -213,35 +213,40 @@ class DmState {
   }
 
   // -------------------------------------------------------------------------
-  // PIN
+  // Codice di recupero
   // -------------------------------------------------------------------------
-  /** Prima attivazione, o PIN dimenticato (i messaggi vecchi diventano illeggibili per te). */
-  async setup(pin: string): Promise<string | null> {
+  /** Nuovo codice e nuove chiavi, ancora solo in memoria: si salvano con activate(). */
+  async prepare(): Promise<Prepared> {
+    const code = generateCode();
+    return { code, ...(await createIdentity(code)) };
+  }
+
+  /** Dopo che l'utente ha salvato il codice: pubblica la chiave e attiva i messaggi. */
+  async activate(p: Prepared): Promise<string | null> {
     const me = app.me;
     if (!me) return 'Non sei connesso.';
-    const { identity, wrapped } = await createIdentity(pin);
     const { error } = await supabase.rpc('dm_set_key', {
-      p_public: wrapped.public_key,
-      p_wrapped: wrapped.wrapped_key,
-      p_salt: wrapped.salt,
-      p_iv: wrapped.iv,
-      p_iterations: wrapped.iterations,
+      p_public: p.wrapped.public_key,
+      p_wrapped: p.wrapped.wrapped_key,
+      p_salt: p.wrapped.salt,
+      p_iv: p.wrapped.iv,
+      p_iterations: p.wrapped.iterations,
     });
     if (error) return dmError(error);
-    this.serverKey = wrapped;
-    this.keys[me] = wrapped.public_key;
-    await saveLocal(me, identity);
-    this.ready(identity);
-    // dopo un PIN reimpostato le chat esistenti (e le tue stelline) restano
+    this.serverKey = p.wrapped;
+    this.keys[me] = p.wrapped.public_key;
+    await saveLocal(me, p.identity);
+    this.ready(p.identity);
+    // con un codice rigenerato le chat esistenti (e le tue stelline) restano
     await Promise.all([this.loadConversations(), this.loadStars()]);
     return null;
   }
 
-  async unlock(pin: string): Promise<string | null> {
+  async unlock(code: string): Promise<string | null> {
     const me = app.me;
     if (!me || !this.serverKey) return 'Non sei connesso.';
-    const id = await unlockIdentity(this.serverKey, pin);
-    if (!id) return 'PIN sbagliato.';
+    const id = await unlockIdentity(this.serverKey, code);
+    if (!id) return 'Codice sbagliato.';
     await saveLocal(me, id);
     this.ready(id);
     return null;
@@ -302,7 +307,7 @@ class DmState {
       const { data, error } = await supabase
         .rpc('dm_send', { p_to: peer, p_body: body, p_iv: iv, p_recipient_pub: peerPub })
         .single();
-      if (error?.message.includes('dm_key_changed')) continue; // ha reimpostato il PIN: riprova con la chiave nuova
+      if (error?.message.includes('dm_key_changed')) continue; // ha rigenerato il codice: riprova con la chiave nuova
       if (error) return dmError(error);
       const row = data as Row;
       this.log(peer).push({ id: row.id, sender: me, recipient: peer, created_at: row.created_at, text: msg });
@@ -310,7 +315,7 @@ class DmState {
       this.markRead(peer);
       return null;
     }
-    return 'Ha appena cambiato PIN: riprova.';
+    return 'Ha appena cambiato le sue chiavi: riprova.';
   }
 
   private async receive(r: Row) {

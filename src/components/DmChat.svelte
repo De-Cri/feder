@@ -159,7 +159,7 @@
             </div>
           {/if}
           {#if m.text === null}
-            <div class="text unreadable">Messaggio non leggibile: è stato cifrato con un PIN precedente.</div>
+            <div class="text unreadable">Messaggio non leggibile: è stato cifrato con un codice di recupero precedente.</div>
           {:else}
             <div class="text selectable allow-native-menu">
               {#each splitLinks(m.text) as part}

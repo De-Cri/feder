@@ -2,8 +2,8 @@
 -- Messaggi privati cifrati end-to-end.
 --
 -- Il server non vede mai il testo: ogni membro ha una coppia di chiavi (ECDH P-256)
--- creata nell'app; la chiave privata arriva qui solo cifrata con il PIN delle chat,
--- che il server non conosce. Il server vede solo chi scrive a chi e quando.
+-- creata nell'app; la chiave privata arriva qui solo cifrata con il codice di recupero,
+-- casuale, che il server non conosce. Il server vede solo chi scrive a chi e quando.
 --
 -- - I messaggi si leggono solo se sei mittente o destinatario (RLS); in tempo reale
 --   arrivano solo a quei due (postgres_changes rispetta l'RLS), niente broadcast.
@@ -18,7 +18,7 @@
 create table public.dm_keys (
   user_id     uuid primary key references public.profiles (id) on delete cascade,
   public_key  text not null check (char_length(public_key) between 40 and 200),
-  -- chiave privata (pkcs8) cifrata con AES-GCM, chiave derivata dal PIN con PBKDF2
+  -- chiave privata (pkcs8) cifrata con AES-GCM, chiave derivata dal codice con PBKDF2
   wrapped_key text not null check (char_length(wrapped_key) between 40 and 400),
   salt        text not null check (char_length(salt) between 16 and 64),
   iv          text not null check (char_length(iv) between 12 and 32),
@@ -33,7 +33,7 @@ create table public.dm_messages (
   id            bigint generated always as identity primary key,
   sender        uuid not null references public.profiles (id) on delete cascade,
   recipient     uuid not null references public.profiles (id) on delete cascade,
-  -- chiavi pubbliche in uso all'invio: se una delle due persone reimposta il PIN,
+  -- chiavi pubbliche in uso all'invio: se una delle due persone rigenera il codice,
   -- l'altra continua a leggere la cronologia
   sender_pub    text not null,
   recipient_pub text not null,
@@ -97,7 +97,7 @@ as $$
   from public.dm_keys k where k.user_id = auth.uid() and public.is_member();
 $$;
 
--- Crea o sostituisce la propria chiave (prima attivazione o PIN reimpostato).
+-- Crea o sostituisce la propria chiave (prima attivazione o codice perso).
 create or replace function public.dm_set_key(
   p_public text, p_wrapped text, p_salt text, p_iv text, p_iterations int)
 returns void

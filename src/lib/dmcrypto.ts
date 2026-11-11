@@ -1,14 +1,15 @@
 // Cifratura end-to-end dei messaggi privati. Solo WebCrypto del browser, nessuna dipendenza.
 //
 // - Ogni membro ha una coppia di chiavi ECDH P-256. La privata va sul server solo
-//   cifrata (AES-GCM) con una chiave derivata dal PIN delle chat (PBKDF2-SHA256):
-//   su un dispositivo nuovo basta il PIN per riaverla.
+//   cifrata (AES-GCM) con una chiave derivata dal codice di recupero (PBKDF2-SHA256).
+//   Il codice è casuale (~99 bit), lo genera l'app e lo vede solo l'utente: serve
+//   solo su un dispositivo nuovo. Non si può indovinare, nemmeno avendo il database.
 // - Chiave di una chat = HKDF(ECDH(mia privata, sua pubblica)): uguale per i due,
 //   il server non può calcolarla.
 // - Ogni messaggio: AES-GCM con IV casuale; mittente e destinatario sono legati al
 //   testo cifrato (additionalData), così il server non può spacciarlo per l'altro verso.
 // - Su questo dispositivo la chiave privata resta in IndexedDB come CryptoKey non
-//   esportabile: niente PIN a ogni avvio, ma nessuno script può leggerne i byte.
+//   esportabile: niente codice a ogni avvio, ma nessuno script può leggerne i byte.
 
 export const PBKDF2_ITERATIONS = 600_000;
 const CURVE = { name: 'ECDH', namedCurve: 'P-256' } as const;
@@ -18,6 +19,29 @@ const dec = new TextDecoder();
 export type Identity = { publicKey: string; privateKey: CryptoKey };
 /** Come sta sul server (tabella dm_keys). */
 export type WrappedKey = { public_key: string; wrapped_key: string; salt: string; iv: string; iterations: number };
+
+// Codice di recupero: 20 caratteri senza quelli ambigui (0/O, 1/I/L), a gruppi di 4.
+const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const CODE_LEN = 20;
+
+export function generateCode(): string {
+  const out: string[] = [];
+  const limit = 256 - (256 % CODE_ALPHABET.length); // niente sbilanciamento del modulo
+  while (out.length < CODE_LEN) {
+    for (const b of crypto.getRandomValues(new Uint8Array(32))) {
+      if (b < limit && out.length < CODE_LEN) out.push(CODE_ALPHABET[b % CODE_ALPHABET.length]);
+    }
+  }
+  return normalizeCode(out.join(''));
+}
+
+/** Maiuscole, solo caratteri del codice, trattini ogni 4: accetta il codice scritto in qualsiasi modo. */
+export function normalizeCode(input: string): string {
+  const raw = input.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LEN);
+  return raw.match(/.{1,4}/g)?.join('-') ?? '';
+}
+
+export const isFullCode = (code: string) => normalizeCode(code).replace(/-/g, '').length === CODE_LEN;
 
 export function b64(data: ArrayBuffer | Uint8Array): string {
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
@@ -33,8 +57,9 @@ export function unb64(s: string): Uint8Array<ArrayBuffer> {
   return out;
 }
 
-async function pinKey(pin: string, salt: Uint8Array<ArrayBuffer>, iterations: number): Promise<CryptoKey> {
-  const base = await crypto.subtle.importKey('raw', enc.encode(pin.normalize('NFKC')), 'PBKDF2', false, ['deriveKey']);
+async function codeKey(code: string, salt: Uint8Array<ArrayBuffer>, iterations: number): Promise<CryptoKey> {
+  const raw = normalizeCode(code).replace(/-/g, '');
+  const base = await crypto.subtle.importKey('raw', enc.encode(raw), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
     { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
     base,
@@ -44,14 +69,14 @@ async function pinKey(pin: string, salt: Uint8Array<ArrayBuffer>, iterations: nu
   );
 }
 
-/** Nuova identità protetta dal PIN (prima attivazione o PIN dimenticato). */
-export async function createIdentity(pin: string): Promise<{ identity: Identity; wrapped: WrappedKey }> {
+/** Nuova identità protetta dal codice di recupero (prima attivazione o codice perso). */
+export async function createIdentity(code: string): Promise<{ identity: Identity; wrapped: WrappedKey }> {
   const pair = await crypto.subtle.generateKey(CURVE, true, ['deriveBits']);
   const publicKey = b64(await crypto.subtle.exportKey('raw', pair.publicKey));
   const pkcs8 = await crypto.subtle.exportKey('pkcs8', pair.privateKey);
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const k = await pinKey(pin, salt, PBKDF2_ITERATIONS);
+  const k = await codeKey(code, salt, PBKDF2_ITERATIONS);
   const wrapped = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: enc.encode(publicKey) }, k, pkcs8);
   const privateKey = await crypto.subtle.importKey('pkcs8', pkcs8, CURVE, false, ['deriveBits']);
   return {
@@ -60,10 +85,10 @@ export async function createIdentity(pin: string): Promise<{ identity: Identity;
   };
 }
 
-/** Sblocca l'identità salvata sul server. null = PIN sbagliato. */
-export async function unlockIdentity(w: WrappedKey, pin: string): Promise<Identity | null> {
+/** Sblocca l'identità salvata sul server. null = codice sbagliato. */
+export async function unlockIdentity(w: WrappedKey, code: string): Promise<Identity | null> {
   try {
-    const k = await pinKey(pin, unb64(w.salt), w.iterations);
+    const k = await codeKey(code, unb64(w.salt), w.iterations);
     const pkcs8 = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: unb64(w.iv), additionalData: enc.encode(w.public_key) },
       k,
@@ -76,7 +101,7 @@ export async function unlockIdentity(w: WrappedKey, pin: string): Promise<Identi
   }
 }
 
-// Chiave di una chat, per coppia di chiavi pubbliche (cambia se uno reimposta il PIN).
+// Chiave di una chat, per coppia di chiavi pubbliche (cambia se uno rigenera il codice).
 const chatKeys = new Map<string, Promise<CryptoKey>>();
 
 function chatKey(me: Identity, peerPub: string): Promise<CryptoKey> {
@@ -135,7 +160,7 @@ export async function decryptDm(
 }
 
 // ---------------------------------------------------------------------------
-// Chiave su questo dispositivo (IndexedDB). Ogni errore = "non salvata": si chiede il PIN.
+// Chiave su questo dispositivo (IndexedDB). Ogni errore = "non salvata": si chiede il codice.
 // ---------------------------------------------------------------------------
 function idb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -172,7 +197,7 @@ export async function saveLocal(userId: string, id: Identity) {
   try {
     await tx('readwrite', (s) => s.put(id, userId));
   } catch {
-    /* niente IndexedDB: il PIN verrà chiesto al prossimo avvio */
+    /* niente IndexedDB: il codice verrà chiesto al prossimo avvio */
   }
 }
 

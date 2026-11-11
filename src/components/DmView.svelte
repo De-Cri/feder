@@ -1,33 +1,66 @@
 <script lang="ts">
-  // Schermata dei messaggi privati: PIN (attivazione / sblocco), nuova chat, conversazione.
+  // Schermata dei messaggi privati: attivazione / sblocco col codice di recupero, nuova chat, conversazione.
   import { app } from '../lib/state.svelte';
-  import { dm, PIN_MIN } from '../lib/dm.svelte';
+  import { dm, type Prepared } from '../lib/dm.svelte';
+  import { normalizeCode, isFullCode } from '../lib/dmcrypto';
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
   import DmChat from './DmChat.svelte';
 
-  // --- PIN ---
-  let pin = $state('');
-  let pin2 = $state('');
+  // --- Codice di recupero ---
   let busy = $state(false);
   let error = $state<string | null>(null);
-  let resetting = $state(false);
+  let resetting = $state(false); // "Ho perso il codice"
+  let prepared = $state<Prepared | null>(null); // codice generato, non ancora confermato
+  let saved = $state(false);
+  let copied = $state(false);
+  let code = $state('');
   const creating = $derived(dm.status === 'setup' || resetting);
 
-  async function submitPin(e: SubmitEvent) {
-    e.preventDefault();
-    error = null;
-    if (creating) {
-      if (pin.length < PIN_MIN) return void (error = `Il PIN deve avere almeno ${PIN_MIN} caratteri.`);
-      if (pin !== pin2) return void (error = 'I due PIN non coincidono.');
-    }
+  async function generate() {
     busy = true;
-    error = creating ? await dm.setup(pin) : await dm.unlock(pin);
+    error = null;
+    prepared = await dm.prepare();
+    saved = copied = false;
+    busy = false;
+  }
+
+  async function copy() {
+    if (!prepared) return;
+    try {
+      await navigator.clipboard.writeText(prepared.code);
+      copied = true;
+      setTimeout(() => (copied = false), 2000);
+    } catch {
+      error = 'Copia non riuscita: selezionalo e copialo a mano.';
+    }
+  }
+
+  async function activate() {
+    if (!prepared || !saved) return;
+    busy = true;
+    error = await dm.activate(prepared);
     busy = false;
     if (!error) {
-      pin = pin2 = '';
+      prepared = null;
       resetting = false;
     }
+  }
+
+  async function unlock(e: SubmitEvent) {
+    e.preventDefault();
+    if (!isFullCode(code)) return;
+    busy = true;
+    error = await dm.unlock(code);
+    busy = false;
+    if (!error) code = '';
+  }
+
+  function toggleReset() {
+    resetting = !resetting;
+    prepared = null;
+    error = null;
+    code = '';
   }
 
   // --- Nuova chat: membri in ordine alfabetico, prima chi inizia con quello che scrivi ---
@@ -68,40 +101,73 @@
     <div class="center muted">I messaggi privati non sono ancora disponibili su questo server.</div>
   {:else if dm.status === 'setup' || dm.status === 'locked'}
     <div class="center">
-      <form class="card" onsubmit={submitPin}>
+      <div class="card">
         <div class="badge-icon"><Icon name="lock" size={24} /></div>
-        {#if creating}
-          <h2>{resetting ? 'Nuovo PIN delle chat' : 'Messaggi privati cifrati'}</h2>
+        {#if creating && prepared}
+          <h2>Il tuo codice di recupero</h2>
+          <p class="muted">
+            Serve solo per leggere i messaggi su un altro dispositivo o dopo una reinstallazione. Salvalo ora
+            (gestore di password, foto, foglietto): non lo mostreremo più.
+          </p>
+          <div class="code selectable allow-native-menu">{prepared.code}</div>
+          <button class="btn" onclick={copy}>
+            <Icon name={copied ? 'check' : 'copy'} size={15} />{copied ? 'Copiato' : 'Copia'}
+          </button>
+          <label class="check">
+            <input type="checkbox" bind:checked={saved} />
+            <span>L’ho salvato in un posto sicuro</span>
+          </label>
+          {#if error}<p class="err">{error}</p>{/if}
+          <button class="btn primary" disabled={!saved || busy} onclick={activate}>
+            {busy ? 'Un attimo…' : 'Continua'}
+          </button>
+        {:else if creating}
+          <h2>{resetting ? 'Nuovo codice di recupero' : 'Messaggi privati cifrati'}</h2>
           <p class="muted">
             {#if resetting}
-              I messaggi che hai già non potrai più leggerli tu; chi ti ha scritto continuerà a vederli.
+              Con un codice nuovo i messaggi che hai già non potrai più leggerli tu; chi ti ha scritto
+              continuerà a vederli.
             {:else}
-              Solo tu e chi ti risponde potete leggerli, nemmeno il server. Scegli un PIN per le chat: ti
-              servirà per leggerli su un altro dispositivo.
+              Solo tu e chi ti risponde potete leggerli, nemmeno il server. Ti daremo un codice di recupero da
+              conservare: serve solo su un altro dispositivo.
             {/if}
           </p>
-          <!-- svelte-ignore a11y_autofocus -->
-          <input class="field" type="password" placeholder="PIN (almeno {PIN_MIN} caratteri)" autocomplete="new-password"
-            bind:value={pin} autofocus />
-          <input class="field" type="password" placeholder="Ripeti il PIN" autocomplete="new-password" bind:value={pin2} />
-          <p class="hint">Non usare la password dell’account. Se dimentichi il PIN, i messaggi vecchi non si possono recuperare.</p>
+          {#if !resetting}
+            <p class="why">
+              <strong>Perché?</strong> Su Discord e app simili i messaggi privati non sono cifrati end-to-end:
+              chi gestisce il servizio può leggerli. Qui no, per proteggere la tua privacy.
+            </p>
+          {/if}
+          {#if error}<p class="err">{error}</p>{/if}
+          <button class="btn primary" disabled={busy} onclick={generate}>
+            {busy ? 'Un attimo…' : resetting ? 'Genera un nuovo codice' : 'Attiva'}
+          </button>
         {:else}
           <h2>Sblocca i messaggi</h2>
-          <p class="muted">Inserisci il PIN delle chat. Su questo dispositivo non te lo chiederemo più.</p>
-          <!-- svelte-ignore a11y_autofocus -->
-          <input class="field" type="password" placeholder="PIN delle chat" autocomplete="current-password"
-            bind:value={pin} autofocus />
+          <p class="muted">Inserisci il codice di recupero. Su questo dispositivo non te lo chiederemo più.</p>
+          <form class="unlock" onsubmit={unlock}>
+            <!-- svelte-ignore a11y_autofocus -->
+            <input
+              class="field code-input"
+              placeholder="XXXX-XXXX-XXXX-XXXX-XXXX"
+              autocomplete="off"
+              spellcheck="false"
+              value={code}
+              oninput={(e) => (code = e.currentTarget.value = normalizeCode(e.currentTarget.value))}
+              autofocus
+            />
+            {#if error}<p class="err">{error}</p>{/if}
+            <button class="btn primary" type="submit" disabled={busy || !isFullCode(code)}>
+              {busy ? 'Un attimo…' : 'Sblocca'}
+            </button>
+          </form>
         {/if}
-        {#if error}<p class="err">{error}</p>{/if}
-        <button class="btn primary" type="submit" disabled={busy || !pin}>
-          {busy ? 'Un attimo…' : creating ? 'Attiva' : 'Sblocca'}
-        </button>
         {#if dm.status === 'locked'}
-          <button class="link" type="button" onclick={() => { resetting = !resetting; error = null; pin = pin2 = ''; }}>
-            {resetting ? 'Ho ritrovato il PIN' : 'Ho dimenticato il PIN'}
+          <button class="link" type="button" onclick={toggleReset}>
+            {resetting ? 'Ho ritrovato il codice' : 'Ho perso il codice'}
           </button>
         {/if}
-      </form>
+      </div>
     </div>
   {:else if dm.current === null}
     <header><Icon name="plus" size={18} /><h2>Nuova chat</h2></header>
@@ -155,8 +221,43 @@
   }
   h2 { margin: 4px 0 0; font-size: 18px; font-weight: 600; }
   .card p { margin: 0; font-size: 13px; line-height: 1.5; }
-  .hint { color: var(--text-3); font-size: 12px !important; text-align: left; }
   .err { text-align: left; }
+  .card p.why {
+    padding: 10px 12px;
+    border-radius: var(--r);
+    background: var(--accent-soft);
+    color: var(--text-2);
+    font-size: 12px;
+    text-align: left;
+  }
+  .why strong { color: var(--text); font-weight: 600; }
+  .unlock { display: flex; flex-direction: column; gap: 10px; }
+  .code {
+    padding: 14px 10px;
+    border-radius: var(--r);
+    background: var(--bg-input);
+    border: 1px dashed var(--border-strong);
+    font-family: ui-monospace, 'JetBrains Mono', 'Cascadia Mono', monospace;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--text);
+  }
+  .code-input {
+    text-align: center;
+    font-family: ui-monospace, 'JetBrains Mono', 'Cascadia Mono', monospace;
+    letter-spacing: 0.06em;
+  }
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-2);
+    text-align: left;
+    cursor: pointer;
+  }
+  .check input { accent-color: var(--accent); }
   .link {
     align-self: center;
     font-size: 12px;
