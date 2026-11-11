@@ -88,9 +88,6 @@
       {vol > 0 ? 'Silenzia per me' : 'Riattiva audio'}
     </button>
     {#if app.presence[id]?.deaf}<PokeItem {id} onsent={onclose} />{/if}
-    {#if app.presence[id]}
-      <button class="item" onclick={() => { app.openDm(id); onclose(); }}><Icon name="send" size={15} /> Messaggio privato</button>
-    {/if}
   {/if}
 
   {#if app.isAdmin}

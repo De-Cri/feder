@@ -12,7 +12,6 @@
   import VoiceAudio from './VoiceAudio.svelte';
   import Releases from './Releases.svelte';
   import Pokes from './Pokes.svelte';
-  import DmPanel from './DmPanel.svelte';
 
   // Il canale aperto, separato per tipo: così TypeScript sa sempre quale prop passare.
   const current = $derived(app.channels.find((c) => c.id === app.view) ?? null);
@@ -81,7 +80,6 @@
 </div>
 
 <Pokes />
-<DmPanel />
 
 {#if app.settingsOpen}
   <Settings />

@@ -68,9 +68,6 @@
     </button>
   {/if}
   {#if !screen && app.presence[id]?.deaf}<PokeItem {id} onsent={onclose} />{/if}
-  {#if !screen && app.presence[id]}
-    <button onclick={() => { app.openDm(id); onclose(); }}><Icon name="send" size={15} /> Messaggio privato</button>
-  {/if}
   {#if app.isAdmin && !screen}
     <button onclick={toggleVoiceMute}>
       <Icon name="mic-off" size={15} />
