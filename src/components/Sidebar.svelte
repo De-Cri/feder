@@ -3,7 +3,6 @@
   import { dm } from '../lib/dm.svelte';
   import DmList from './DmList.svelte';
   import { voice } from '../lib/voice.svelte';
-  import { prefs } from '../lib/prefs.svelte';
   import Icon from './Icon.svelte';
   import CallControls from './CallControls.svelte';
   import Avatar from './Avatar.svelte';
@@ -86,10 +85,7 @@
         <Icon name="settings" size={17} />
       </button>
 
-      <!-- Con i pulsanti "sotto la chiamata" restano qui quando guardi un altro canale. -->
-      {#if voice.channelId !== null && (prefs.callControls === 'sidebar' || app.view !== voice.channelId)}
-        <CallControls />
-      {/if}
+      <CallControls />
     </div>
   </footer>
 </aside>
