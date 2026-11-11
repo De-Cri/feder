@@ -15,7 +15,10 @@
     connecting = false,
     screen = false,
     audioMuted = false,
+    locked = false,
     ontoggleaudio,
+    onstopwatch,
+    onclick,
     ondblclick,
     oncontextmenu,
   }: {
@@ -31,7 +34,11 @@
     screen?: boolean;
     /** solo riquadri schermo: audio della stream silenziato per te */
     audioMuted?: boolean;
+    /** solo riquadri schermo altrui: non ancora aperto, si mostra "Clicca per guardare" */
+    locked?: boolean;
     ontoggleaudio?: () => void;
+    onstopwatch?: () => void;
+    onclick?: () => void;
     ondblclick?: () => void;
     oncontextmenu?: (e: MouseEvent) => void;
   } = $props();
@@ -84,8 +91,10 @@
   });
 </script>
 
-<div bind:this={tile} class="tile" class:speaking class:focused class:screen role="presentation" {ondblclick} {oncontextmenu}>
-  {#if hasVideo && stream}
+<div bind:this={tile} class="tile" class:speaking class:focused class:screen class:locked role="presentation" {onclick} {ondblclick} {oncontextmenu}>
+  {#if locked}
+    <div class="waiting"><span class="watch"><Icon name="screen" size={16} /> Clicca per guardare</span></div>
+  {:else if hasVideo && stream}
     <video bind:this={video} autoplay playsinline muted class:mirror={mirror && !screen}></video>
     {#if noFrames}<div class="waiting">Nessuna immagine ricevuta…</div>{/if}
   {:else if screen}
@@ -93,16 +102,30 @@
   {:else}
     <Avatar {id} size={focused ? 96 : 64} {speaking} />
   {/if}
-  {#if screen && ontoggleaudio}
-    <button
-      class="audio-btn"
-      class:muted={audioMuted}
-      title={audioMuted ? 'Riattiva l’audio della stream' : 'Silenzia l’audio della stream (lui lo senti ancora)'}
-      onclick={(e) => { e.stopPropagation(); ontoggleaudio(); }}
-      ondblclick={(e) => e.stopPropagation()}
-    >
-      <Icon name={audioMuted ? 'headphones-off' : 'volume'} size={16} />
-    </button>
+  {#if screen && !locked && (ontoggleaudio || onstopwatch)}
+    <div class="tools">
+      {#if ontoggleaudio}
+        <button
+          class="tool"
+          class:muted={audioMuted}
+          title={audioMuted ? 'Riattiva l’audio della stream' : 'Silenzia l’audio della stream (lui lo senti ancora)'}
+          onclick={(e) => { e.stopPropagation(); ontoggleaudio(); }}
+          ondblclick={(e) => e.stopPropagation()}
+        >
+          <Icon name={audioMuted ? 'headphones-off' : 'volume'} size={16} />
+        </button>
+      {/if}
+      {#if onstopwatch}
+        <button
+          class="tool"
+          title="Smetti di guardare"
+          onclick={(e) => { e.stopPropagation(); onstopwatch(); }}
+          ondblclick={(e) => e.stopPropagation()}
+        >
+          <Icon name="x" size={16} />
+        </button>
+      {/if}
+    </div>
   {/if}
   <div class="label">
     {#if screen}
@@ -145,6 +168,9 @@
     background: rgba(0, 0, 0, 0.35);
   }
   video.mirror { transform: scaleX(-1); }
+  .tile.locked { cursor: pointer; }
+  .watch { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; background: rgba(0, 0, 0, 0.6); color: #fff; }
+  .tile.locked:hover .watch { background: rgba(0, 0, 0, 0.8); }
   .label {
     position: absolute;
     left: 10px;
@@ -160,10 +186,8 @@
     font-weight: 500;
   }
   .conn { opacity: 0.7; font-weight: 400; }
-  .audio-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
+  .tools { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; }
+  .tool {
     width: 32px;
     height: 32px;
     border-radius: 50%;
@@ -174,6 +198,6 @@
     opacity: 0;
     transition: opacity 0.15s;
   }
-  .tile:hover .audio-btn, .audio-btn.muted { opacity: 1; }
+  .tile:hover .tool, .tool.muted { opacity: 1; }
   .live { font-size: 9px; font-weight: 700; background: var(--red); border-radius: 4px; padding: 1px 4px; }
 </style>

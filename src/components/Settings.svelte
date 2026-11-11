@@ -199,6 +199,21 @@
               </label>
             {/each}
           </div>
+          <h3>Pulsanti della chiamata</h3>
+          <div class="radios">
+            {#each [{ v: 'sidebar', label: 'Nella barra laterale, in basso a sinistra' }, { v: 'stage', label: 'Sotto la chiamata, al centro' }] as o (o.v)}
+              <label class="radio-row">
+                <input
+                  type="radio"
+                  name="callControls"
+                  checked={prefs.callControls === o.v}
+                  onchange={() => setPref('callControls', o.v as 'sidebar' | 'stage')}
+                />
+                <span class="radio-dot" class:on={prefs.callControls === o.v}></span>
+                <span>{o.label}</span>
+              </label>
+            {/each}
+          </div>
 
         {:else if tab === 'notifications'}
           <h2>Notifiche</h2>

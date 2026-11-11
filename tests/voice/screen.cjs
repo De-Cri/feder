@@ -39,6 +39,12 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
 
   await pages.a.click('#scr');
   assert(await until(async () => (await st()).screen), 'b riceve lo schermo');
+  // b non ha cliccato: a non deve mandargli la stream (niente codifica/banda sprecate)
+  const active = () => pages.a.evaluate(() => window.voice.peers.b.screenSender?.getParameters().encodings?.[0]?.active);
+  const setWatch = (on) => pages.b.evaluate((on) => { if (on) window.voice.watching.a = true; else delete window.voice.watching.a; }, on);
+  assert(await until(async () => (await active()) === false), 'b non guarda: stream verso b in pausa');
+  await setWatch(true);
+  assert(await until(async () => (await active()) === true && (await st()).screen), 'b clicca: la stream riparte');
   let w = await watch('screen'); console.log('   ', JSON.stringify(w));
   assert(w.ok && !w.cam, 'lo schermo si vede (riquadro schermo, non webcam)');
 
@@ -72,6 +78,8 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
   assert(await until(async () => !(await st()).screen), 'condivisione fermata');
   await pages.a.click('#scr'); // e la riavvia
   assert(await until(async () => (await st()).screen), 'condivisione riavviata');
+  await setWatch(true);
+  assert(await until(async () => (await active()) === true && (await st()).screen), 'b riapre lo schermo riavviato');
   w = await watch('screen'); console.log('   ', JSON.stringify(w));
   assert(w.ok, 'dopo il riavvio lo schermo si vede (niente nero)');
 
@@ -79,6 +87,8 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
   assert(await until(async () => (await st()).cam), 'webcam riaccesa');
   w = await watch('cam'); assert(w.ok, 'la webcam riaccesa si vede (niente nero)');
   w = await watch('screen'); assert(w.ok, 'e lo schermo continua');
+  await setWatch(false);
+  assert(await until(async () => (await active()) === false), 'b smette di guardare: stream verso b di nuovo in pausa');
   await b.close();
   console.log('\nSCREEN PASSED');
 })();

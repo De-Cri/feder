@@ -11,7 +11,7 @@
         <Avatar id={p.from} size={32} />
         <div class="body">
           <div class="who">{app.name(p.from)} ti ha fatto un poke</div>
-          {#if p.text}<div class="msg selectable">{p.text}</div>{/if}
+          {#if p.text}<div class="msg selectable allow-native-menu">{p.text}</div>{/if}
         </div>
         <button class="icon-btn" title="Chiudi" onclick={() => app.closePoke(p.key)}><Icon name="x" size={16} /></button>
       </div>

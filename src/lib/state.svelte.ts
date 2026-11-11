@@ -19,6 +19,10 @@ export type Message = {
   created_at: string;
 };
 export const POKE_MAX = 120;
+/** Messaggi privati temporanei: mai salvati, ognuno sparisce dopo DM_TTL. */
+export const DM_TTL = 2 * 60_000;
+export const DM_MAX = 1000;
+export type Dm = { key: number; from: string; text: string };
 
 export type Presence = {
   user_id: string;
@@ -120,6 +124,11 @@ class AppState {
   /** Poke ricevuti (come su TeamSpeak), mostrati finché non li chiudi. */
   pokes = $state<{ key: number; from: string; text: string }[]>([]);
   private pokeKey = 0;
+  /** Chat private temporanee, per persona. */
+  dms = $state<Record<string, Dm[]>>({});
+  /** Con chi è aperta la chat privata (null = chiusa). */
+  dmWith = $state<string | null>(null);
+  private dmBudget = new TrackBudget(10, 10_000); // niente raffiche sul canale lobby
   private lastPoke: Record<string, number> = {};
   logs: Record<number, ChannelLog> = {};
   unread = $state<Record<number, number>>({});
@@ -309,6 +318,16 @@ class AppState {
       this.pokes = [...this.pokes, { key: ++this.pokeKey, from, text: msg }];
       playSound('poke');
       notify(`${this.name(from)} ti ha fatto un poke`, msg || 'Poke!');
+    }).on('broadcast', { event: 'dm' }, ({ payload }) => {
+      if (this.lobby !== ch) return;
+      const { from, to, text } = (payload ?? {}) as { from?: string; to?: string; text?: string };
+      if (to !== this.me || !from || !this.members.some((m) => m.user_id === from)) return;
+      const msg = String(text ?? '').slice(0, DM_MAX);
+      if (!msg) return;
+      this.addDm(from, from, msg);
+      this.dmWith ??= from;
+      playSound('poke');
+      if (!this.focused || this.dmWith !== from) notify(`Messaggio privato da ${this.name(from)}`, msg);
     }).subscribe(async (status) => {
       if (this.lobby !== ch) return; // canale vecchio, già sostituito o chiuso da noi
       this.lobbyJoined = status === 'SUBSCRIBED';
@@ -335,6 +354,30 @@ class AppState {
     if (!this.lobby || !this.lobbyJoined || !this.me || now - (this.lastPoke[to] ?? 0) < 3000) return false;
     this.lastPoke[to] = now;
     this.lobby.send({ type: 'broadcast', event: 'poke', payload: { from: this.me, to, text: text.trim().slice(0, POKE_MAX) } });
+    return true;
+  }
+
+  openDm(id: string) {
+    this.dmWith = id;
+  }
+
+  private addDm(peer: string, from: string, text: string) {
+    const key = ++this.pokeKey;
+    this.dms[peer] = [...(this.dms[peer] ?? []).slice(-49), { key, from, text }]; // max 50 per chat
+    setTimeout(() => {
+      const left = (this.dms[peer] ?? []).filter((m) => m.key !== key);
+      if (left.length) this.dms[peer] = left;
+      else delete this.dms[peer];
+    }, DM_TTL);
+  }
+
+  /** Messaggio privato temporaneo: va solo a chi è online, non viene salvato. false = non inviato. */
+  sendDm(to: string, text: string): boolean {
+    const msg = text.trim().slice(0, DM_MAX);
+    if (!msg || !this.lobby || !this.lobbyJoined || !this.me || this.dmBudget.wait() > 0) return false;
+    this.dmBudget.take();
+    this.lobby.send({ type: 'broadcast', event: 'dm', payload: { from: this.me, to, text: msg } });
+    this.addDm(to, this.me, msg);
     return true;
   }
 
@@ -446,6 +489,8 @@ class AppState {
     this.channels = [];
     this.logs = {};
     this.online = {};
+    this.dms = {};
+    this.dmWith = null;
   }
 
   private async kicked() {

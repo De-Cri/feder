@@ -1,7 +1,9 @@
 <script lang="ts">
   import { app, RELEASES_VIEW } from '../lib/state.svelte';
-  import { voice, screenShareSupported } from '../lib/voice.svelte';
+  import { voice } from '../lib/voice.svelte';
+  import { prefs } from '../lib/prefs.svelte';
   import Icon from './Icon.svelte';
+  import CallControls from './CallControls.svelte';
   import Avatar from './Avatar.svelte';
   import VoiceMenu from './VoiceMenu.svelte';
 
@@ -65,44 +67,9 @@
         <Icon name="settings" size={17} />
       </button>
 
-      {#if voice.channelId !== null}
-        <button
-          class="icon-btn"
-          class:bad={!voice.micOn || voice.adminMuted}
-          title={voice.adminMuted ? 'Silenziato dall’admin' : voice.micOn ? 'Disattiva microfono' : 'Attiva microfono'}
-          onclick={() => voice.toggleMic()}
-        >
-          <Icon name={voice.micOn && !voice.adminMuted ? 'mic' : 'mic-off'} size={17} />
-        </button>
-        <button
-          class="icon-btn"
-          class:bad={voice.deaf}
-          title={voice.deaf ? 'Riattiva audio' : 'Disattiva audio'}
-          onclick={() => voice.toggleDeaf()}
-        >
-          <Icon name={voice.deaf ? 'headphones-off' : 'headphones'} size={17} />
-        </button>
-        <button
-          class="icon-btn"
-          class:on={voice.camOn}
-          title={voice.camOn ? 'Spegni webcam' : 'Accendi webcam'}
-          onclick={() => voice.toggleCam()}
-        >
-          <Icon name={voice.camOn ? 'video' : 'video-off'} size={17} />
-        </button>
-        {#if screenShareSupported}
-          <button
-            class="icon-btn"
-            class:on={voice.screenOn}
-            title={voice.screenOn ? 'Interrompi condivisione' : 'Condividi schermo'}
-            onclick={() => voice.toggleScreen()}
-          >
-            <Icon name="screen" size={17} />
-          </button>
-        {/if}
-        <button class="icon-btn bad" title="Termina chiamata" onclick={() => voice.leave()}>
-          <Icon name="leave" size={17} />
-        </button>
+      <!-- Con i pulsanti "sotto la chiamata" restano qui quando guardi un altro canale. -->
+      {#if voice.channelId !== null && (prefs.callControls === 'sidebar' || app.view !== voice.channelId)}
+        <CallControls />
       {/if}
     </div>
   </footer>

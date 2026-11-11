@@ -32,6 +32,7 @@ export type Prefs = {
   screenAudio: boolean;
   sounds: Record<SoundKind, boolean>;
   soundVolume: number; // 0..1
+  callControls: 'sidebar' | 'stage'; // pulsanti della chiamata: barra laterale o sotto la chiamata
 };
 
 const DEVICE_KEYS = ['micId', 'camId', 'speakerId'] as const;
@@ -61,6 +62,7 @@ const defaults: Prefs = {
   screenAudio: true,
   sounds: { selfJoin: true, selfLeave: true, join: true, leave: true, call: true, message: true, mute: true, unmute: true, poke: true },
   soundVolume: 0.6,
+  callControls: 'sidebar',
 };
 
 /** Solo 720p30, 720p60 o 1080p30: riporta valori vecchi o non validi alla combinazione più vicina. */
@@ -92,6 +94,7 @@ function normalize(raw: any): Prefs {
 
   if (raw.theme === 'black-blue') raw.theme = 'black'; // "Nero blu" tolto: stessa palette di "Nero"
   if (!THEMES.includes(raw.theme)) raw.theme = 'system';
+  if (raw.callControls !== 'stage') raw.callControls = 'sidebar';
 
   return { ...defaults, ...raw, sounds: { ...defaults.sounds, ...(raw.sounds ?? {}) } };
 }

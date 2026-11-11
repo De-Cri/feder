@@ -5,6 +5,7 @@
   import Avatar from './Avatar.svelte';
   import VideoTile from './VideoTile.svelte';
   import VoiceMenu from './VoiceMenu.svelte';
+  import CallControls from './CallControls.svelte';
 
   let { channel }: { channel: Channel } = $props();
 
@@ -13,7 +14,6 @@
   const peers = $derived(Object.values(voice.peers));
   let focus = $state<string | null>(null); // chiave del riquadro in primo piano
   let menu = $state<{ id: string; x: number; y: number; screen: boolean } | null>(null);
-  const autoFocused = new Set<string>();
 
   // Ogni persona ha il suo riquadro; chi condivide lo schermo ne ha uno in più, separato.
   type Tile = {
@@ -64,18 +64,15 @@
   const focused = $derived(focus ? tiles.find((t) => t.key === focus) ?? null : null);
   const strip = $derived(focused ? tiles.filter((t) => t.key !== focused.key) : []);
 
-  // Quando qualcuno inizia a condividere lo schermo, il suo schermo va in primo piano (una volta).
   $effect(() => {
-    for (const t of tiles) {
-      if (!t.screen || t.id === app.me) continue;
-      if (!autoFocused.has(t.key) && focus === null) {
-        autoFocused.add(t.key);
-        focus = t.key;
-      }
-    }
-    for (const k of [...autoFocused]) if (!tiles.some((t) => t.key === k)) autoFocused.delete(k);
-    if (focus && !tiles.some((t) => t.key === focus)) focus = null;
+    if (focus && !tiles.some((t) => t.key === focus && !locked(t))) focus = null;
   });
+
+  // Lo schermo degli altri parte chiuso: un click lo apre piccolo, doppio click grande.
+  const locked = (t: Tile) => t.screen && t.id !== app.me && !voice.watching[t.id];
+  function watch(t: Tile) {
+    if (locked(t)) voice.watching[t.id] = true;
+  }
 
   function openMenu(e: MouseEvent, id: string, screen = false) {
     e.preventDefault();
@@ -110,7 +107,13 @@
     audioMuted={t.screen && screenVolume(t.id) === 0}
     ontoggleaudio={t.screen && t.id !== app.me ? () => toggleScreenAudio(t.id) : undefined}
     connecting={t.connecting}
-    ondblclick={() => (focus = isFocused ? null : t.key)}
+    locked={locked(t)}
+    onstopwatch={t.screen && t.id !== app.me ? () => delete voice.watching[t.id] : undefined}
+    onclick={() => watch(t)}
+    ondblclick={() => {
+      watch(t);
+      focus = isFocused ? null : t.key;
+    }}
     oncontextmenu={(e) => openMenu(e, t.id, t.screen)}
   />
 {/snippet}
@@ -156,6 +159,10 @@
         </div>
       {/if}
     </div>
+
+    {#if prefs.callControls === 'stage'}
+      <div class="controls"><CallControls big /></div>
+    {/if}
 
     {#if menu}
       <VoiceMenu
@@ -215,5 +222,6 @@
   .main { width: 100%; flex: 1; min-height: 0; }
   .strip { flex: none; display: flex; gap: 10px; justify-content: safe center; overflow-x: auto; }
   .mini { width: 176px; flex: none; }
+  .controls { flex: none; display: flex; justify-content: center; gap: 8px; padding: 4px 16px 16px; }
   .center { text-align: center; font-size: 13px; margin: 0; padding-bottom: 8px; }
 </style>
