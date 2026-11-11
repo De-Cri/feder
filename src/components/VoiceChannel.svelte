@@ -5,7 +5,6 @@
   import Avatar from './Avatar.svelte';
   import VideoTile from './VideoTile.svelte';
   import VoiceMenu from './VoiceMenu.svelte';
-  import CallControls from './CallControls.svelte';
 
   let { channel }: { channel: Channel } = $props();
 
@@ -160,10 +159,6 @@
       {/if}
     </div>
 
-    {#if prefs.callControls === 'stage'}
-      <div class="controls"><CallControls big /></div>
-    {/if}
-
     {#if menu}
       <VoiceMenu
         id={menu.id}
@@ -222,6 +217,5 @@
   .main { width: 100%; flex: 1; min-height: 0; }
   .strip { flex: none; display: flex; gap: 10px; justify-content: safe center; overflow-x: auto; }
   .mini { width: 176px; flex: none; }
-  .controls { flex: none; display: flex; justify-content: center; gap: 8px; padding: 4px 16px 16px; }
   .center { text-align: center; font-size: 13px; margin: 0; padding-bottom: 8px; }
 </style>
