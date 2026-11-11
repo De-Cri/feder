@@ -44,8 +44,8 @@ If Node.js is missing it installs it (winget on Windows; dnf/apt/pacman on Linux
 
 Supabase is already configured (`cerchio.config.json`). On the first run, the cloud mode creates **two repos**:
 
-- **`cerchio`**: the code and the GitHub Actions that check it.
-- **`cerchio-releases`**, public: only the installers, no code. Friends download the app from here and the app downloads its updates from here, without logging in.
+- **`feder`**: the code and the GitHub Actions that check it.
+- **`feder-releases`**, public: only the installers, no code. Friends download the app from here and the app downloads its updates from here, without logging in.
 
 The private keys live in `.cerchio-secrets/`, a folder ignored by git: **back it up**.
 
@@ -53,7 +53,7 @@ The private keys live in `.cerchio-secrets/`, a folder ignored by git: **back it
 
 ## For your friends
 
-1. They open `https://github.com/<your-user>/cerchio-releases/releases/latest`
+1. They open `https://github.com/<your-user>/feder-releases/releases/latest`
 2. Windows: they download `Feder_x.y.z_x64-setup.exe`. Linux: `.rpm` (Fedora), `.deb` (Ubuntu/Debian) or `.AppImage` (any distro).
 3. They sign up and enter the server password.
 
@@ -67,7 +67,7 @@ npm run release -- 0.4.0
 
 The script bumps the version, creates the tag, pushes and starts the build in the public releases repo. After about 10 minutes the installed apps update themselves.
 
-**Only the owner can publish.** The build workflow and the signing keys live in the public `cerchio-releases` repo, where only you can write. Collaborators on the code repo can push and open Pull Requests, but they can't start a release or read the keys. To set it up, once: `node scripts/secure-releases.mjs`, on the PC that has `.cerchio-secrets/`.
+**Only the owner can publish.** The build workflow and the signing keys live in the public `feder-releases` repo, where only you can write. Collaborators on the code repo can push and open Pull Requests, but they can't start a release or read the keys. To set it up, once: `node scripts/secure-releases.mjs`, on the PC that has `.cerchio-secrets/`.
 
 ## Known limitations
 

@@ -14,7 +14,7 @@ linux:
   target: [AppImage, deb, rpm]
   category: Network
   icon: assets/icon.png
-  executableName: cerchio
+  executableName: feder
   syncDesktopName: true
   synopsis: Chat e vocale privati
   description: Chat, voce, video e condivisione schermo privati per pochi amici.
@@ -23,5 +23,5 @@ linux:
 publish:
   provider: github
   owner: De-Cri
-  repo: cerchio-releases
+  repo: feder-releases
   releaseType: release

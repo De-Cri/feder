@@ -147,7 +147,7 @@ if (!state.ref) {
       org = orgs[Number(n) - 1] ?? orgs[0];
     }
     state.dbPass = randomBytes(18).toString('base64url');
-    const base = { name: 'cerchio', db_pass: state.dbPass, region: 'eu-central-1' };
+    const base = { name: 'feder', db_pass: state.dbPass, region: 'eu-central-1' };
     let project = null;
     for (const body of [
       { ...base, organization_id: org.id },
@@ -266,7 +266,7 @@ if (!existsSync(keyPath)) {
   sh(`npx --yes tauri signer generate --ci -f -w "${keyPath}" -p "${state.keyPass}"`, { stdio: 'pipe' });
 }
 const pubkey = readFileSync(`${keyPath}.pub`, 'utf8').trim();
-state.repo ??= await ask('Nome del repo GitHub (privato, con il codice)', { def: 'cerchio' });
+state.repo ??= await ask('Nome del repo GitHub (privato, con il codice)', { def: 'feder' });
 // The code stays private; installers go to a second, public repo that only holds
 // releases (no code), so friends and updates can download them without logging in.
 state.releasesRepo ??= `${state.repo}-releases`;
@@ -294,7 +294,7 @@ step('GitHub');
 if (!existsSync('.git')) sh('git init -b main');
 sh('git add -A');
 try {
-  sh('git commit -m "Cerchio: setup iniziale"');
+  sh('git commit -m "Feder: setup iniziale"');
 } catch {
   /* nothing to commit */
 }
@@ -320,18 +320,18 @@ if (view.status === 0) {
   }
   if (!info.isEmpty) {
     console.log(`  Il repo ${full} contiene già dei file (es. un README creato da GitHub).`);
-    const a = await ask('Li sostituisco con il progetto Cerchio? (s/n)', { def: 'n' });
+    const a = await ask('Li sostituisco con il progetto Feder? (s/n)', { def: 'n' });
     if (!/^[sy]/i.test(a)) fail(`Rinomina o cancella ${full}, oppure rilancia e scegli un altro nome.`);
     forcePush = true;
   }
   if (!hasRemote) sh(`git remote add origin https://github.com/${full}.git`);
   done(`Uso il repo esistente ${full} (privato)`);
 } else if (!hasRemote) {
-  sh(`gh repo create ${state.repo} --private --source . --remote origin --description "Cerchio — chat e vocale privati"`);
+  sh(`gh repo create ${state.repo} --private --source . --remote origin --description "Feder — chat e vocale privati"`);
 }
 // Public repo for installers only (no code).
 if (spawnSync('gh', ['repo', 'view', rel], { stdio: 'ignore', shell: process.platform === 'win32' }).status !== 0) {
-  sh(`gh repo create ${rel} --public --add-readme --description "Cerchio — download"`);
+  sh(`gh repo create ${rel} --public --add-readme --description "Feder — download"`);
 }
 sh(`git push -u origin main${forcePush ? ' --force' : ''}`);
 const version = conf.version;

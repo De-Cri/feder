@@ -1,6 +1,8 @@
 # Contributing to Feder
 
-The code lives in the `cerchio` repo (it still has Feder's old name). Installers are published in the public `cerchio-releases` repo.
+The code lives in the `feder` repo. Installers are published in the public `feder-releases` repo.
+
+The repos used to be called `cerchio` and `cerchio-releases`: GitHub redirects the old addresses, which is how apps installed with older versions still find their updates. **Never create a repo with one of the old names**, or the redirect stops working.
 
 Everything in the repo is written in **English**: commits, branches, Pull Requests, issues, comments and docs. The app itself is in Italian and English.
 
@@ -9,8 +11,8 @@ Everything in the repo is written in **English**: commits, branches, Pull Reques
 You only need **Node.js 22** and **git**. Rust isn't needed for development.
 
 ```bash
-git clone https://github.com/De-Cri/cerchio.git
-cd cerchio
+git clone https://github.com/De-Cri/feder.git
+cd feder
 npm install
 npm run electron:dev
 ```
@@ -31,7 +33,7 @@ Optional, Windows only: to try the Tauri version (the one Windows friends get) y
 6. On GitHub open a **Pull Request** against `main`. Samuele approves it.
 
 **Only Samuele makes releases** (`npm run release -- X.Y.Z`): every release reaches all friends right away as an update.
-The build starts from the public `cerchio-releases` repo, where only he has write access: nobody can publish from the code repo, and the update signing keys aren't here. If you run `npm run release` without being him, the script stops immediately.
+The build starts from the public `feder-releases` repo, where only he has write access: nobody can publish from the code repo, and the update signing keys aren't here. If you run `npm run release` without being him, the script stops immediately.
 
 On every Pull Request GitHub checks by itself that the code compiles (the **Controlli** workflow, job `check`).
 

@@ -45,11 +45,11 @@
     "name": "Feder",
     "email": "noreply@users.noreply.github.com"
   },
-  "homepage": "https://github.com/De-Cri/cerchio",
+  "homepage": "https://github.com/De-Cri/feder",
   "main": "electron/main.cjs",
   "desktopName": "cerchio.desktop",
   "repository": {
     "type": "git",
-    "url": "https://github.com/De-Cri/cerchio.git"
+    "url": "https://github.com/De-Cri/feder.git"
   }
 }
