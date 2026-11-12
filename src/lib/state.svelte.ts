@@ -3,6 +3,7 @@ import { supabase } from './supabase';
 import { notify } from './notify';
 import { playSound } from './sounds';
 import { hasUnseenRelease } from './releases';
+import { t } from './i18n.svelte';
 
 export type Profile = { id: string; username: string; avatar_path: string | null };
 export type Member = { user_id: string; role: 'admin' | 'member'; joined_at: string; contributor?: boolean };
@@ -244,7 +245,7 @@ class AppState {
         if (!visible && m.author_id !== this.me) {
           this.unread[m.channel_id] = (this.unread[m.channel_id] ?? 0) + 1;
           const ch = this.channels.find((c) => c.id === m.channel_id);
-          notify(`${this.name(m.author_id)} in #${ch?.name ?? ''}`, m.content || m.attachment_name || 'Allegato');
+          notify(t('notify.channelMessage', { name: this.name(m.author_id), channel: ch?.name ?? '' }), m.content || m.attachment_name || t('notify.attachment'));
           playSound('message');
         }
       })
@@ -314,7 +315,7 @@ class AppState {
       if (this.pokes.length >= 5) this.pokes = this.pokes.slice(-4); // no endless stack
       this.pokes = [...this.pokes, { key: ++this.pokeKey, from, text: msg }];
       playSound('poke');
-      notify(`${this.name(from)} ti ha fatto un poke`, msg || 'Poke!');
+      notify(t('notify.poke', { name: this.name(from) }), msg || t('notify.pokeDefault'));
     }).subscribe(async (status) => {
       if (this.lobby !== ch) return; // old channel, already replaced or closed by us
       this.lobbyJoined = status === 'SUBSCRIBED';
@@ -322,7 +323,7 @@ class AppState {
       // The server closed the channel (e.g. too many updates) or the network dropped:
       // without this the sidebar would stay frozen until the app restarts.
       if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        console.warn('[presence] canale lobby perso:', status, '- mi ricollego');
+        console.warn('[presence] lobby channel lost:', status, '- reconnecting');
         clearTimeout(this.lobbyRetry);
         this.lobbyRetry = setTimeout(async () => {
           if (this.lobby !== ch || !this.me) return;
@@ -378,7 +379,7 @@ class AppState {
         return;
       }
       this.healAttempts++;
-      console.info('[presence] stato sul server mancante o vecchio: ripubblico');
+      console.info('[presence] state on the server missing or stale: republishing');
       this.publishPresence(); // when done it calls healPresence again to re-check
     }, delay);
   }
@@ -436,7 +437,7 @@ class AppState {
       if (alreadyBusy) continue;
       const ch = this.channels.find((c) => c.id === p.voice);
       playSound('call');
-      notify(`${this.name(p.user_id)} è in ${ch?.name ?? 'vocale'}`, 'Clicca il canale per entrare.');
+      notify(t('notify.call', { name: this.name(p.user_id), channel: ch?.name ?? t('notify.voice') }), t('notify.callBody'));
     }
   }
 

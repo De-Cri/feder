@@ -4,6 +4,7 @@
   import DmList from './DmList.svelte';
   import { voice } from '../lib/voice.svelte';
   import Icon from './Icon.svelte';
+  import { t } from '../lib/i18n.svelte';
   import CallControls from './CallControls.svelte';
   import Avatar from './Avatar.svelte';
   import VoiceMenu from './VoiceMenu.svelte';
@@ -32,7 +33,7 @@
     {#if app.view === DM_VIEW}
       <DmList />
     {:else}
-      <div class="nav-label">Chat</div>
+      <div class="nav-label">{t('nav.chat')}</div>
       {#each app.textChannels as c (c.id)}
         <button class="nav-item" class:active={app.view === c.id} onclick={() => (app.view = c.id)}>
           <Icon name="hash" size={16} />
@@ -42,11 +43,11 @@
       {/each}
       <button class="nav-item" class:active={app.view === RELEASES_VIEW} onclick={() => (app.view = RELEASES_VIEW)}>
         <Icon name="megaphone" size={16} />
-        <span class="name">novità</span>
-        {#if app.releasesUnseen}<span class="badge">nuovo</span>{/if}
+        <span class="name">{t('nav.releases')}</span>
+        {#if app.releasesUnseen}<span class="badge">{t('nav.new')}</span>{/if}
       </button>
 
-      <div class="nav-label">Voce</div>
+      <div class="nav-label">{t('nav.voice')}</div>
       {#each app.voiceChannels as c (c.id)}
         <button class="nav-item" class:active={app.view === c.id} onclick={() => openVoice(c.id)}>
           <Icon name="volume" size={16} />
@@ -72,16 +73,16 @@
       <button
         class="nav-item dm-entry"
         class:active={app.view === DM_VIEW}
-        title={app.view === DM_VIEW ? 'Torna ai canali' : 'Messaggi privati'}
+        title={app.view === DM_VIEW ? t('dm.backToChannels') : t('dm.private')}
         onclick={() => (app.view === DM_VIEW ? dm.leave() : dm.enter())}
       >
         <Icon name="chat" size={16} />
-        <span class="name">Messaggi</span>
+        <span class="name">{t('dm.messages')}</span>
         {#if dm.unreadChats}<span class="badge">{dm.unreadChats}</span>{/if}
       </button>
     {/if}
     <div class="actions">
-      <button class="icon-btn" title="Impostazioni" onclick={() => (app.settingsOpen = true)}>
+      <button class="icon-btn" title={t('settings.title')} onclick={() => (app.settingsOpen = true)}>
         <Icon name="settings" size={17} />
       </button>
 

@@ -5,6 +5,7 @@ import { supabase } from './supabase';
 import { app, DM_VIEW } from './state.svelte';
 import { notify } from './notify';
 import { playSound } from './sounds';
+import { t, type Key } from './i18n.svelte';
 import {
   createIdentity, generateCode, unlockIdentity, encryptDm, decryptDm, loadLocal, saveLocal, clearLocal,
   type Identity, type WrappedKey,
@@ -30,20 +31,20 @@ export type DmMessage = { id: number; sender: string; recipient: string; created
 export type Prepared = { code: string; identity: Identity; wrapped: WrappedKey };
 export type Conversation = { peer: string; lastId: number; lastAt: string; lastSender: string };
 
-const ERRORS: Record<string, string> = {
-  dm_rate_limited: 'Stai scrivendo troppo in fretta: aspetta qualche secondo.',
-  dm_too_many_people: 'Hai scritto a troppe persone diverse in poco tempo: aspetta un paio di minuti.',
-  dm_recipient_no_key: 'Non ha ancora attivato i messaggi privati.',
-  dm_invalid_recipient: 'Non puoi scrivere a questa persona.',
-  dm_no_key: 'Attiva prima i messaggi privati.',
-  dm_not_found: 'Messaggio non trovato.',
-  forbidden: 'Non hai i permessi.',
+const ERRORS: Record<string, Key> = {
+  dm_rate_limited: 'dm.err.rateLimited',
+  dm_too_many_people: 'dm.err.tooManyPeople',
+  dm_recipient_no_key: 'dm.err.recipientNoKey',
+  dm_invalid_recipient: 'dm.err.invalidRecipient',
+  dm_no_key: 'dm.err.noKey',
+  dm_not_found: 'dm.err.notFound',
+  forbidden: 'error.forbidden',
 };
 
 export function dmError(e: unknown): string {
   const msg = (e as { message?: string })?.message ?? String(e);
-  for (const [k, v] of Object.entries(ERRORS)) if (msg.includes(k)) return v;
-  return 'Qualcosa è andato storto, riprova.';
+  for (const [k, v] of Object.entries(ERRORS)) if (msg.includes(k)) return t(v);
+  return t('dm.err.generic');
 }
 
 function readMarks(): Record<string, number> {
@@ -224,7 +225,7 @@ class DmState {
   /** After the user saved the code: publishes the key and activates messages. */
   async activate(p: Prepared): Promise<string | null> {
     const me = app.me;
-    if (!me) return 'Non sei connesso.';
+    if (!me) return t('dm.err.offline');
     const { error } = await supabase.rpc('dm_set_key', {
       p_public: p.wrapped.public_key,
       p_wrapped: p.wrapped.wrapped_key,
@@ -244,9 +245,9 @@ class DmState {
 
   async unlock(code: string): Promise<string | null> {
     const me = app.me;
-    if (!me || !this.serverKey) return 'Non sei connesso.';
+    if (!me || !this.serverKey) return t('dm.err.offline');
     const id = await unlockIdentity(this.serverKey, code);
-    if (!id) return 'Codice sbagliato.';
+    if (!id) return t('dm.err.wrongCode');
     await saveLocal(me, id);
     this.ready(id);
     return null;
@@ -295,14 +296,14 @@ class DmState {
   async send(peer: string, text: string): Promise<string | null> {
     const me = app.me;
     const msg = text.trim();
-    if (!me || !this.identity) return 'Sblocca prima i messaggi.';
+    if (!me || !this.identity) return t('dm.err.locked');
     if (!msg) return null;
-    if (msg.length > DM_MAX) return `Massimo ${DM_MAX} caratteri.`;
+    if (msg.length > DM_MAX) return t('dm.err.tooLong', { max: DM_MAX });
 
     for (let attempt = 0; attempt < 2; attempt++) {
       if (!this.keys[peer] || attempt > 0) await this.loadKeys();
       const peerPub = this.keys[peer];
-      if (!peerPub) return ERRORS.dm_recipient_no_key;
+      if (!peerPub) return t('dm.err.recipientNoKey');
       const { body, iv } = await encryptDm(this.identity, peerPub, me, peer, msg);
       const { data, error } = await supabase
         .rpc('dm_send', { p_to: peer, p_body: body, p_iv: iv, p_recipient_pub: peerPub })
@@ -315,7 +316,7 @@ class DmState {
       this.markRead(peer);
       return null;
     }
-    return 'Ha appena cambiato le sue chiavi: riprova.';
+    return t('dm.err.keyChanged');
   }
 
   private async receive(r: Row) {
@@ -334,7 +335,7 @@ class DmState {
     }
     this.unread[peer] = (this.unread[peer] ?? 0) + 1;
     playSound('message');
-    notify(`${app.name(peer)} ti ha scritto`, m.text ?? 'Nuovo messaggio privato');
+    notify(t('notify.dm', { name: app.name(peer) }), m.text ?? t('notify.dmBody'));
   }
 
   async toggleStar(m: DmMessage): Promise<string | null> {

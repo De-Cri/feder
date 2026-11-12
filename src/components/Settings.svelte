@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { supabase } from '../lib/supabase';
   import { app } from '../lib/state.svelte';
-  import { prefs, savePrefs, setTheme, type Theme } from '../lib/prefs.svelte';
+  import { prefs, savePrefs, setTheme, type Theme, type Language } from '../lib/prefs.svelte';
+  import { t, type Key } from '../lib/i18n.svelte';
   import { appVersion, checkUpdate } from '../lib/platform';
   import { errorText } from '../lib/util';
   import Icon from './Icon.svelte';
@@ -28,13 +29,20 @@
   let version = $state('');
   let updateState = $state<string | null>(null);
 
-  const themes: { v: Theme; label: string }[] = [
-    { v: 'system', label: 'Sincronizza con il sistema' },
-    { v: 'light', label: 'Chiaro' },
-    { v: 'dark', label: 'Scuro (grigio)' },
-    { v: 'black', label: 'Nero' },
-    { v: 'oled', label: 'Nero profondo' },
+  const themes: { v: Theme; label: Key }[] = [
+    { v: 'system', label: 'theme.system' },
+    { v: 'light', label: 'theme.light' },
+    { v: 'dark', label: 'theme.dark' },
+    { v: 'black', label: 'theme.black' },
+    { v: 'oled', label: 'theme.oled' },
   ];
+
+  // Language names stay in their own language, as usual; "system" is translated.
+  const languages = $derived<{ v: Language; label: string }[]>([
+    { v: 'system', label: t('settings.langSystem') },
+    { v: 'it', label: 'Italiano' },
+    { v: 'en', label: 'English' },
+  ]);
 
   onMount(() => {
     appVersion().then((v) => (version = v));
@@ -57,17 +65,17 @@
 
   async function saveUsername() {
     const u = username.trim().toLowerCase();
-    if (!/^[a-z0-9_.]{3,20}$/.test(u)) return flash(false, 'Username: 3–20 caratteri, minuscole, numeri, _ e .');
+    if (!/^[a-z0-9_.]{3,20}$/.test(u)) return flash(false, t('auth.usernameRule'));
     const { error } = await supabase.from('profiles').update({ username: u }).eq('id', app.me!);
-    if (error) flash(false, error.code === '23505' ? 'Username già in uso.' : errorText(error));
+    if (error) flash(false, error.code === '23505' ? t('settings.usernameTaken') : errorText(error));
     else {
       app.profiles[app.me!] = { ...app.profiles[app.me!], username: u };
-      flash(true, 'Salvato.');
+      flash(true, t('settings.saved'));
     }
   }
 
   async function uploadAvatar(blob: Blob) {
-    if (blob.size > 5 * 1024 * 1024) return flash(false, 'Massimo 5 MB.');
+    if (blob.size > 5 * 1024 * 1024) return flash(false, t('settings.max5mb'));
     const path = `${app.me}/avatar-${Date.now()}.jpg`;
     const { error } = await supabase.storage.from('attachments').upload(path, blob, { contentType: 'image/jpeg' });
     if (error) return flash(false, errorText(error));
@@ -76,12 +84,12 @@
     if (e2) return flash(false, errorText(e2));
     app.profiles[app.me!] = { ...app.profiles[app.me!], avatar_path: path };
     if (old) supabase.storage.from('attachments').remove([old]);
-    flash(true, 'Avatar aggiornato.');
+    flash(true, t('settings.avatarUpdated'));
   }
 
   function pickAvatar(f: File | undefined) {
     if (!f) return;
-    if (!f.type.startsWith('image/')) return flash(false, 'Scegli un’immagine.');
+    if (!f.type.startsWith('image/')) return flash(false, t('settings.pickImage'));
     cropFile = f;
   }
 
@@ -95,7 +103,7 @@
     if (error) flash(false, errorText(error));
     else {
       newPass = '';
-      flash(true, 'Password del server cambiata. I membri attuali restano dentro.');
+      flash(true, t('settings.passwordChanged'));
     }
   }
 
@@ -111,13 +119,13 @@
   }
 
   async function runUpdateCheck() {
-    updateState = 'Controllo…';
+    updateState = t('settings.checking');
     const u = await checkUpdate();
     if (!u) {
-      updateState = 'Sei all’ultima versione.';
+      updateState = t('settings.upToDate');
       return;
     }
-    updateState = `Installo ${u.version}…`;
+    updateState = t('settings.installing', { version: u.version });
     await u.install();
   }
 </script>
@@ -127,43 +135,43 @@
 <div class="bg" role="presentation" onclick={() => (app.settingsOpen = false)}>
   <div class="panel" role="dialog" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
     <nav class="side">
-      <div class="group">Impostazioni</div>
-      <button class:active={tab === 'profile'} onclick={() => (tab = 'profile')}>Account</button>
-      <button class:active={tab === 'media'} onclick={() => (tab = 'media')}>Voce e video</button>
-      <button class:active={tab === 'notifications'} onclick={() => (tab = 'notifications')}>Notifiche</button>
-      <button class:active={tab === 'appearance'} onclick={() => (tab = 'appearance')}>Aspetto</button>
+      <div class="group">{t('settings.title')}</div>
+      <button class:active={tab === 'profile'} onclick={() => (tab = 'profile')}>{t('settings.account')}</button>
+      <button class:active={tab === 'media'} onclick={() => (tab = 'media')}>{t('settings.media')}</button>
+      <button class:active={tab === 'notifications'} onclick={() => (tab = 'notifications')}>{t('settings.notifications')}</button>
+      <button class:active={tab === 'appearance'} onclick={() => (tab = 'appearance')}>{t('settings.appearance')}</button>
 
       {#if app.isAdmin}
-        <div class="group">Amministrazione</div>
-        <button class:active={tab === 'admin'} onclick={() => (tab = 'admin')}>Server</button>
+        <div class="group">{t('settings.administration')}</div>
+        <button class:active={tab === 'admin'} onclick={() => (tab = 'admin')}>{t('settings.server')}</button>
       {/if}
 
       <div class="group spaced">App</div>
-      <button class:active={tab === 'about'} onclick={() => (tab = 'about')}>Info</button>
+      <button class:active={tab === 'about'} onclick={() => (tab = 'about')}>{t('settings.about')}</button>
 
       <span class="grow"></span>
       <button class="logout" onclick={() => { app.settingsOpen = false; app.signOut(); }}>
-        <Icon name="logout" size={15} /> Esci
+        <Icon name="logout" size={15} /> {t('join.logout')}
       </button>
     </nav>
 
     <section>
-      <button class="close" title="Chiudi (Esc)" onclick={() => (app.settingsOpen = false)}>
+      <button class="close" title={t('settings.closeEsc')} onclick={() => (app.settingsOpen = false)}>
         <Icon name="x" size={20} />
         <span>ESC</span>
       </button>
 
       <div class="content">
         {#if tab === 'profile'}
-          <h2>Account</h2>
+          <h2>{t('settings.account')}</h2>
           <div class="card">
             <div class="user-row">
               <Avatar id={app.me} size={80} />
               <div class="user-info">
                 <div class="uname">{app.myProfile?.username}</div>
-                <div class="muted small">{app.isAdmin ? 'Admin' : 'Membro'}</div>
+                <div class="muted small">{app.isAdmin ? t('menu.admin') : t('menu.member')}</div>
               </div>
-              <button class="btn" onclick={() => avatarInput?.click()}>Cambia avatar</button>
+              <button class="btn" onclick={() => avatarInput?.click()}>{t('settings.changeAvatar')}</button>
               <input
                 type="file"
                 accept="image/*"
@@ -177,43 +185,59 @@
             </div>
           </div>
 
-          <h3>Nome utente</h3>
+          <h3>{t('settings.username')}</h3>
           <div class="inline">
             <input class="field" bind:value={username} />
-            <button class="btn primary" onclick={saveUsername}>Salva</button>
+            <button class="btn primary" onclick={saveUsername}>{t('settings.save')}</button>
           </div>
 
         {:else if tab === 'appearance'}
-          <h2>Aspetto</h2>
-          <h3>Tema</h3>
+          <h2>{t('settings.appearance')}</h2>
+          <h3>{t('settings.theme')}</h3>
           <div class="radios">
-            {#each themes as t (t.v)}
+            {#each themes as th (th.v)}
               <label class="radio-row">
                 <input
                   type="radio"
                   name="theme"
-                  checked={prefs.theme === t.v}
-                  onchange={() => setTheme(t.v)}
+                  checked={prefs.theme === th.v}
+                  onchange={() => setTheme(th.v)}
                 />
-                <span class="radio-dot" class:on={prefs.theme === t.v}></span>
-                <span>{t.label}</span>
+                <span class="radio-dot" class:on={prefs.theme === th.v}></span>
+                <span>{t(th.label)}</span>
+              </label>
+            {/each}
+          </div>
+
+          <h3>{t('settings.language')}</h3>
+          <div class="radios">
+            {#each languages as l (l.v)}
+              <label class="radio-row">
+                <input
+                  type="radio"
+                  name="language"
+                  checked={prefs.language === l.v}
+                  onchange={() => setPref('language', l.v)}
+                />
+                <span class="radio-dot" class:on={prefs.language === l.v}></span>
+                <span>{l.label}</span>
               </label>
             {/each}
           </div>
 
         {:else if tab === 'notifications'}
-          <h2>Notifiche</h2>
+          <h2>{t('settings.notifications')}</h2>
           <div class="toggle-row">
             <div>
-              <div class="row-title">Notifiche desktop</div>
-              <div class="muted small">Avvisi per i nuovi messaggi e per le chiamate.</div>
+              <div class="row-title">{t('settings.desktopNotifications')}</div>
+              <div class="muted small">{t('settings.desktopNotificationsHint')}</div>
             </div>
             <button
               class="switch"
               class:on={prefs.notifications}
               role="switch"
               aria-checked={prefs.notifications}
-              aria-label="Notifiche desktop"
+              aria-label={t('settings.desktopNotifications')}
               onclick={() => setPref('notifications', !prefs.notifications)}
             >
               <span></span>
@@ -224,16 +248,16 @@
           <AudioSettings />
 
         {:else if tab === 'admin' && app.isAdmin}
-          <h2>Server</h2>
-          <h3>Nuova password del server</h3>
+          <h2>{t('settings.server')}</h2>
+          <h3>{t('settings.newServerPassword')}</h3>
           <div class="inline">
-            <input class="field" type="password" bind:value={newPass} placeholder="Almeno 6 caratteri" />
-            <button class="btn primary" disabled={newPass.length < 6} onclick={changePassword}>Cambia</button>
+            <input class="field" type="password" bind:value={newPass} placeholder={t('settings.min6')} />
+            <button class="btn primary" disabled={newPass.length < 6} onclick={changePassword}>{t('settings.change')}</button>
           </div>
 
-          <h3>Utenti bannati</h3>
+          <h3>{t('settings.bannedUsers')}</h3>
           {#if !bans.length}
-            <p class="muted small">Nessuno.</p>
+            <p class="muted small">{t('settings.none')}</p>
           {/if}
           {#each bans as b (b.user_id)}
             <div class="ban">
@@ -242,18 +266,18 @@
                 <div>{app.name(b.user_id)}</div>
                 {#if b.reason}<div class="muted small">{b.reason}</div>{/if}
               </div>
-              <button class="btn" onclick={() => unban(b.user_id)}>Sbanna</button>
+              <button class="btn" onclick={() => unban(b.user_id)}>{t('settings.unban')}</button>
             </div>
           {/each}
 
         {:else}
-          <h2>Info</h2>
+          <h2>{t('settings.about')}</h2>
           <div class="card">
             <div class="row-title">Feder</div>
-            <div class="muted small">Versione {version}</div>
+            <div class="muted small">{t('settings.version', { version })}</div>
           </div>
           <div class="inline">
-            <button class="btn" onclick={runUpdateCheck}>Controlla aggiornamenti</button>
+            <button class="btn" onclick={runUpdateCheck}>{t('settings.checkUpdates')}</button>
             {#if updateState}<span class="muted small">{updateState}</span>{/if}
           </div>
         {/if}

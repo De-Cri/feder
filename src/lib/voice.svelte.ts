@@ -10,6 +10,7 @@ import { MicPipeline, audioContext } from './audio';
 import { isHidden } from './platform';
 import { playSound } from './sounds';
 import { screenSettings } from './screenQuality';
+import { t } from './i18n.svelte';
 
 export const rtcSupported =
   typeof RTCPeerConnection !== 'undefined' &&
@@ -494,7 +495,7 @@ class VoiceRoom {
   async join(channelId: number) {
     if (this.channelId === channelId) return;
     if (!rtcSupported) {
-      this.error = 'WebRTC non disponibile in questa installazione.';
+      this.error = t('voice.noWebrtc');
       return;
     }
     // A click on another channel also cancels a join still in progress.
@@ -510,7 +511,7 @@ class VoiceRoom {
       this.setMic(mic);
     } catch (e) {
       this.joining = false;
-      this.error = 'Impossibile accedere al microfono: ' + ((e as Error).message ?? e);
+      this.error = t('voice.micError', { reason: String((e as Error).message ?? e) });
       return;
     }
 
@@ -586,7 +587,7 @@ class VoiceRoom {
           settledAt = Date.now() + 1500;
           playSound('selfJoin');
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          this.error = 'Connessione al canale vocale non riuscita.';
+          this.error = t('voice.joinFailed');
         }
       });
 
@@ -651,8 +652,8 @@ class VoiceRoom {
     this.audioTrack = mic.track;
     this.localStream.addTrack(mic.track);
     this.applyMic();
-    if (mic.aiFallback) this.notice = 'Soppressione rumore AI non disponibile: uso quella standard.';
-    else if (mic.deviceFallback) this.notice = 'Il microfono scelto non è disponibile: uso quello predefinito.';
+    if (mic.aiFallback) this.notice = t('voice.aiFallback');
+    else if (mic.deviceFallback) this.notice = t('voice.deviceFallback');
     else this.notice = null;
     if (this.meterTimer) clearInterval(this.meterTimer);
     let hold = 0;
@@ -680,7 +681,7 @@ class VoiceRoom {
         this.setMic(mic);
         old?.stop();
       } catch {
-        this.error = 'Cambio impostazioni microfono non riuscito.';
+        this.error = t('voice.rebuildFailed');
       }
     };
     this.rebuilding = (this.rebuilding ?? Promise.resolve()).then(run);
@@ -780,7 +781,7 @@ class VoiceRoom {
         .catch((e) => (prefs.camId ? navigator.mediaDevices.getUserMedia({ video: video() }) : Promise.reject(e)));
       track = s.getVideoTracks()[0];
     } catch {
-      this.error = 'Impossibile accedere alla webcam.';
+      this.error = t('voice.camError');
       return;
     }
     if (this.channelId === null) return track.stop();
@@ -814,7 +815,7 @@ class VoiceRoom {
   async toggleScreen() {
     if (this.screenTrack) return this.stopScreen();
     if (!screenShareSupported) {
-      this.error = 'Condivisione schermo non supportata qui.';
+      this.error = t('voice.screenUnsupported');
       return;
     }
     const q = screenSettings();
@@ -944,32 +945,32 @@ app.onMemberLeft = (id) => voice.drop(id);
       // network between you (round-trip) from the active ICE pair
       if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') {
         rows.push({
-          con: app.name(p.id),
-          dir: 'rete',
-          kind: stats.get(r.localCandidateId)?.candidateType === 'relay' ? 'via TURN' : 'diretta',
-          limite: `ping ${Math.round((r.currentRoundTripTime ?? 0) * 1000)} ms`,
-          codec: r.availableOutgoingBitrate ? `${Math.round(r.availableOutgoingBitrate / 1000)} kbps disp.` : '',
-          stato: p.connection,
+          peer: app.name(p.id),
+          dir: 'network',
+          kind: stats.get(r.localCandidateId)?.candidateType === 'relay' ? 'via TURN' : 'direct',
+          limit: `ping ${Math.round((r.currentRoundTripTime ?? 0) * 1000)} ms`,
+          codec: r.availableOutgoingBitrate ? `${Math.round(r.availableOutgoingBitrate / 1000)} kbps avail.` : '',
+          state: p.connection,
         });
       }
       if ((r.type === 'outbound-rtp' || r.type === 'inbound-rtp') && (r.kind === 'video' || r.kind === 'audio')) {
         rows.push({
-          con: app.name(p.id),
-          dir: r.type === 'outbound-rtp' ? 'invio' : 'ricevo',
+          peer: app.name(p.id),
+          dir: r.type === 'outbound-rtp' ? 'send' : 'recv',
           kind: r.kind,
           frames: r.type === 'outbound-rtp' ? r.framesEncoded : r.framesDecoded,
           size: r.frameWidth ? `${r.frameWidth}x${r.frameHeight}` : '',
           fps: r.framesPerSecond ?? '',
-          limite: r.qualityLimitationReason ?? '',
+          limit: r.qualityLimitationReason ?? '',
           // viewer side: video freezes, dropped frames, buffer delay
-          blocchi: r.type === 'inbound-rtp' && r.kind === 'video' ? `${r.freezeCount ?? 0} (${(r.totalFreezesDuration ?? 0).toFixed(1)} s)` : '',
-          persi: r.type === 'inbound-rtp' ? `${r.packetsLost ?? 0} pkt / ${r.framesDropped ?? 0} frm` : '',
+          freezes: r.type === 'inbound-rtp' && r.kind === 'video' ? `${r.freezeCount ?? 0} (${(r.totalFreezesDuration ?? 0).toFixed(1)} s)` : '',
+          lost: r.type === 'inbound-rtp' ? `${r.packetsLost ?? 0} pkt / ${r.framesDropped ?? 0} frm` : '',
           buffer:
             r.type === 'inbound-rtp' && r.jitterBufferEmittedCount
               ? `${Math.round((r.jitterBufferDelay / r.jitterBufferEmittedCount) * 1000)} ms`
               : '',
           codec: stats.get(r.codecId)?.mimeType ?? '',
-          stato: p.connection,
+          state: p.connection,
         });
       }
     });

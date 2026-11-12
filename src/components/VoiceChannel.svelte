@@ -5,6 +5,7 @@
   import Avatar from './Avatar.svelte';
   import VideoTile from './VideoTile.svelte';
   import VoiceMenu from './VoiceMenu.svelte';
+  import { t as tr } from '../lib/i18n.svelte'; // `t` is the tile variable below
 
   let { channel }: { channel: Channel } = $props();
 
@@ -120,21 +121,18 @@
 <div class="voice">
   {#if !rtcSupported}
     <div class="empty">
-      <h3>Vocale non disponibile</h3>
-      <p class="muted">
-        Il motore web di questo sistema non supporta WebRTC. Su Linux serve una WebKitGTK compilata con WebRTC
-        e i plugin GStreamer (good/bad/nice). La chat funziona normalmente.
-      </p>
+      <h3>{tr('voiceCh.unavailable')}</h3>
+      <p class="muted">{tr('voiceCh.unavailableHint')}</p>
     </div>
   {:else if !joined}
     <div class="empty">
       <div class="faces">
         {#each others as p (p.user_id)}<Avatar id={p.user_id} size={44} />{/each}
       </div>
-      <h3>{others.length ? `${others.length} in ${channel.name}` : 'Nessuno qui'}</h3>
+      <h3>{others.length ? tr('voiceCh.count', { n: others.length, channel: channel.name }) : tr('voiceCh.empty')}</h3>
       {#if voice.error}<p class="err">{voice.error}</p>{/if}
       <button class="btn primary" disabled={voice.joining} onclick={() => voice.join(channel.id)}>
-        {voice.channelId !== null ? 'Sposta qui' : 'Entra'}
+        {voice.channelId !== null ? tr('voiceCh.moveHere') : tr('join.enter')}
       </button>
     </div>
   {:else}

@@ -6,6 +6,7 @@
   import { dbToMeter } from '../lib/audio';
   import Icon from './Icon.svelte';
   import VolumeSlider from './VolumeSlider.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   // Right-click on the microphone icon: input volume with live level,
   // output volume, shortcuts. Opens above the button (which sits at the bottom of the sidebar).
@@ -72,31 +73,31 @@
   oncontextmenu={(e) => e.preventDefault()}
 >
   <div class="head">
-    <div class="title">Microfono</div>
+    <div class="title">{t('mic.title')}</div>
     {#if device}<div class="device" title={device}>{device}</div>{/if}
   </div>
 
-  <VolumeSlider label="Ingresso" value={prefs.inputGain} onchange={setGain} />
+  <VolumeSlider label={t('mic.input')} value={prefs.inputGain} onchange={setGain} />
   <div
     class="meter"
     class:idle={!live || !voice.mic}
-    title={!voice.mic ? 'Il livello si vede in chiamata' : live ? 'Livello del microfono' : 'Microfono disattivato'}
+    title={!voice.mic ? t('mic.levelInCall') : live ? t('mic.level') : t('mic.off')}
   >
     <div class="fill" style="transform:scaleX({level})"></div>
     {#if prefs.gateEnabled}<div class="gate" style="left:{gatePos}%"></div>{/if}
   </div>
 
-  <VolumeSlider label="Uscita" max={100} value={prefs.outputVolume} onchange={setOutput} />
+  <VolumeSlider label={t('mic.output')} max={100} value={prefs.outputVolume} onchange={setOutput} />
 
   <div class="sep"></div>
 
   <button class="item" class:danger={live} disabled={voice.adminMuted} onclick={() => voice.toggleMic()}>
     <Icon name={live ? 'mic-off' : 'mic'} size={15} />
-    {voice.adminMuted ? 'Silenziato dall’admin' : live ? 'Disattiva microfono' : 'Attiva microfono'}
+    {voice.adminMuted ? t('call.adminMuted') : live ? t('call.micOff') : t('call.micOn')}
   </button>
   <button class="item" onclick={openSettings}>
     <Icon name="settings" size={15} />
-    Impostazioni voce
+    {t('mic.settings')}
   </button>
 </div>
 

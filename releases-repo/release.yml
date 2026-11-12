@@ -47,7 +47,7 @@ jobs:
           TAG=${{ steps.v.outputs.tag }}
           gh release view "$TAG" -R "${{ github.repository }}" >/dev/null 2>&1 || gh release create "$TAG" -R "${{ github.repository }}" \
             --title "Feder $TAG" \
-            --notes "Windows: scarica il file -setup.exe. Linux: .AppImage (qualsiasi distro), .deb (Ubuntu/Debian) o .rpm (Fedora). Chi ha già l'app riceve l'aggiornamento in automatico."
+            --notes "🇮🇹 Windows: scarica il file -setup.exe. Linux: .AppImage (qualsiasi distro), .deb (Ubuntu/Debian) o .rpm (Fedora). Chi ha già l'app riceve l'aggiornamento in automatico.<br><br>🇬🇧 Windows: download the -setup.exe file. Linux: .AppImage (any distro), .deb (Ubuntu/Debian) or .rpm (Fedora). If you already have the app, the update arrives automatically."
 
   windows:
     needs: create-release

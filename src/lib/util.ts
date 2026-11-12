@@ -1,5 +1,7 @@
+import { t, locale } from './i18n.svelte';
+
 export function time(iso: string): string {
-  return new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 }
 
 export function day(iso: string): string {
@@ -7,9 +9,9 @@ export function day(iso: string): string {
   const today = new Date();
   const y = new Date();
   y.setDate(today.getDate() - 1);
-  if (d.toDateString() === today.toDateString()) return 'Oggi';
-  if (d.toDateString() === y.toDateString()) return 'Ieri';
-  return d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+  if (d.toDateString() === today.toDateString()) return t('date.today');
+  if (d.toDateString() === y.toDateString()) return t('date.yesterday');
+  return d.toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 export function bytes(n: number | null): string {
@@ -49,10 +51,10 @@ export function splitLinks(text: string): { t: string; href?: string }[] {
 export function errorText(e: unknown): string {
   const msg = (e as { message?: string })?.message ?? String(e);
   const map: Record<string, string> = {
-    'Invalid login credentials': 'Email o password errati.',
-    'User already registered': 'Esiste già un account con questa email.',
-    forbidden: 'Non hai i permessi.',
-    password_too_short: 'La password deve avere almeno 6 caratteri.',
+    'Invalid login credentials': t('error.badLogin'),
+    'User already registered': t('error.emailTaken'),
+    forbidden: t('error.forbidden'),
+    password_too_short: t('error.passwordShort'),
   };
   for (const [k, v] of Object.entries(map)) if (msg.includes(k)) return v;
   return msg;

@@ -2,6 +2,7 @@
   import { app } from '../lib/state.svelte';
   import Avatar from './Avatar.svelte';
   import Icon from './Icon.svelte';
+  import { t } from '../lib/i18n.svelte';
   import UserMenu from './UserMenu.svelte';
   import UserConfirm from './UserConfirm.svelte';
 
@@ -33,8 +34,8 @@
       <span class="name">{app.name(id)}</span>
       {#if role === 'admin'}<span class="badge admin" data-tip="Admin" aria-label="Admin"><Icon name="shield" size={13} /></span>{/if}
       {#if contributor}<span class="badge contrib" data-tip="Contributor" aria-label="Contributor"><Icon name="sword" size={13} /></span>{/if}
-      {#if app.voiceMutes[id]}<span class="muted-ic" title="Silenziato dall’admin"><Icon name="mic-off" size={13} /></span>{/if}
-      {#if app.presence[id]?.voice}<span class="in-voice" title="In vocale"><Icon name="volume" size={13} /></span>{/if}
+      {#if app.voiceMutes[id]}<span class="muted-ic" title={t('call.adminMuted')}><Icon name="mic-off" size={13} /></span>{/if}
+      {#if app.presence[id]?.voice}<span class="in-voice" title={t('members.inVoice')}><Icon name="volume" size={13} /></span>{/if}
     </button>
   {/snippet}
 

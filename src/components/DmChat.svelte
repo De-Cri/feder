@@ -7,6 +7,7 @@
   import { openExternal } from '../lib/platform';
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   let { peer }: { peer: string } = $props();
   // svelte-ignore state_referenced_locally
@@ -41,9 +42,9 @@
   });
 
   function expiry(m: DmMessage): string {
-    if (dm.stars[m.id]) return 'Con la stellina: resta finché non la togli';
+    if (dm.stars[m.id]) return t('dmc.starredStays');
     const days = Math.ceil(DM_DAYS - (Date.now() - new Date(m.created_at).getTime()) / 86_400_000);
-    return days <= 1 ? 'Sparisce entro un giorno' : `Sparisce tra ${days} giorni`;
+    return days <= 1 ? t('dmc.goneInADay') : t('dmc.goneInDays', { days });
   }
 
   onMount(async () => {
@@ -123,8 +124,8 @@
   <header>
     <Avatar id={peer} size={24} status={app.presence[peer] ? 'online' : 'offline'} />
     <h2>{app.name(peer)}</h2>
-    <span class="e2e" title="Solo voi due potete leggere questi messaggi">
-      <Icon name="lock" size={13} /> Cifrata end-to-end
+    <span class="e2e" title={t('dmc.e2eTitle')}>
+      <Icon name="lock" size={13} /> {t('dmc.e2e')}
     </span>
   </header>
 
@@ -134,7 +135,7 @@
         <Avatar id={peer} size={56} />
         <h3>{app.name(peer)}</h3>
         <p class="muted">
-          Messaggi cifrati end-to-end. Spariscono dopo {DM_DAYS} giorni, tranne quelli a cui metti la
+          {t('dmc.startHint', { days: DM_DAYS })}
           <Icon name="star" size={12} filled />.
         </p>
       </div>
@@ -159,7 +160,7 @@
             </div>
           {/if}
           {#if m.text === null}
-            <div class="text unreadable">Messaggio non leggibile: è stato cifrato con un codice di recupero precedente.</div>
+            <div class="text unreadable">{t('dmc.unreadable')}</div>
           {:else}
             <div class="text selectable allow-native-menu">
               {#each splitLinks(m.text) as part}
@@ -171,7 +172,7 @@
         {#if dm.stars[m.id]}<span class="starred"><Icon name="star" size={13} filled /></span>{/if}
         <div class="actions">
           <button class="icon-btn" class:on={!!dm.stars[m.id]}
-            title={dm.stars[m.id] ? 'Togli la stellina' : 'Metti la stellina: non sparisce dopo 30 giorni'}
+            title={dm.stars[m.id] ? t('dmc.unstar') : t('dmc.star', { days: DM_DAYS })}
             onclick={() => star(m)}>
             <Icon name="star" size={15} filled={!!dm.stars[m.id]} />
           </button>
@@ -183,7 +184,7 @@
   <div class="composer-wrap">
     {#if error}<div class="err bar">{error}</div>{/if}
     {#if !canWrite}
-      <div class="muted bar">{app.name(peer)} non ha ancora attivato i messaggi privati.</div>
+      <div class="muted bar">{t('dmc.peerNotActivated', { name: app.name(peer) })}</div>
     {/if}
     <div class="composer" class:disabled={!canWrite}>
       <textarea
@@ -192,12 +193,12 @@
         rows="1"
         maxlength={DM_MAX}
         disabled={!canWrite}
-        placeholder="Scrivi a {app.name(peer)}"
+        placeholder={t('dmc.placeholder', { name: app.name(peer) })}
         onkeydown={onKey}
         oninput={resize}
       ></textarea>
       {#if left <= 200}<span class="count" class:full={left <= 0}>{left}</span>{/if}
-      <button class="icon-btn" class:on={!!text.trim()} title="Invia" disabled={!canWrite} onclick={send}>
+      <button class="icon-btn" class:on={!!text.trim()} title={t('poke.send')} disabled={!canWrite} onclick={send}>
         <Icon name="send" size={17} />
       </button>
     </div>
