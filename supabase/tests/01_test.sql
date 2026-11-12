@@ -36,7 +36,8 @@ do $$ begin
   exception when raise_exception then if sqlerrm <> 'forbidden' then raise; end if; end;
 end $$;
 -- realtime: membro può leggere/scrivere
-insert into realtime.messages (topic, extension) values ('lobby', 'presence');
+select set_config('realtime.topic', 'cerchio:lobby', false);
+insert into realtime.messages (topic, extension) values ('cerchio:lobby', 'presence');
 
 -- c: rate limit
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', false);

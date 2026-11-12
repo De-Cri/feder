@@ -12,4 +12,5 @@ create function storage.foldername(name text) returns text[] language sql immuta
 create table realtime.messages (id bigserial primary key, topic text, extension text, payload jsonb);
 alter table realtime.messages enable row level security;
 grant select, insert on realtime.messages to authenticated; grant usage on sequence realtime.messages_id_seq to authenticated;
+create function realtime.topic() returns text language sql stable as $$ select nullif(current_setting('realtime.topic', true), '')::text $$;
 create publication supabase_realtime;
