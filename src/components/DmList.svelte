@@ -3,15 +3,16 @@
   import { app } from '../lib/state.svelte';
   import { dm } from '../lib/dm.svelte';
   import Icon from './Icon.svelte';
+  import { t } from '../lib/i18n.svelte';
   import Avatar from './Avatar.svelte';
 </script>
 
 <div class="head">
-  <button class="icon-btn" title="Torna ai canali" onclick={() => dm.leave()}>
+  <button class="icon-btn" title={t('dm.backToChannels')} onclick={() => dm.leave()}>
     <Icon name="arrow-left" size={17} />
   </button>
-  <span class="title">Messaggi</span>
-  <button class="icon-btn" class:on={dm.current === null} title="Nuova chat" onclick={() => (dm.current = null)}>
+  <span class="title">{t('dm.messages')}</span>
+  <button class="icon-btn" class:on={dm.current === null} title={t('dm.newChat')} onclick={() => (dm.current = null)}>
     <Icon name="plus" size={17} />
   </button>
 </div>
@@ -25,7 +26,7 @@
 {:else}
   <button class="nav-item start" onclick={() => (dm.current = null)}>
     <Icon name="plus" size={16} />
-    <span class="name">Nuova chat</span>
+    <span class="name">{t('dm.newChat')}</span>
   </button>
 {/each}
 

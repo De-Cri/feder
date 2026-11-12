@@ -4,9 +4,10 @@
   import { voice } from '../lib/voice.svelte';
   import { MicPipeline, dbToMeter, type NoiseMode } from '../lib/audio';
   import { isElectron } from '../lib/platform';
-  import { playSound, SOUND_LABELS, type SoundKind } from '../lib/sounds';
+  import { playSound, SOUND_KINDS, soundLabel, type SoundKind } from '../lib/sounds';
   import { SCREEN_OPTIONS, screenWarning } from '../lib/screenQuality';
   import Dropdown from './Dropdown.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   // viewers: the people in your call, or 4 as an estimate if you're not in a call
   const viewers = $derived(voice.channelId !== null ? Math.max(1, Object.keys(voice.peers).length) : 4);
@@ -26,7 +27,7 @@
     voice.applyScreenSettings();
   }
 
-  const soundKinds = Object.keys(SOUND_LABELS) as SoundKind[];
+  const soundKinds = SOUND_KINDS;
   function toggleSound(k: SoundKind, on: boolean) {
     prefs.sounds[k] = on;
     savePrefs();
@@ -39,16 +40,16 @@
   const speakers = $derived(devices.filter((d) => d.kind === 'audiooutput'));
 
   const micOpts = $derived([
-    { value: '', label: 'Predefinito di sistema' },
-    ...mics.map((d) => ({ value: d.deviceId, label: d.label || 'Microfono' })),
+    { value: '', label: t('audio.defaultMic') },
+    ...mics.map((d) => ({ value: d.deviceId, label: d.label || t('mic.title') })),
   ]);
   const speakerOpts = $derived([
-    { value: '', label: 'Predefinita di sistema' },
-    ...speakers.map((d) => ({ value: d.deviceId, label: d.label || 'Altoparlante' })),
+    { value: '', label: t('audio.defaultDevice') },
+    ...speakers.map((d) => ({ value: d.deviceId, label: d.label || t('audio.speaker') })),
   ]);
   const camOpts = $derived([
-    { value: '', label: 'Predefinita di sistema' },
-    ...cams.map((d) => ({ value: d.deviceId, label: d.label || 'Webcam' })),
+    { value: '', label: t('audio.defaultDevice') },
+    ...cams.map((d) => ({ value: d.deviceId, label: d.label || t('audio.webcam') })),
   ]);
 
   // Microphone test: uses the call's chain if you're in voice, otherwise a temporary one.
@@ -154,46 +155,46 @@
     test?.setGain(v);
   }
 
-  const noiseModes: { v: NoiseMode; label: string; hint: string }[] = [
-    { v: 'off', label: 'Disattivata', hint: 'Audio grezzo' },
-    { v: 'standard', label: 'Standard', hint: 'Quella del browser' },
-    { v: 'ai', label: 'AI (RNNoise)', hint: 'Toglie tastiera, ventole, rumori' },
-  ];
+  const noiseModes = $derived<{ v: NoiseMode; label: string; hint: string }[]>([
+    { v: 'off', label: t('audio.noiseOff'), hint: t('audio.noiseOffHint') },
+    { v: 'standard', label: t('audio.noiseStandard'), hint: t('audio.noiseStandardHint') },
+    { v: 'ai', label: 'AI (RNNoise)', hint: t('audio.noiseAiHint') },
+  ]);
 
   const gatePos = $derived(dbToMeter(prefs.gateDb) * 100);
 </script>
 
 <div class="audio">
-  <h2>Voce e video</h2>
+  <h2>{t('settings.media')}</h2>
 
-  <h3>Dispositivi</h3>
-  <div class="field-label">Microfono</div>
-  <Dropdown value={prefs.micId} options={micOpts} placeholder="Predefinito di sistema"
+  <h3>{t('audio.devices')}</h3>
+  <div class="field-label">{t('mic.title')}</div>
+  <Dropdown value={prefs.micId} options={micOpts} placeholder={t('audio.defaultMic')}
     onchange={(v) => set('micId', v, true)} />
-  {#if activeMic}<p class="hint">In uso: {activeMic}</p>{/if}
+  {#if activeMic}<p class="hint">{t('audio.inUse', { name: activeMic })}</p>{/if}
 
-  <div class="field-label">Uscita audio</div>
-  <Dropdown value={prefs.speakerId} options={speakerOpts} placeholder="Predefinita di sistema"
+  <div class="field-label">{t('audio.output')}</div>
+  <Dropdown value={prefs.speakerId} options={speakerOpts} placeholder={t('audio.defaultDevice')}
     onchange={(v) => set('speakerId', v)} />
 
-  <div class="field-label">Webcam</div>
-  <Dropdown value={prefs.camId} options={camOpts} placeholder="Predefinita di sistema"
+  <div class="field-label">{t('audio.webcam')}</div>
+  <Dropdown value={prefs.camId} options={camOpts} placeholder={t('audio.defaultDevice')}
     onchange={(v) => set('camId', v)} />
 
-  <h3>Volume</h3>
+  <h3>{t('menu.volume')}</h3>
   <div class="slider">
-    <span>Microfono</span>
+    <span>{t('mic.title')}</span>
     <input type="range" min="0" max="2" step="0.01" value={prefs.inputGain}
       oninput={(e) => setGain(Number(e.currentTarget.value))} />
     <span class="pct">{Math.round(prefs.inputGain * 100)}%</span>
   </div>
   <div class="slider">
-    <span>Uscita</span>
+    <span>{t('mic.output')}</span>
     <input type="range" min="0" max="1" step="0.01" value={prefs.outputVolume}
       oninput={(e) => set('outputVolume', Number(e.currentTarget.value))} />
     <span class="pct">{Math.round(prefs.outputVolume * 100)}%</span>
   </div>
-  <p class="hint">Il volume di ogni amico si regola col tasto destro sul suo nome o sul suo riquadro.</p>
+  <p class="hint">{t('audio.perFriendHint')}</p>
 
   <div class="meter-row">
     <div class="meter" class:idle={!active}>
@@ -202,18 +203,18 @@
     </div>
     {#if !inCall}
       {#if testing}
-        <label class="mini"><input type="checkbox" bind:checked={hearMe} /> Ascoltati</label>
-        <button class="btn" onclick={stopTest}>Stop</button>
+        <label class="mini"><input type="checkbox" bind:checked={hearMe} /> {t('audio.hearMe')}</label>
+        <button class="btn" onclick={stopTest}>{t('audio.stop')}</button>
       {:else}
-        <button class="btn" onclick={startTest}>Prova microfono</button>
+        <button class="btn" onclick={startTest}>{t('audio.testMic')}</button>
       {/if}
     {/if}
   </div>
-  {#if hearMe}<p class="hint">Usa le cuffie, altrimenti fa eco.</p>{/if}
+  {#if hearMe}<p class="hint">{t('audio.useHeadphones')}</p>{/if}
   <audio bind:this={monitor} autoplay></audio>
 
-  <h3>Elaborazione</h3>
-  <div class="field-label">Soppressione del rumore</div>
+  <h3>{t('audio.processing')}</h3>
+  <div class="field-label">{t('audio.noise')}</div>
   <div class="seg">
     {#each noiseModes as m}
       <button class:active={prefs.noiseMode === m.v} title={m.hint} onclick={() => set('noiseMode', m.v, true)}>
@@ -224,29 +225,29 @@
   <label class="check">
     <input type="checkbox" checked={prefs.echoCancellation}
       onchange={(e) => set('echoCancellation', e.currentTarget.checked, true)} />
-    Cancellazione dell’eco
+    {t('audio.echo')}
   </label>
   <label class="check">
     <input type="checkbox" checked={prefs.autoGain} onchange={(e) => set('autoGain', e.currentTarget.checked, true)} />
-    Regolazione automatica del volume del microfono
+    {t('audio.autoGain')}
   </label>
   <label class="check">
     <input type="checkbox" checked={prefs.gateEnabled}
       onchange={(e) => set('gateEnabled', e.currentTarget.checked, true)} />
-    Soglia di attivazione (trasmetti solo quando parli)
+    {t('audio.gate')}
   </label>
   {#if prefs.gateEnabled}
     <div class="slider">
-      <span>Soglia</span>
+      <span>{t('audio.threshold')}</span>
       <input type="range" min="-80" max="-10" step="1" value={prefs.gateDb}
         oninput={(e) => set('gateDb', Number(e.currentTarget.value), true)} />
       <span class="pct">{prefs.gateDb} dB</span>
     </div>
-    <p class="hint">Parla e regola finché la barra supera la linea solo quando parli.</p>
+    <p class="hint">{t('audio.gateHint')}</p>
   {/if}
 
-  <h3>Condivisione schermo</h3>
-  <div class="field-label">Qualità</div>
+  <h3>{t('audio.screenSharing')}</h3>
+  <div class="field-label">{t('audio.quality')}</div>
   <div class="seg">
     {#each SCREEN_OPTIONS as o}
       <button
@@ -255,23 +256,23 @@
       >
     {/each}
   </div>
-  <div class="field-label">Ottimizza per</div>
+  <div class="field-label">{t('audio.optimizeFor')}</div>
   <div class="seg">
-    <button class:active={prefs.screenMode === 'motion'} onclick={() => setScreen('screenMode', 'motion')}>Movimento (giochi, video)</button>
-    <button class:active={prefs.screenMode === 'detail'} onclick={() => setScreen('screenMode', 'detail')}>Testo e dettagli</button>
+    <button class:active={prefs.screenMode === 'motion'} onclick={() => setScreen('screenMode', 'motion')}>{t('audio.motion')}</button>
+    <button class:active={prefs.screenMode === 'detail'} onclick={() => setScreen('screenMode', 'detail')}>{t('audio.detail')}</button>
   </div>
   <div class="warning {warning.level}">
-    {#if warning.level !== 'ok'}<strong>{warning.level === 'danger' ? 'Attenzione' : 'Nota'}:</strong>{/if}
+    {#if warning.level !== 'ok'}<strong>{warning.level === 'danger' ? t('audio.warning') : t('audio.note')}:</strong>{/if}
     {warning.text}
   </div>
   <label class="check">
     <input type="checkbox" checked={prefs.screenAudio} onchange={(e) => set('screenAudio', e.currentTarget.checked)} />
-    Condividi anche l’audio {isElectron ? '(non supportato su Linux)' : '(spunta “Condividi audio” nel selettore)'}
+    {t('audio.shareAudio')} {isElectron ? t('audio.shareAudioLinux') : t('audio.shareAudioWindows')}
   </label>
 
-  <h3>Suoni</h3>
+  <h3>{t('audio.sounds')}</h3>
   <div class="slider">
-    <span>Volume</span>
+    <span>{t('menu.volume')}</span>
     <input type="range" min="0" max="1" step="0.01" value={prefs.soundVolume}
       oninput={(e) => set('soundVolume', Number(e.currentTarget.value))}
       onchange={() => playSound('join', true)} />
@@ -282,9 +283,9 @@
       <div class="sound-row">
         <label class="check inline">
           <input type="checkbox" checked={prefs.sounds[k]} onchange={(e) => toggleSound(k, e.currentTarget.checked)} />
-          {SOUND_LABELS[k]}
+          {soundLabel(k)}
         </label>
-        <button class="play" title="Ascolta" onclick={() => playSound(k, true)} aria-label="Ascolta">
+        <button class="play" title={t('audio.listen')} onclick={() => playSound(k, true)} aria-label={t('audio.listen')}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
         </button>
       </div>

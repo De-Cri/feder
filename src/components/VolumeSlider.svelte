@@ -2,6 +2,8 @@
   // Volume: slider + editable percentage. Wheel and arrows = 1% at a time,
   // so any value is reachable (dragging alone, one pixel is worth more than 1%).
   // max in percent (200 = up to double). Past 100% the track has a reference mark.
+  import { t } from '../lib/i18n.svelte';
+
   let { label, value, max = 200, onchange }: {
     label: string;
     value: number;
@@ -33,7 +35,7 @@
     oninput={(e) => set(Number(e.currentTarget.value))}
     onwheel={wheel}
     ondblclick={() => set(100)}
-    title="Doppio clic: 100%"
+    title={t('volume.doubleClick')}
   />
   <label class="pct">
     <input
@@ -42,7 +44,7 @@
       {max}
       step="1"
       value={pct}
-      aria-label="{label} in percento"
+      aria-label={t('volume.percentOf', { label })}
       onchange={(e) => set(Number(e.currentTarget.value) || 0)}
       onwheel={wheel}
       onfocus={(e) => e.currentTarget.select()}

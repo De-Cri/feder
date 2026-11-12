@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { onPickScreenSource, pickScreenSource, type ScreenSource } from '../lib/platform';
+  import { t } from '../lib/i18n.svelte';
 
   // Screen/window picker for Electron on X11 (on Wayland the system one is used).
   let sources = $state<ScreenSource[] | null>(null);
@@ -20,8 +21,8 @@
 {#if sources}
   <div class="bg" role="presentation" onclick={() => choose(null)}>
     <div class="panel" role="dialog" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
-      <h2>Cosa vuoi condividere?</h2>
-      {#each [{ title: 'Schermi', list: screens }, { title: 'Finestre', list: windows }] as group}
+      <h2>{t('picker.title')}</h2>
+      {#each [{ title: t('picker.screens'), list: screens }, { title: t('picker.windows'), list: windows }] as group}
         {#if group.list.length}
           <h3>{group.title}</h3>
           <div class="grid">
@@ -34,7 +35,7 @@
           </div>
         {/if}
       {/each}
-      <div class="row"><button class="btn" onclick={() => choose(null)}>Annulla</button></div>
+      <div class="row"><button class="btn" onclick={() => choose(null)}>{t('common.cancel')}</button></div>
     </div>
   </div>
 {/if}

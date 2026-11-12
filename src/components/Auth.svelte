@@ -2,6 +2,7 @@
   import { supabase } from '../lib/supabase';
   import { errorText } from '../lib/util';
   import Logo from './Logo.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   let mode = $state<'login' | 'register'>('login');
   let email = $state('');
@@ -16,11 +17,11 @@
     e.preventDefault();
     error = null;
     if (mode === 'register' && !validUser) {
-      error = 'Username: 3–20 caratteri, solo minuscole, numeri, _ e .';
+      error = t('auth.usernameRule');
       return;
     }
     if (password.length < 6) {
-      error = 'La password deve avere almeno 6 caratteri.';
+      error = t('error.passwordShort');
       return;
     }
     busy = true;
@@ -35,7 +36,7 @@
           options: { data: { username } },
         });
         if (err) throw err;
-        if (!data.session) error = 'Account creato, ma serve la conferma email: chiedi all’admin di disattivarla.';
+        if (!data.session) error = t('auth.needsConfirm');
       }
     } catch (err) {
       error = errorText(err);
@@ -48,8 +49,8 @@
 <div class="wrap">
   <form class="card" onsubmit={submit}>
     <div class="logo"><Logo size={48} /></div>
-    <h1>{mode === 'login' ? 'Bentornato' : 'Crea un account'}</h1>
-    <p class="muted sub">Feder — solo per pochi.</p>
+    <h1>{mode === 'login' ? t('auth.welcomeBack') : t('auth.createAccount')}</h1>
+    <p class="muted sub">{t('auth.tagline')}</p>
 
     <label class="label" for="email">Email</label>
     <input id="email" class="field" type="email" autocomplete="email" bind:value={email} required />
@@ -62,7 +63,7 @@
         autocomplete="username"
         bind:value={username}
         oninput={() => (username = username.toLowerCase())}
-        placeholder="es. samu"
+        placeholder={t('auth.usernamePlaceholder')}
         required
       />
     {/if}
@@ -80,7 +81,7 @@
     {#if error}<p class="err">{error}</p>{/if}
 
     <button class="btn primary full" disabled={busy}>
-      {busy ? '…' : mode === 'login' ? 'Accedi' : 'Registrati'}
+      {busy ? '…' : mode === 'login' ? t('auth.login') : t('auth.register')}
     </button>
 
     <button
@@ -91,7 +92,7 @@
         error = null;
       }}
     >
-      {mode === 'login' ? 'Non hai un account? Registrati' : 'Hai già un account? Accedi'}
+      {mode === 'login' ? t('auth.toRegister') : t('auth.toLogin')}
     </button>
   </form>
 </div>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { app, POKE_MAX } from '../lib/state.svelte';
   import Icon from './Icon.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   // "Poke" menu entry: for people with their audio off (like on TeamSpeak).
   let { id, onsent }: { id: string; onsent: () => void } = $props();
@@ -11,7 +12,7 @@
 
   function send() {
     if (app.poke(id, text)) onsent();
-    else err = 'Aspetta un attimo prima di rifarlo.';
+    else err = t('poke.wait');
   }
 </script>
 
@@ -22,8 +23,8 @@
 {:else}
   <form class="poke" onsubmit={(e) => { e.preventDefault(); send(); }}>
     <!-- svelte-ignore a11y_autofocus -->
-    <input bind:value={text} maxlength={POKE_MAX} placeholder="Messaggio (facoltativo)" autofocus />
-    <button class="btn" type="submit">Invia</button>
+    <input bind:value={text} maxlength={POKE_MAX} placeholder={t('poke.placeholder')} autofocus />
+    <button class="btn" type="submit">{t('poke.send')}</button>
   </form>
   {#if err}<p class="err">{err}</p>{/if}
 {/if}

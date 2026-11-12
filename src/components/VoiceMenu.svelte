@@ -7,6 +7,7 @@
   import Icon from './Icon.svelte';
   import VolumeSlider from './VolumeSlider.svelte';
   import PokeItem from './PokeItem.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   // Right-click menu on a person in voice: volume, mute, admin mute.
   // Closes with a click or right-click outside the menu, or with Esc.
@@ -55,23 +56,23 @@
 <svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />
 
 <div class="menu" bind:this={panel} style="left:{left}px; top:{top}px" role="presentation" oncontextmenu={(e) => e.preventDefault()}>
-  <div class="menu-title">{screen ? `Stream di ${app.name(id)}` : app.name(id)}</div>
-  <VolumeSlider label={screen ? 'Audio stream' : 'Volume'} value={vol} onchange={setVol} />
+  <div class="menu-title">{screen ? t('menu.streamOf', { name: app.name(id) }) : app.name(id)}</div>
+  <VolumeSlider label={screen ? t('menu.streamAudio') : t('menu.volume')} value={vol} onchange={setVol} />
   <button onclick={() => setVol(vol > 0 ? 0 : 1)}>
     <Icon name={vol > 0 ? 'volume' : 'mic-off'} size={15} />
-    {vol > 0 ? (screen ? 'Silenzia la stream' : 'Silenzia per me') : 'Riattiva audio'}
+    {vol > 0 ? (screen ? t('menu.muteStream') : t('menu.muteForMe')) : t('call.undeafen')}
   </button>
   {#if screen && voice.watching[id]}
     <button onclick={() => { delete voice.watching[id]; onclose(); }}>
       <Icon name="screen" size={15} />
-      Smetti di guardare
+      {t('menu.stopWatching')}
     </button>
   {/if}
   {#if !screen && app.presence[id]?.deaf}<PokeItem {id} onsent={onclose} />{/if}
   {#if app.isAdmin && !screen}
     <button onclick={toggleVoiceMute}>
       <Icon name="mic-off" size={15} />
-      {app.voiceMutes[id] ? 'Togli mute (admin)' : 'Muta per tutti (admin)'}
+      {app.voiceMutes[id] ? t('menu.unmuteAdmin') : t('menu.muteAdmin')}
     </button>
   {/if}
 </div>

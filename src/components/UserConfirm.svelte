@@ -2,6 +2,7 @@
   import { supabase } from '../lib/supabase';
   import { app } from '../lib/state.svelte';
   import { errorText } from '../lib/util';
+  import { t } from '../lib/i18n.svelte';
 
   let { id, action, onclose }: {
     id: string;
@@ -27,19 +28,15 @@
 
 <div class="bg" role="presentation" onclick={onclose}>
   <div class="modal" role="dialog" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
-    <h3>{action === 'kick' ? 'Espellere' : 'Bannare'} {app.name(id)}?</h3>
-    <p class="muted">
-      {action === 'kick'
-        ? 'Potrà rientrare con la password del server.'
-        : 'Non potrà rientrare finché non lo sbanni dalle impostazioni.'}
-    </p>
+    <h3>{t(action === 'kick' ? 'confirm.kickTitle' : 'confirm.banTitle', { name: app.name(id) })}</h3>
+    <p class="muted">{action === 'kick' ? t('confirm.kickHint') : t('confirm.banHint')}</p>
     {#if action === 'ban'}
-      <input class="field" placeholder="Motivo (opzionale)" bind:value={reason} />
+      <input class="field" placeholder={t('confirm.reason')} bind:value={reason} />
     {/if}
     {#if error}<p class="err">{error}</p>{/if}
     <div class="row">
-      <button class="btn" onclick={onclose}>Annulla</button>
-      <button class="btn danger" onclick={confirm}>{action === 'kick' ? 'Espelli' : 'Banna'}</button>
+      <button class="btn" onclick={onclose}>{t('common.cancel')}</button>
+      <button class="btn danger" onclick={confirm}>{action === 'kick' ? t('menu.kick') : t('menu.ban')}</button>
     </div>
   </div>
 </div>

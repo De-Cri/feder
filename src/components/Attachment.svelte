@@ -3,6 +3,7 @@
   import { signedUrl, type Message } from '../lib/state.svelte';
   import { bytes } from '../lib/util';
   import Icon from './Icon.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   let { message }: { message: Message } = $props();
   const mime = $derived(message.attachment_mime ?? '');
@@ -40,7 +41,7 @@
       <div class="fname">{message.attachment_name}</div>
       <div class="size">{bytes(message.attachment_size)}</div>
     </div>
-    <button class="icon-btn" title="Scarica" onclick={download}><Icon name="download" size={17} /></button>
+    <button class="icon-btn" title={t('chat.download')} onclick={download}><Icon name="download" size={17} /></button>
   </div>
 {/if}
 
@@ -48,7 +49,7 @@
   <div class="lightbox" role="presentation" onclick={() => (zoom = false)}>
     <img src={url} alt={message.attachment_name} />
     <button class="dl btn" onclick={(e) => { e.stopPropagation(); download(); }}>
-      <Icon name="download" size={15} /> Scarica
+      <Icon name="download" size={15} /> {t('chat.download')}
     </button>
   </div>
 {/if}

@@ -4,12 +4,18 @@
   import { configured } from './lib/config';
   import { app } from './lib/state.svelte';
   import { applyTheme } from './lib/theme';
+  import { t, lang } from './lib/i18n.svelte';
   import Auth from './components/Auth.svelte';
   import Join from './components/Join.svelte';
   import Shell from './components/Shell.svelte';
 
   // Theme applied right away, before the first render.
   applyTheme();
+
+  // <html lang> follows the interface language (screen readers, hyphenation).
+  $effect(() => {
+    document.documentElement.lang = lang();
+  });
 
   onMount(() => {
     if (!configured) {
@@ -53,8 +59,8 @@
 
 {#if !configured}
   <div class="center">
-    <h2>App non configurata</h2>
-    <p class="muted">Manca <code>cerchio.config.json</code>. Esegui <code>npm run setup</code>.</p>
+    <h2>{t('app.notConfigured')}</h2>
+    <p class="muted">{t('app.notConfiguredHint')} <code>npm run setup</code></p>
   </div>
 {:else if !app.booted || (app.session && app.membership === 'unknown')}
   <div class="center"><div class="spinner"></div></div>

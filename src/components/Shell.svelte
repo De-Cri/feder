@@ -14,6 +14,7 @@
   import VoiceAudio from './VoiceAudio.svelte';
   import Releases from './Releases.svelte';
   import Pokes from './Pokes.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   // The open channel, split by kind: so TypeScript always knows which prop to pass.
   const current = $derived(app.channels.find((c) => c.id === app.view) ?? null);
@@ -54,14 +55,14 @@
   <main>
     {#if update}
       <div class="banner">
-        <span>Nuova versione {update.version} disponibile.</span>
+        <span>{t('update.available', { version: update.version })}</span>
         <button
           class="btn primary small"
           disabled={installing}
           onclick={async () => {
             installing = true;
             await update!.install();
-          }}>{installing ? 'Aggiorno…' : 'Aggiorna e riavvia'}</button
+          }}>{installing ? t('update.installing') : t('update.install')}</button
         >
       </div>
     {/if}

@@ -2,6 +2,7 @@
   import { app } from '../lib/state.svelte';
   import Avatar from './Avatar.svelte';
   import Icon from './Icon.svelte';
+  import { t } from '../lib/i18n.svelte';
 </script>
 
 {#if app.pokes.length}
@@ -10,10 +11,10 @@
       <div class="poke" role="alert">
         <Avatar id={p.from} size={32} />
         <div class="body">
-          <div class="who">{app.name(p.from)} ti ha fatto un poke</div>
+          <div class="who">{t('notify.poke', { name: app.name(p.from) })}</div>
           {#if p.text}<div class="msg selectable allow-native-menu">{p.text}</div>{/if}
         </div>
-        <button class="icon-btn" title="Chiudi" onclick={() => app.closePoke(p.key)}><Icon name="x" size={16} /></button>
+        <button class="icon-btn" title={t('common.close')} onclick={() => app.closePoke(p.key)}><Icon name="x" size={16} /></button>
       </div>
     {/each}
   </div>

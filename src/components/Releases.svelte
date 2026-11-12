@@ -3,6 +3,10 @@
   import { RELEASES, markReleasesSeen } from '../lib/releases';
   import { app } from '../lib/state.svelte';
   import Icon from './Icon.svelte';
+  import { t, lang, locale } from '../lib/i18n.svelte';
+
+  const fmtDate = (iso: string) =>
+    new Date(`${iso}T12:00:00`).toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' });
 
   onMount(() => {
     markReleasesSeen();
@@ -13,7 +17,7 @@
 <div class="channel">
   <header>
     <Icon name="megaphone" size={18} />
-    <h2>novità</h2>
+    <h2>{t('nav.releases')}</h2>
   </header>
 
   <div class="scroller">
@@ -21,16 +25,16 @@
       <article>
         <div class="head">
           <span class="ver">Feder {r.version}</span>
-          {#if i === 0}<span class="tag">ultima</span>{/if}
-          <span class="date">{r.date}</span>
+          {#if i === 0}<span class="tag">{t('releases.latest')}</span>{/if}
+          <span class="date">{fmtDate(r.date)}</span>
         </div>
-        <h3>Cosa c'è di nuovo</h3>
+        <h3>{t('releases.added')}</h3>
         <ul>
-          {#each r.added as a}<li>{a}</li>{/each}
+          {#each r[lang()].added as a}<li>{a}</li>{/each}
         </ul>
-        <h3>Come provarlo</h3>
+        <h3>{t('releases.test')}</h3>
         <ul class="test">
-          {#each r.test as t}<li>{t}</li>{/each}
+          {#each r[lang()].test as item}<li>{item}</li>{/each}
         </ul>
       </article>
     {/each}

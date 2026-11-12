@@ -9,6 +9,7 @@
   import VolumeSlider from './VolumeSlider.svelte';
   import PokeItem from './PokeItem.svelte';
   import { dm } from '../lib/dm.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   // Right-click menu on a person. Used by the member list, voice sidebar and chat.
   let {
@@ -77,21 +78,21 @@
     <Avatar {id} size={32} />
     <div class="who">
       <div class="name">{app.name(id)}</div>
-      <div class="role">{member?.role === 'admin' ? 'Admin' : 'Membro'}{member?.contributor ? ' · Contributor' : ''}</div>
+      <div class="role">{member?.role === 'admin' ? t('menu.admin') : t('menu.member')}{member?.contributor ? ' · Contributor' : ''}</div>
     </div>
   </div>
 
   {#if !isMe}
     <div class="sep"></div>
-    <VolumeSlider label="Volume" value={vol} onchange={setVol} />
+    <VolumeSlider label={t('menu.volume')} value={vol} onchange={setVol} />
     <button class="item" onclick={() => setVol(vol > 0 ? 0 : 1)}>
       <Icon name={vol > 0 ? 'volume' : 'mic-off'} size={15} />
-      {vol > 0 ? 'Silenzia per me' : 'Riattiva audio'}
+      {vol > 0 ? t('menu.muteForMe') : t('call.undeafen')}
     </button>
     {#if app.presence[id]?.deaf}<PokeItem {id} onsent={onclose} />{/if}
     {#if dm.status !== 'off'}
       <button class="item" onclick={() => { dm.enter(id); onclose(); }}>
-        <Icon name="chat" size={15} /> Messaggio privato
+        <Icon name="chat" size={15} /> {t('menu.privateMessage')}
       </button>
     {/if}
   {/if}
@@ -100,20 +101,20 @@
     <div class="sep"></div>
     <button class="item" onclick={() => run('admin_set_contributor', { p_user: id, p_on: !member?.contributor })}>
       <Icon name="sword" size={15} />
-      {member?.contributor ? 'Togli badge Contributor' : 'Dai badge Contributor'}
+      {member?.contributor ? t('menu.removeContributor') : t('menu.giveContributor')}
     </button>
   {/if}
 
   {#if app.isAdmin && !isMe}
     <button class="item" onclick={() => run('admin_set_voice_mute', { p_user: id, p_muted: !app.voiceMutes[id] })}>
       <Icon name="mic-off" size={15} />
-      {app.voiceMutes[id] ? 'Togli mute in vocale' : 'Muta in vocale'}
+      {app.voiceMutes[id] ? t('menu.unmuteVoice') : t('menu.muteVoice')}
     </button>
     <button class="item danger" onclick={() => onconfirm('kick')}>
-      <Icon name="logout" size={15} /> Espelli
+      <Icon name="logout" size={15} /> {t('menu.kick')}
     </button>
     <button class="item danger" onclick={() => onconfirm('ban')}>
-      <Icon name="x" size={15} /> Banna
+      <Icon name="x" size={15} /> {t('menu.ban')}
     </button>
   {/if}
 
