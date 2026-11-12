@@ -191,6 +191,7 @@ export const it = {
   "picker.screens": "Schermi",
   "picker.title": "Cosa vuoi condividere?",
   "picker.windows": "Finestre",
+  "poke.failed": "Poke non inviato, riprova.",
   "poke.placeholder": "Messaggio (facoltativo)",
   "poke.send": "Invia",
   "poke.wait": "Aspetta un attimo prima di rifarlo.",

@@ -21,6 +21,9 @@ export type Message = {
 };
 export const POKE_MAX = 120;
 
+/** A batch of call signals relayed by the server (voice_signal), with the verified sender. */
+export type SignalBatch = { from: string; signals: Record<string, unknown>[] };
+
 export type Presence = {
   user_id: string;
   at?: number; // when it was published (to discard stale states)
@@ -124,6 +127,8 @@ class AppState {
   pokes = $state<{ key: number; from: string; text: string }[]>([]);
   private pokeKey = 0;
   private lastPoke: Record<string, number> = {};
+  /** Who is in which voice channel according to the server (voice_rooms): presence alone can be forged. */
+  voiceRooms = $state<Record<string, number>>({});
   logs: Record<number, ChannelLog> = {};
   unread = $state<Record<number, number>>({});
 
@@ -139,6 +144,12 @@ class AppState {
 
   private db: RealtimeChannel | null = null;
   private lobby: RealtimeChannel | null = null;
+  /** Personal channel cerchio:user:<me>: only the server writes to it (pokes, call signaling). */
+  private inbox: RealtimeChannel | null = null;
+  /** Call signaling received on the personal channel (handled by voice.svelte.ts). */
+  onSignal: ((batch: SignalBatch) => void) | null = null;
+  /** The server's room registry changed (voice.svelte.ts re-checks who is in the room). */
+  onRoomsChange: (() => void) | null = null;
   onKicked: (() => void) | null = null;
   onMemberLeft: ((id: string) => void) | null = null;
   /** Called before signing out (private messages delete the local key). */
@@ -189,8 +200,14 @@ class AppState {
         (id) => ({ ...(all[id] ?? { mic: true, deaf: false, cam: false, screen: false }), user_id: id, voice: channelId }) as Presence,
       );
     }
-    // other channels: whoever the room says is with you can't be elsewhere
-    return Object.values(all).filter((p) => p.voice === channelId && !(room && room.ids.includes(p.user_id)));
+    // other channels: whoever the room says is with you can't be elsewhere, and others
+    // count only if the server agrees they're in that channel (presence can be forged)
+    return Object.values(all).filter(
+      (p) =>
+        p.voice === channelId &&
+        !(room && room.ids.includes(p.user_id)) &&
+        (p.user_id === this.me || this.voiceRooms[p.user_id] === channelId),
+    );
   }
 
   async checkMembership() {
@@ -214,11 +231,14 @@ class AppState {
   }
 
   async enterServer() {
-    const [ch, mem, prof, mutes] = await Promise.all([
+    // A crash or a closed laptop can leave us registered in a room: clear it on start.
+    if (this.myPresence.voice === null) void supabase.rpc('voice_leave');
+    const [ch, mem, prof, mutes, rooms] = await Promise.all([
       supabase.from('channels').select('*').order('position'),
       supabase.from('members').select('*'),
       supabase.from('profiles').select('*'),
       supabase.from('voice_mutes').select('user_id'),
+      supabase.from('voice_rooms').select('user_id, channel_id'),
     ]);
     this.channels = (ch.data ?? []) as Channel[];
     this.members = (mem.data ?? []) as Member[];
@@ -228,6 +248,10 @@ class AppState {
     const m: Record<string, true> = {};
     for (const row of mutes.data ?? []) m[row.user_id] = true;
     this.voiceMutes = m;
+    const r: Record<string, number> = {};
+    for (const row of (rooms.data ?? []) as { user_id: string; channel_id: number }[]) r[row.user_id] = row.channel_id;
+    this.voiceRooms = r;
+    this.onRoomsChange?.();
     if (!this.channels.some((c) => c.id === this.view)) this.view = this.textChannels[0]?.id ?? 1;
     await this.subscribe();
   }
@@ -274,6 +298,14 @@ class AppState {
           this.profiles[p.id] = p;
         }
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'voice_rooms' }, (ev) => {
+        if (ev.eventType === 'DELETE') delete this.voiceRooms[(ev.old as { user_id: string }).user_id];
+        else {
+          const row = ev.new as { user_id: string; channel_id: number };
+          this.voiceRooms[row.user_id] = row.channel_id;
+        }
+        this.onRoomsChange?.();
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'voice_mutes' }, (ev) => {
         if (ev.eventType === 'DELETE') delete this.voiceMutes[(ev.old as { user_id: string }).user_id];
         else this.voiceMutes[(ev.new as { user_id: string }).user_id] = true;
@@ -281,6 +313,7 @@ class AppState {
       .subscribe();
 
     this.joinLobby();
+    this.joinInbox();
     // Republish now and then: fixes states lost or left behind on the server.
     clearInterval(this.presenceTimer);
     this.presenceTimer = setInterval(() => this.lobbyJoined && this.publishPresence(), 45_000);
@@ -307,15 +340,6 @@ class AppState {
       }
       this.detectCalls(next);
       this.online = next;
-    }).on('broadcast', { event: 'poke' }, ({ payload }) => {
-      if (this.lobby !== ch) return;
-      const { from, to, text } = (payload ?? {}) as { from?: string; to?: string; text?: string };
-      if (to !== this.me || !from || !this.members.some((m) => m.user_id === from)) return;
-      const msg = String(text ?? '').slice(0, POKE_MAX);
-      if (this.pokes.length >= 5) this.pokes = this.pokes.slice(-4); // no endless stack
-      this.pokes = [...this.pokes, { key: ++this.pokeKey, from, text: msg }];
-      playSound('poke');
-      notify(t('notify.poke', { name: this.name(from) }), msg || t('notify.pokeDefault'));
     }).subscribe(async (status) => {
       if (this.lobby !== ch) return; // old channel, already replaced or closed by us
       this.lobbyJoined = status === 'SUBSCRIBED';
@@ -336,13 +360,53 @@ class AppState {
     });
   }
 
-  /** Sends someone a poke (at most one every 3 s per person). false = too soon or not connected. */
-  poke(to: string, text: string): boolean {
+  /**
+   * Personal channel: the server delivers pokes and call signaling here, with the
+   * sender set by the server, and nobody else can read it (0006_secure_signaling.sql).
+   */
+  private inboxRetry: ReturnType<typeof setTimeout> | undefined;
+  private joinInbox() {
+    const me = this.me!;
+    const ch = supabase.channel(`cerchio:user:${me}`, { config: { private: true } });
+    this.inbox = ch;
+    ch.on('broadcast', { event: 'poke' }, ({ payload }) => {
+      const { from, text } = (payload ?? {}) as { from?: string; text?: string };
+      if (this.inbox !== ch || !from || !this.members.some((m) => m.user_id === from)) return;
+      const msg = String(text ?? '').slice(0, POKE_MAX);
+      if (this.pokes.length >= 5) this.pokes = this.pokes.slice(-4); // no endless stack
+      this.pokes = [...this.pokes, { key: ++this.pokeKey, from, text: msg }];
+      playSound('poke');
+      notify(t('notify.poke', { name: this.name(from) }), msg || t('notify.pokeDefault'));
+    })
+      .on('broadcast', { event: 'signal' }, ({ payload }) => {
+        const b = payload as SignalBatch | undefined;
+        if (this.inbox !== ch || !b?.from || !Array.isArray(b.signals)) return;
+        this.onSignal?.(b);
+      })
+      .subscribe((status) => {
+        if (this.inbox !== ch) return;
+        if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[inbox] personal channel lost:', status, '- reconnecting');
+          clearTimeout(this.inboxRetry);
+          this.inboxRetry = setTimeout(async () => {
+            if (this.inbox !== ch || !this.me) return;
+            this.inbox = null;
+            await supabase.removeChannel(ch);
+            await supabase.realtime.setAuth();
+            if (this.inbox === null && this.me && this.db) this.joinInbox();
+          }, 3000);
+        }
+      });
+  }
+
+  /** Sends someone a poke through the server. Returns an error key, or null if sent. */
+  async poke(to: string, text: string): Promise<'poke.wait' | 'poke.failed' | null> {
     const now = Date.now();
-    if (!this.lobby || !this.lobbyJoined || !this.me || now - (this.lastPoke[to] ?? 0) < 3000) return false;
+    if (!this.me || now - (this.lastPoke[to] ?? 0) < 3000) return 'poke.wait';
     this.lastPoke[to] = now;
-    this.lobby.send({ type: 'broadcast', event: 'poke', payload: { from: this.me, to, text: text.trim().slice(0, POKE_MAX) } });
-    return true;
+    const { error } = await supabase.rpc('poke', { p_to: to, p_text: text.trim().slice(0, POKE_MAX) });
+    if (!error) return null;
+    return error.message.includes('poke_rate_limited') ? 'poke.wait' : 'poke.failed';
   }
 
   closePoke(key: number) {
@@ -453,6 +517,7 @@ class AppState {
     this.channels = [];
     this.logs = {};
     this.online = {};
+    this.voiceRooms = {};
   }
 
   private async kicked() {
@@ -469,10 +534,12 @@ class AppState {
     clearTimeout(this.publishTimer);
     this.publishTimer = undefined;
     clearTimeout(this.lobbyRetry);
-    const { db, lobby } = this;
-    this.db = this.lobby = null; // before closing: so their callbacks know it's intentional
+    clearTimeout(this.inboxRetry);
+    const { db, lobby, inbox } = this;
+    this.db = this.lobby = this.inbox = null; // before closing: so their callbacks know it's intentional
     if (db) await supabase.removeChannel(db);
     if (lobby) await supabase.removeChannel(lobby);
+    if (inbox) await supabase.removeChannel(inbox);
   }
 
   async signOut() {

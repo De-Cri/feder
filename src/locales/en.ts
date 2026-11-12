@@ -192,6 +192,7 @@ export const en: Record<keyof typeof it, string> = {
   "picker.screens": "Screens",
   "picker.title": "What do you want to share?",
   "picker.windows": "Windows",
+  "poke.failed": "Poke not sent, try again.",
   "poke.placeholder": "Message (optional)",
   "poke.send": "Send",
   "poke.wait": "Wait a moment before doing it again.",

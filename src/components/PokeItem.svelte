@@ -10,9 +10,10 @@
   let text = $state('');
   let err = $state<string | null>(null);
 
-  function send() {
-    if (app.poke(id, text)) onsent();
-    else err = t('poke.wait');
+  async function send() {
+    const e = await app.poke(id, text);
+    if (!e) onsent();
+    else err = t(e);
   }
 </script>
 

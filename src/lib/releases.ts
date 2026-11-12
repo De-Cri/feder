@@ -15,6 +15,40 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.5.0',
+    date: '2026-11-12',
+    it: {
+      added: [
+        'Feder è in italiano e in inglese: segue la lingua del sistema e si cambia in Impostazioni → Aspetto → Lingua.',
+        'Chiamate più sicure: i dati per collegarsi passano dal server e arrivano solo a chi è nella chiamata. Nessuno può spacciarsi per un altro né vedere da fuori gli indirizzi IP.',
+        'I poke passano dal server: il mittente è verificato e c\'è un limite contro lo spam.',
+        'Feder è open source (GPL-3.0): il codice è su github.com/De-Cri/feder.',
+        'Su Linux il processo si chiama feder.',
+        'Importante: chi è ancora sulla 0.4.7 non può più fare chiamate né mandare poke finché non aggiorna.',
+      ],
+      test: [
+        'Impostazioni → Aspetto → Lingua: passa a English e torna a Italiano, senza riavviare.',
+        'Entra in chiamata con un amico che ha già la 0.5.0: voce, webcam e schermo come prima.',
+        'Fai un poke a chi ha l\'audio disattivato: deve arrivargli con il tuo nome.',
+      ],
+    },
+    en: {
+      added: [
+        'Feder speaks Italian and English: it follows the system language and can be changed in Settings → Appearance → Language.',
+        'Safer calls: connection data goes through the server and reaches only the people in the call. Nobody can pose as someone else or see IP addresses from outside.',
+        'Pokes go through the server: the sender is verified and there\'s an anti-spam limit.',
+        'Feder is open source (GPL-3.0): the code is on github.com/De-Cri/feder.',
+        'On Linux the process is now called feder.',
+        'Important: anyone still on 0.4.7 can\'t make calls or send pokes until they update.',
+      ],
+      test: [
+        'Settings → Appearance → Language: switch to Italiano and back to English, without restarting.',
+        'Join a call with a friend who already has 0.5.0: voice, webcam and screen work as before.',
+        'Poke someone who has their audio off: it should reach them with your name.',
+      ],
+    },
+  },
+  {
     version: '0.4.7',
     date: '2026-11-11',
     it: {
@@ -83,38 +117,6 @@ export const RELEASES: Release[] = [
         'Start and stop screen sharing several times: RAM shouldn\'t go up every round.',
         'Ask a friend to turn their audio off, then right-click their name → Poke.',
         'Scroll up in a chat, switch to another channel and come back: you should be where you were.',
-      ],
-    },
-  },
-  {
-    version: '0.4.5',
-    date: '2026-11-10',
-    it: {
-      added: [
-        'Meno RAM in chiamata: webcam e schermi chiusi vengono liberati subito e, con la finestra minimizzata, i video non vengono più disegnati (audio e microfono continuano).',
-        'Volume degli amici regolabile a passi di 1% (rotellina o frecce) e percentuale scrivibile a mano.',
-        'Badge Contributor per chi ha contribuito al codice; passa il mouse sui badge per vedere Admin o Contributor.',
-        'Più spazio tra i nomi in vocale e nella lista membri.',
-        'Barra laterale più pulita: tolti avatar e nome in basso e l\'avviso sulla qualità della stream.',
-      ],
-      test: [
-        'In chiamata, tasto destro su un amico: porta il volume da 82 a 83 con la rotellina o scrivendo il numero.',
-        'Lista membri: passa il mouse sullo scudo dell\'admin e sulla spada dei contributor.',
-        'In chiamata con webcam o schermo accesi, minimizza Paper: devi continuare a sentire e gli altri a vederti.',
-      ],
-    },
-    en: {
-      added: [
-        'Less RAM in calls: closed webcams and screens are freed right away and, with the window minimized, videos are no longer drawn (audio and microphone keep going).',
-        'Friends\' volume adjustable in 1% steps (wheel or arrow keys) and a percentage you can type.',
-        'Contributor badge for people who contributed code; hover over the badges to see Admin or Contributor.',
-        'More space between names in voice and in the member list.',
-        'Cleaner sidebar: removed the avatar and name at the bottom and the stream quality warning.',
-      ],
-      test: [
-        'In a call, right-click a friend: move the volume from 82 to 83 with the wheel or by typing the number.',
-        'Member list: hover over the admin\'s shield and the contributors\' sword.',
-        'In a call with webcam or screen on, minimize Paper: you should keep hearing and the others keep seeing you.',
       ],
     },
   },
