@@ -1,6 +1,6 @@
 [package]
 name = "cerchio"
-version = "0.4.7"
+version = "0.5.0"
 description = "Cerchio — chat e vocale privati per pochi amici"
 edition = "2021"
 license = "GPL-3.0-or-later"
