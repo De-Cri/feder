@@ -3,7 +3,7 @@
 // "perfect negotiation" pattern to handle simultaneous offers and renegotiations.
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import { app, presenceBudget as budget } from './state.svelte';
+import { app, presenceBudget as budget, type SignalBatch } from './state.svelte';
 import { prefs, micOptions } from './prefs.svelte';
 import { config } from './config';
 import { MicPipeline, audioContext } from './audio';
@@ -483,6 +483,25 @@ class VoiceRoom {
   screenAudioTrack: MediaStreamTrack | null = null;
   private rt: RealtimeChannel | null = null;
   private ice: RTCIceServer[] = STUN;
+  /** Signals waiting to be relayed by the server, per recipient, sent in order and in batches. */
+  private outbox: Record<string, { queue: Record<string, unknown>[]; busy: boolean }> = {};
+  /** voice_join / voice_leave run one after another, so a slow leave can't undo the next join. */
+  private roomOp: Promise<unknown> = Promise.resolve();
+  /** Re-reads the room presence (called when the server's room registry changes). */
+  private resyncRoom: (() => void) | null = null;
+
+  constructor() {
+    app.onSignal = (batch) => this.receive(batch);
+    app.onRoomsChange = () => this.resyncRoom?.();
+  }
+
+  private registerRoom(channelId: number | null) {
+    const op = this.roomOp.then(() =>
+      channelId === null ? supabase.rpc('voice_leave') : supabase.rpc('voice_join', { p_channel: channelId }),
+    );
+    this.roomOp = op.catch(() => {});
+    return op;
+  }
   private meterTimer: ReturnType<typeof setInterval> | null = null;
   private rebuilding: Promise<void> | null = null;
 
@@ -516,68 +535,60 @@ class VoiceRoom {
     }
 
     this.channelId = channelId;
+    // The server records which room we're in: signaling is relayed only between
+    // people in the same room, and the others use it to trust our presence.
+    const { error: joinError } = (await this.registerRoom(channelId)) as { error: { message: string } | null };
+    if (seq !== this.joinSeq) return;
+    if (joinError) {
+      await this.leave(true);
+      this.error = t('voice.joinFailed');
+      return;
+    }
     await supabase.realtime.setAuth();
     if (seq !== this.joinSeq) return;
+    // Presence only: signaling goes through the server (voice_signal), never through this channel.
     const rt = supabase.channel(`cerchio:voice:${channelId}`, {
-      config: { private: true, broadcast: { self: false }, presence: { key: this.me } },
+      config: { private: true, presence: { key: this.me } },
     });
     this.rt = rt;
     let known: Set<string> | null = null; // who was there when I joined (no sound for them)
     let settledAt = Infinity; // until shortly after joining, state may arrive in pieces
     let subscribed = false;
     let retrack: ReturnType<typeof setTimeout> | undefined;
-    rt.on('broadcast', { event: 'signal' }, ({ payload }) => {
-      const sig = payload as Signal;
-      if (sig.to !== this.me || sig.from === this.me) return;
-      if (!app.members.some((m) => m.user_id === sig.from)) return;
-      // The other side recreated the connection (e.g. presence lost us for a moment)
-      // while we keep the old one, still "connected": their new offer would
-      // never stick and they would stay on "connecting…". We recreate ours too.
-      const old = this.peers[sig.from];
-      if (old?.remoteSid && sig.sid && sig.sid !== old.remoteSid) {
-        if (sig.description?.type !== 'offer') return; // leftovers of the old connection
-        this.drop(sig.from);
+    const sync = () => {
+      const state = rt.presenceState();
+      // If the server lost us from the room, we show up again (the others wouldn't see us).
+      if (subscribed && !(this.me in state)) {
+        clearTimeout(retrack);
+        retrack = setTimeout(() => {
+          if (this.rt !== rt || this.me in rt.presenceState()) return;
+          budget.take();
+          rt.track({ at: Date.now() });
+        }, Math.max(800, budget.wait()));
       }
-      if (sig.watch !== undefined) {
-        if (old && old.wantsScreen !== sig.watch) {
-          old.wantsScreen = sig.watch;
-          void this.tuneBitrate(old);
-        }
-        return;
+      // Only people the server agrees are in this room: presence keys can be forged.
+      const ids = new Set(Object.keys(state).filter((id) => id === this.me || app.voiceRooms[id] === channelId));
+      app.room = { channel: channelId, ids: [this.me, ...[...ids].filter((id) => id !== this.me && app.members.some((m) => m.user_id === id))] };
+      ids.delete(this.me);
+      // Only the lower id starts the connection; the other answers the offer.
+      for (const id of ids) {
+        if (!app.members.some((m) => m.user_id === id)) continue;
+        if (this.me < id) this.peer(id);
+        else
+          // Safety net: if the other side doesn't show up, I start.
+          setTimeout(() => {
+            if (this.rt === rt && !this.peers[id] && id in rt.presenceState()) this.peer(id);
+          }, 3000);
       }
-      this.peer(sig.from).handle(sig);
-    })
-      .on('presence', { event: 'sync' }, () => {
-        const state = rt.presenceState();
-        // If the server lost us from the room, we show up again (the others wouldn't see us).
-        if (subscribed && !(this.me in state)) {
-          clearTimeout(retrack);
-          retrack = setTimeout(() => {
-            if (this.rt !== rt || this.me in rt.presenceState()) return;
-            budget.take();
-            rt.track({ at: Date.now() });
-          }, Math.max(800, budget.wait()));
-        }
-        const ids = new Set(Object.keys(state));
-        app.room = { channel: channelId, ids: [this.me, ...[...ids].filter((id) => id !== this.me && app.members.some((m) => m.user_id === id))] };
-        ids.delete(this.me);
-        // Only the lower id starts the connection; the other answers the offer.
-        for (const id of ids) {
-          if (!app.members.some((m) => m.user_id === id)) continue;
-          if (this.me < id) this.peer(id);
-          else
-            // Safety net: if the other side doesn't show up, I start.
-            setTimeout(() => {
-              if (this.rt === rt && !this.peers[id] && id in rt.presenceState()) this.peer(id);
-            }, 3000);
-        }
-        for (const id of Object.keys(this.peers)) if (!ids.has(id)) this.drop(id);
-        if (known && Date.now() > settledAt) {
-          if ([...ids].some((id) => !known!.has(id))) playSound('join');
-          if ([...known].some((id) => !ids.has(id))) playSound('leave');
-        }
-        known = ids;
-      })
+      for (const id of Object.keys(this.peers)) if (!ids.has(id)) this.drop(id);
+      if (known && Date.now() > settledAt) {
+        if ([...ids].some((id) => !known!.has(id))) playSound('join');
+        if ([...known].some((id) => !ids.has(id))) playSound('leave');
+      }
+      known = ids;
+    };
+    this.resyncRoom = () => this.rt === rt && sync();
+    rt.on('presence', { event: 'sync' }, sync)
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           budget.take();
@@ -600,9 +611,14 @@ class VoiceRoom {
     this.joinSeq++; // cancels joins in progress
     if (this.channelId !== null && !switching) playSound('selfLeave');
     const rt = this.rt;
+    const wasInRoom = this.channelId !== null;
     this.rt = null;
+    this.resyncRoom = null;
     if (rt) await supabase.removeChannel(rt);
+    // when switching, the next voice_join replaces the room anyway
+    if (wasInRoom && !switching) void this.registerRoom(null);
     for (const id of Object.keys(this.peers)) this.drop(id);
+    this.outbox = {};
     this.stopVideo(false);
     if (this.meterTimer) clearInterval(this.meterTimer);
     this.meterTimer = null;
@@ -622,9 +638,55 @@ class VoiceRoom {
     this.syncPresence();
   }
 
+  /** Queues a signal for `to`: the server relays it (voice_signal) with our verified id. */
   send(to: string, sig: Omit<Signal, 'from' | 'to' | 'sid'>) {
-    const sid = this.peers[to]?.sid;
-    this.rt?.send({ type: 'broadcast', event: 'signal', payload: { ...sig, from: this.me, to, sid } });
+    if (this.channelId === null) return;
+    const box = (this.outbox[to] ??= { queue: [], busy: false });
+    box.queue.push({ ...sig, sid: this.peers[to]?.sid });
+    if (!box.busy) void this.flush(to, box);
+  }
+
+  // One request at a time per recipient, so signals arrive in order (an ICE candidate
+  // before its offer would be lost); whatever queues up meanwhile goes in the next batch.
+  private async flush(to: string, box: { queue: Record<string, unknown>[]; busy: boolean }) {
+    box.busy = true;
+    try {
+      while (box.queue.length && this.outbox[to] === box) {
+        const batch = box.queue.splice(0, 50);
+        const { error } = await supabase.rpc('voice_signal', { p_to: to, p_signals: batch });
+        // not delivered (e.g. they just left): the connection watchdog recovers if needed
+        if (error) console.warn('[voice] signal not delivered:', error.message);
+      }
+    } finally {
+      box.busy = false;
+    }
+  }
+
+  /** Signals relayed by the server: the sender is verified, and they're in our room. */
+  private receive(batch: SignalBatch) {
+    if (this.channelId === null || batch.from === this.me) return;
+    if (!app.members.some((m) => m.user_id === batch.from)) return;
+    for (const raw of batch.signals) this.handleSignal({ ...(raw as Omit<Signal, 'from' | 'to'>), from: batch.from, to: this.me });
+  }
+
+  private handleSignal(sig: Signal) {
+    if (!app.members.some((m) => m.user_id === sig.from)) return;
+    // The other side recreated the connection (e.g. presence lost us for a moment)
+    // while we keep the old one, still "connected": their new offer would
+    // never stick and they would stay on "connecting…". We recreate ours too.
+    const old = this.peers[sig.from];
+    if (old?.remoteSid && sig.sid && sig.sid !== old.remoteSid) {
+      if (sig.description?.type !== 'offer') return; // leftovers of the old connection
+      this.drop(sig.from);
+    }
+    if (sig.watch !== undefined) {
+      if (old && old.wantsScreen !== sig.watch) {
+        old.wantsScreen = sig.watch;
+        void this.tuneBitrate(old);
+      }
+      return;
+    }
+    this.peer(sig.from).handle(sig);
   }
 
   private peer(id: string): Peer {
@@ -638,6 +700,7 @@ class VoiceRoom {
   }
 
   drop(id: string) {
+    delete this.outbox[id];
     const p = this.peers[id];
     if (!p) return;
     p.close();

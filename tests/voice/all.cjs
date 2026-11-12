@@ -6,7 +6,7 @@ const startServer = require('./server.cjs');
 (async () => {
   const stop = await startServer();
   let failed = [];
-  for (const t of ['run', 'presence', 'screen', 'recreate', 'limits', 'memory']) {
+  for (const t of ['run', 'presence', 'screen', 'recreate', 'limits', 'secure', 'memory']) {
     console.log(`\n=== ${t} ===`);
     // async: the test server runs in this same process and must be able to answer
     const code = await new Promise((r) => spawn(process.execPath, [join(__dirname, `${t}.cjs`)], { stdio: 'inherit' }).on('exit', r));

@@ -1,5 +1,7 @@
 // supabase-js mock to test P2P voice in the browser without a backend:
-// broadcast + presence emulated with BroadcastChannel between pages of the same context.
+// presence and the server's relays emulated with BroadcastChannel between pages of the same context.
+// Like the real server (0006_secure_signaling.sql): voice_join/voice_leave keep a room registry,
+// voice_signal and poke deliver only to the recipient's personal channel, with the real sender.
 const DUP = new URLSearchParams(location.search).get('dup') === '1';
 // ?drop=1 simulates the opposite case: two updates too close together and the server
 // "loses" the person (gone for everyone, themselves included).
@@ -9,7 +11,9 @@ const STALE = new URLSearchParams(location.search).get('stale') === '1';
 // Like Supabase: max 5 track() every 30 s per client; beyond that the server closes the channel.
 const PRESENCE_MAX = 5;
 const PRESENCE_WINDOW = 30_000;
-type Handler = { type: string; event: string; cb: (p: any) => void };
+type Handler = { type: string; event: string; table?: string; cb: (p: any) => void };
+const ME = new URLSearchParams(location.search).get('u') ?? '';
+const live = new Set<MockChannel>();
 
 class MockChannel {
   handlers: Handler[] = [];
@@ -29,10 +33,15 @@ class MockChannel {
     this.key = opts?.config?.presence?.key ?? Math.random().toString(36);
     this.bc = new BroadcastChannel(name);
     this.bc.onmessage = ({ data }) => this.receive(data);
+    live.add(this);
   }
   on(type: string, filter: any, cb: (p: any) => void) {
-    this.handlers.push({ type, event: filter.event, cb });
+    this.handlers.push({ type, event: filter.event, table: filter.table, cb });
     return this;
+  }
+  /** A database change, as postgres_changes would deliver it. */
+  firePg(table: string, ev: any) {
+    for (const h of this.handlers) if (h.type === 'postgres_changes' && h.table === table) h.cb(ev);
   }
   private fire(type: string, event: string, payload?: any) {
     for (const h of this.handlers) if (h.type === type && h.event === event) h.cb(payload);
@@ -110,7 +119,53 @@ class MockChannel {
   close() {
     if (!this.closedByServer) this.post({ t: 'leave', key: this.key, conn: this.conn });
     this.bc.close();
+    live.delete(this);
   }
+}
+
+// ---- server side: room registry and relays -----------------------------------
+const rooms: Record<string, number> = {};
+const roomListeners: ((user: string, channel: number | null) => void)[] = [];
+const roomsBc = new BroadcastChannel('mock-voice-rooms');
+function applyRoom(user: string, channel: number | null) {
+  if (channel === null) delete rooms[user];
+  else rooms[user] = channel;
+  const ev = channel === null ? { eventType: 'DELETE', old: { user_id: user } } : { eventType: 'INSERT', new: { user_id: user, channel_id: channel } };
+  for (const ch of live) ch.firePg('voice_rooms', ev);
+  for (const cb of roomListeners) cb(user, channel);
+}
+roomsBc.onmessage = ({ data }) => {
+  if (data.hello) {
+    if (rooms[ME] !== undefined) roomsBc.postMessage({ user: ME, channel: rooms[ME] });
+  } else applyRoom(data.user, data.channel);
+};
+roomsBc.postMessage({ hello: true }); // pages opened earlier tell us their room
+/** Room registry changes (the test page mirrors them into app.voiceRooms). */
+export const onMockRooms = (cb: (user: string, channel: number | null) => void) => roomListeners.push(cb);
+
+const outboxes: Record<string, BroadcastChannel> = {};
+function deliver(to: string, event: string, payload: any) {
+  (outboxes[to] ??= new BroadcastChannel(`cerchio:user:${to}`)).postMessage({ t: 'b', event, payload });
+}
+
+async function rpc(fn: string, args: any = {}) {
+  const ok = { data: null, error: null };
+  if (fn === 'voice_join' || fn === 'voice_leave') {
+    const channel = fn === 'voice_join' ? args.p_channel : null;
+    applyRoom(ME, channel);
+    roomsBc.postMessage({ user: ME, channel });
+    return ok;
+  }
+  if (fn === 'voice_signal') {
+    if (rooms[ME] === undefined || rooms[ME] !== rooms[args.p_to]) return { data: null, error: { message: 'not_in_same_room' } };
+    deliver(args.p_to, 'signal', { from: ME, signals: args.p_signals });
+    return ok;
+  }
+  if (fn === 'poke') {
+    deliver(args.p_to, 'poke', { from: ME, text: args.p_text });
+    return ok;
+  }
+  return ok;
 }
 
 export const supabase = {
@@ -118,6 +173,7 @@ export const supabase = {
   // prefs.svelte.ts subscribes to login to sync preferences
   auth: { onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) },
   channel: (name: string, opts: any) => new MockChannel(name, opts),
+  rpc,
   removeChannel: async (ch: MockChannel) => ch.close(),
   functions: { invoke: async () => ({ data: null, error: 'none' }) },
 };

@@ -4,11 +4,21 @@ import { app } from '../../src/lib/state.svelte';
 import { voice, preferHardwareCodec } from '../../src/lib/voice.svelte';
 import { prefs } from '../../src/lib/prefs.svelte';
 import { soundLog } from '../../src/lib/sounds';
+import { onMockRooms, supabase } from './mock-supabase';
 
 const me = new URLSearchParams(location.search).get('u')!;
 app.session = { user: { id: me } } as any;
 app.members = ['a', 'b', 'c'].map((id) => ({ user_id: id, role: 'member', joined_at: '' }));
+// Like the app after entering the server: listen on the personal channel (relayed
+// signaling and pokes) and keep the room registry in sync.
+(app as any).joinInbox();
+onMockRooms((user, channel) => {
+  if (channel === null) delete app.voiceRooms[user];
+  else app.voiceRooms[user] = channel;
+  app.onRoomsChange?.();
+});
 (window as any).voice = voice;
+(window as any).supabase = supabase; // secure.cjs plays the attacker with it
 (window as any).preferHardwareCodec = preferHardwareCodec;
 (window as any).app = app;
 (window as any).prefs = prefs;

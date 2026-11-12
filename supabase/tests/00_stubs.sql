@@ -13,4 +13,7 @@ create table realtime.messages (id bigserial primary key, topic text, extension 
 alter table realtime.messages enable row level security;
 grant select, insert on realtime.messages to authenticated; grant usage on sequence realtime.messages_id_seq to authenticated;
 create function realtime.topic() returns text language sql stable as $$ select nullif(current_setting('realtime.topic', true), '')::text $$;
+-- realtime.send as on Supabase: a broadcast row in realtime.messages (inserted as the caller's definer).
+create function realtime.send(payload jsonb, event text, topic text, private boolean default true) returns void
+  language sql as $$ insert into realtime.messages (topic, extension, payload) values (topic, 'broadcast', payload || jsonb_build_object('event', event)) $$;
 create publication supabase_realtime;
