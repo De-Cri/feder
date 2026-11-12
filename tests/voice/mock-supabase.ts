@@ -1,12 +1,12 @@
-// Mock di supabase-js per testare la voce P2P in browser senza backend:
-// broadcast + presence emulati con BroadcastChannel tra pagine dello stesso contesto.
+// supabase-js mock to test P2P voice in the browser without a backend:
+// broadcast + presence emulated with BroadcastChannel between pages of the same context.
 const DUP = new URLSearchParams(location.search).get('dup') === '1';
-// ?drop=1 simula il caso opposto: due aggiornamenti troppo ravvicinati e il server
-// "perde" la persona (sparisce per tutti, anche per sé stessa).
+// ?drop=1 simulates the opposite case: two updates too close together and the server
+// "loses" the person (gone for everyone, themselves included).
 const DROP = new URLSearchParams(location.search).get('drop') === '1';
-// ?stale=1: l'aggiornamento troppo ravvicinato viene ignorato (resta lo stato vecchio).
+// ?stale=1: the too-close update is ignored (the old state stays).
 const STALE = new URLSearchParams(location.search).get('stale') === '1';
-// Come Supabase: max 5 track() ogni 30 s per client, oltre il server chiude il canale.
+// Like Supabase: max 5 track() every 30 s per client; beyond that the server closes the channel.
 const PRESENCE_MAX = 5;
 const PRESENCE_WINDOW = 30_000;
 type Handler = { type: string; event: string; cb: (p: any) => void };
@@ -16,14 +16,14 @@ class MockChannel {
   bc: BroadcastChannel;
   key: string;
   state: Record<string, any[]> = {};
-  /** Una "connessione": la stessa persona può averne più di una (app + browser). */
+  /** A "connection": the same person can have more than one (app + browser). */
   conn = Math.random().toString(36).slice(2);
   tracks: number[] = [];
   trackCount = 0;
   closedByServer = false;
   statusCb?: (s: string) => void;
   private post(m: any) {
-    try { this.bc.postMessage(m); } catch { /* canale già chiuso */ }
+    try { this.bc.postMessage(m); } catch { /* channel already closed */ }
   }
   constructor(public name: string, opts: any) {
     this.key = opts?.config?.presence?.key ?? Math.random().toString(36);
@@ -42,8 +42,8 @@ class MockChannel {
     else if (d.t === 'presence') {
       const old = this.state[d.key] ?? [];
       const isNew = !old.some((m) => m.__c === d.meta.__c);
-      // ?dup=1 simula il caso reale di Supabase in cui restano due stati per la
-      // stessa persona, con quello vecchio in fondo alla lista.
+      // ?dup=1 simulates the real Supabase case where two states remain for the
+      // same person, with the old one at the end of the list.
       this.state[d.key] = DUP ? [d.meta, ...old].slice(0, 2) : [...old.filter((m) => m.__c !== d.meta.__c), d.meta];
       const mine = this.mine();
       if (isNew && mine) this.post({ t: 'presence', key: this.key, meta: mine });
@@ -61,7 +61,7 @@ class MockChannel {
     if (left.length) this.state[key] = left;
     else delete this.state[key];
   }
-  /** Il server chiude il canale (come ClientPresenceRateLimitReached). */
+  /** The server closes the channel (like ClientPresenceRateLimitReached). */
   serverClose() {
     if (this.closedByServer) return;
     this.closedByServer = true;
@@ -115,7 +115,7 @@ class MockChannel {
 
 export const supabase = {
   realtime: { setAuth: async () => {} },
-  // prefs.svelte.ts si iscrive al login per sincronizzare le preferenze
+  // prefs.svelte.ts subscribes to login to sync preferences
   auth: { onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) },
   channel: (name: string, opts: any) => new MockChannel(name, opts),
   removeChannel: async (ch: MockChannel) => ch.close(),

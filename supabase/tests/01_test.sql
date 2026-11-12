@@ -1,5 +1,5 @@
 \set ON_ERROR_STOP 1
--- setup: admin + 2 utenti
+-- setup: admin + 2 users
 insert into auth.users (id, email, raw_user_meta_data) values
  ('00000000-0000-0000-0000-00000000000a', 'a@x', '{"username":"Samu"}'),
  ('00000000-0000-0000-0000-00000000000b', 'b@x', '{"username":"bob"}'),
@@ -8,7 +8,7 @@ select private.configure_server('segreta123', '00000000-0000-0000-0000-000000000
 select username from public.profiles order by username;
 
 set role authenticated;
--- bob non membro: non vede nulla
+-- bob, not a member: sees nothing
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
 do $$ begin assert (select count(*) from public.channels) = 0, 'non membro vede canali'; end $$;
 do $$ begin assert (select count(*) from public.profiles) = 1, 'non membro vede profili altrui'; end $$;
@@ -35,7 +35,7 @@ do $$ begin
   begin perform public.admin_kick('00000000-0000-0000-0000-00000000000a'); raise exception 'bob kick admin';
   exception when raise_exception then if sqlerrm <> 'forbidden' then raise; end if; end;
 end $$;
--- realtime: membro può leggere/scrivere
+-- realtime: a member can read/write
 select set_config('realtime.topic', 'cerchio:lobby', false);
 insert into realtime.messages (topic, extension) values ('cerchio:lobby', 'presence');
 
@@ -60,7 +60,7 @@ do $$ begin assert (select count(*) from public.voice_mutes) = 1; end $$;
 select public.admin_ban('00000000-0000-0000-0000-00000000000b', 'test');
 select public.admin_set_password('nuovapass');
 
--- bob bannato
+-- bob banned
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
 do $$ begin assert public.join_server('nuovapass') = 'banned'; end $$;
 do $$ begin assert (select count(*) from public.messages) = 0 and (select count(*) from public.channels) = 0; end $$;

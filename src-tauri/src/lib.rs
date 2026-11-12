@@ -3,7 +3,7 @@ use tauri::Manager;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        // Una sola istanza: riaprire l'app porta in primo piano la finestra esistente.
+        // Single instance: reopening the app brings the existing window to the front.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.unminimize();
@@ -28,8 +28,8 @@ pub fn run() {
         .expect("errore avviando Feder");
 }
 
-/// Finestra nascosta e nessuna chiamata in corso: chiede a WebView2 di usare
-/// meno memoria (libera cache e memoria non indispensabile). Al ritorno torna normale.
+/// Hidden window and no call in progress: asks WebView2 to use less memory
+/// (frees caches and non-essential memory). Back to normal when you return.
 #[tauri::command]
 fn set_background_mode(window: tauri::WebviewWindow, background: bool) {
     #[cfg(windows)]
@@ -45,7 +45,7 @@ fn set_background_mode(window: tauri::WebviewWindow, background: bool) {
             } else {
                 COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL
             };
-            // ICoreWebView2_19 esiste da WebView2 Runtime 1.0.2210: se è più vecchio, niente.
+            // ICoreWebView2_19 exists since WebView2 Runtime 1.0.2210: if older, do nothing.
             if let Ok(core) = wv.controller().CoreWebView2() {
                 if let Ok(core19) = core.cast::<ICoreWebView2_19>() {
                     let _ = core19.SetMemoryUsageTargetLevel(level);
@@ -59,10 +59,10 @@ fn set_background_mode(window: tauri::WebviewWindow, background: bool) {
     }
 }
 
-/// WebKitGTK di default ha getUserMedia/WebRTC disattivati e nega i permessi
-/// di microfono/camera. Qui li abilitiamo e concediamo i permessi media.
-/// Se la build di WebKitGTK della distro non include WebRTC, la UI lo rileva
-/// e mostra un avviso (la chat funziona comunque).
+/// WebKitGTK disables getUserMedia/WebRTC by default and denies microphone/camera
+/// permissions. Here we enable them and grant media permissions.
+/// If the distro's WebKitGTK build lacks WebRTC, the UI detects it
+/// and shows a warning (chat still works).
 #[cfg(target_os = "linux")]
 mod linux_media {
     use webkit2gtk::glib::object::Cast;

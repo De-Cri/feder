@@ -1,10 +1,10 @@
-// Catena del microfono:
-//   mic (cancellazione eco + AGC del browser)
-//     → mono (downmix al centro)
-//     → soppressione rumore (nessuna / standard del browser / RNNoise AI)
-//     → noise gate opzionale
-//     → guadagno di input
-//     → traccia inviata agli altri (+ analizzatore per i meter)
+// Microphone chain:
+//   mic (browser echo cancellation + AGC)
+//     → mono (downmixed to center)
+//     → noise suppression (none / browser standard / RNNoise AI)
+//     → optional noise gate
+//     → input gain
+//     → track sent to the others (+ analyser for the meters)
 import { NoiseGateWorkletNode, RnnoiseWorkletNode, loadRnnoise } from '@sapphi-red/web-noise-suppressor';
 import rnnoiseWorkletUrl from '@sapphi-red/web-noise-suppressor/rnnoiseWorklet.js?url';
 import noiseGateWorkletUrl from '@sapphi-red/web-noise-suppressor/noiseGateWorklet.js?url';
@@ -19,20 +19,20 @@ export type MicOptions = {
   echoCancellation: boolean;
   autoGain: boolean;
   gain: number; // 0..2
-  gateDb: number | null; // es. -50; null = disattivato
+  gateDb: number | null; // e.g. -50; null = off
 };
 
 let ctx: AudioContext | null = null;
-/** Un solo AudioContext a 48 kHz (richiesto da RNNoise). */
+/** A single 48 kHz AudioContext (required by RNNoise). */
 export function audioContext(): AudioContext {
   if (!ctx || ctx.state === 'closed') ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
   return ctx;
 }
 
-// Catene del microfono attive (chiamata, test nelle impostazioni). Quando non ce
-// n'è più nessuna il contesto si chiude: libera il thread audio, i worklet e la
-// memoria WASM di RNNoise invece di tenerli vivi fino alla chiusura dell'app.
+// Active microphone chains (call, settings test). When none is left the context
+// closes: it frees the audio thread, the worklets and RNNoise's WASM memory
+// instead of keeping them alive until the app quits.
 let pipelines = 0;
 function release() {
   if (--pipelines > 0 || !ctx) return;
@@ -57,11 +57,11 @@ export class MicPipeline {
   readonly raw: MediaStream;
   readonly track: MediaStreamTrack;
   readonly stream: MediaStream;
-  /** true se è stata chiesta l'AI ma non è stato possibile caricarla. */
+  /** true if AI was requested but couldn't be loaded. */
   aiFallback = false;
-  /** true se il microfono scelto non era disponibile e si usa quello predefinito. */
+  /** true if the chosen microphone wasn't available and the default one is used. */
   deviceFallback = false;
-  /** Nome del microfono effettivamente in uso. */
+  /** Name of the microphone actually in use. */
   get deviceLabel(): string {
     return this.raw.getAudioTracks()[0]?.label ?? '';
   }
@@ -83,15 +83,15 @@ export class MicPipeline {
 
   static async create(o: MicOptions): Promise<MicPipeline> {
     const audio = (deviceId?: string): MediaTrackConstraints => ({
-      // "exact": con "ideal" Chromium può ignorare la scelta e restare sul predefinito.
+      // "exact": with "ideal" Chromium may ignore the choice and stay on the default.
       deviceId: deviceId ? { exact: deviceId } : undefined,
       echoCancellation: o.echoCancellation,
       noiseSuppression: o.noise === 'standard',
       autoGainControl: o.autoGain,
       channelCount: 1,
     });
-    // Conta subito: un'altra catena che si ferma mentre questa si crea non deve
-    // chiudere il contesto sotto i nostri piedi.
+    // Count it right away: another chain stopping while this one is being created
+    // must not close the context under our feet.
     pipelines++;
     try {
       return await MicPipeline.build(o, audio);
@@ -107,7 +107,7 @@ export class MicPipeline {
     try {
       raw = await navigator.mediaDevices.getUserMedia({ audio: audio(o.deviceId || undefined), video: false });
     } catch (e) {
-      // dispositivo scollegato o id non più valido: si torna al predefinito
+      // device unplugged or id no longer valid: fall back to the default
       if (!o.deviceId) throw e;
       raw = await navigator.mediaDevices.getUserMedia({ audio: audio(), video: false });
       deviceFallback = true;
@@ -117,9 +117,9 @@ export class MicPipeline {
     const src = c.createMediaStreamSource(raw);
     nodes.push(src);
 
-    // Forza il mono. Alcune interfacce audio danno il microfono su due canali (uno
-    // vuoto): senza questo passaggio la voce arriva solo da un lato. Il downmix la
-    // mette al centro. Se il volume cala di colpo, alza il guadagno di input.
+    // Force mono. Some audio interfaces expose the microphone on two channels (one
+    // empty): without this step the voice comes from one side only. The downmix
+    // centers it. If the volume suddenly drops, raise the input gain.
     const mono = c.createGain();
     mono.channelCount = 1;
     mono.channelCountMode = 'explicit';
@@ -181,11 +181,11 @@ export class MicPipeline {
   }
 
   setGain(v: number) {
-    // il contesto di questa catena (audioContext() ne ricreerebbe uno se chiuso)
+    // this chain's context (audioContext() would create a new one if closed)
     this.gainNode.gain.setTargetAtTime(v, this.gainNode.context.currentTime, 0.02);
   }
 
-  /** Livello in dBFS (≈ -100 silenzio, 0 massimo). */
+  /** Level in dBFS (≈ -100 silence, 0 max). */
   levelDb(): number {
     this.analyserNode.getFloatTimeDomainData(this.buf);
     let sum = 0;
@@ -203,7 +203,7 @@ export class MicPipeline {
       try {
         n.disconnect();
       } catch {
-        /* già scollegato */
+        /* already disconnected */
       }
       if (n instanceof RnnoiseWorkletNode) n.destroy?.();
     }
@@ -212,7 +212,7 @@ export class MicPipeline {
   }
 }
 
-/** Livello (dBFS) → 0..1 per le barre dei meter (scala -70..0 dB). */
+/** Level (dBFS) → 0..1 for the meter bars (-70..0 dB scale). */
 export function dbToMeter(db: number): number {
   return Math.min(1, Math.max(0, (db + 70) / 70));
 }

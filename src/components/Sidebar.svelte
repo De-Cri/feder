@@ -15,7 +15,7 @@
     if (voice.channelId !== id) voice.join(id);
   }
 
-  // Tasto destro su chi è in vocale: volume e silenzio (non su te stesso).
+  // Right-click on someone in voice: volume and mute (not on yourself).
   function openMenu(e: MouseEvent, id: string) {
     e.preventDefault();
     menu = id === app.me ? null : { id, x: e.clientX, y: e.clientY };
@@ -67,7 +67,7 @@
   </nav>
 
   <footer>
-    <!-- Messaggi privati: schermata separata dal server. Nascosto se il server non li supporta. -->
+    <!-- Private messages: a screen separate from the server. Hidden if the server doesn't support them. -->
     {#if dm.status !== 'off'}
       <button
         class="nav-item dm-entry"

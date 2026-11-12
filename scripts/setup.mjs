@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 // =============================================================================
-// Cerchio — setup automatico (una volta sola)
+// Feder — automatic setup (run once)
 //
 //   npm install
 //   npm run setup
 //
-// Fa tutto da solo:
-//   1. crea il progetto Supabase (region Frankfurt) o usa uno esistente
-//   2. applica lo schema (tabelle, RLS, storage, realtime)
-//   3. disattiva la conferma email (niente email da mandare)
-//   4. crea il tuo account admin e imposta la password del server
-//   5. genera le chiavi per gli aggiornamenti automatici
-//   6. crea il repo GitHub pubblico, imposta i secrets e pubblica la v0.1.0
+// Does everything by itself:
+//   1. creates the Supabase project (Frankfurt region) or uses an existing one
+//   2. applies the schema (tables, RLS, storage, realtime)
+//   3. disables email confirmation (no emails to send)
+//   4. creates your admin account and sets the server password
+//   5. generates the keys for automatic updates
+//   6. creates the public GitHub repo, sets the secrets and publishes v0.1.0
 //
-// Serve: Node 20+, git, GitHub CLI (`gh auth login` fatto), un account Supabase.
-// Il progresso è salvato in .cerchio-secrets/ (ignorato da git): se qualcosa
-// si interrompe, rilancia e riparte da dove era arrivato.
+// Requires: Node 20+, git, GitHub CLI (after `gh auth login`), a Supabase account.
+// Progress is saved in .cerchio-secrets/ (ignored by git): if something
+// stops halfway, run it again and it resumes where it left off.
 // =============================================================================
 import { createInterface } from 'node:readline/promises';
 import { execSync, spawnSync } from 'node:child_process';
@@ -55,7 +55,7 @@ async function ask(q, { def, secret = false, validate } = {}) {
   }
 }
 
-// Input nascosto per le password (niente eco a terminale).
+// Hidden input for passwords (no echo in the terminal).
 async function askHidden(prompt) {
   stdout.write(prompt);
   const orig = rl._writeToOutput;
@@ -117,8 +117,8 @@ try {
 state.ghUser ??= sh('gh api user --jq .login');
 done(`GitHub: ${state.ghUser}`);
 
-// Se cerchio.config.json è già compilato, il backend Supabase è già pronto
-// (schema, password del server, conferma email): si passa direttamente a GitHub.
+// If cerchio.config.json is already filled in, the Supabase backend is ready
+// (schema, server password, email confirmation): go straight to GitHub.
 const existingCfg = JSON.parse(readFileSync('cerchio.config.json', 'utf8'));
 const preconfigured = Boolean(existingCfg.supabaseUrl && existingCfg.supabaseAnonKey);
 if (preconfigured) {
@@ -181,7 +181,7 @@ for (let i = 0; ; i++) {
   process.stdout.write('.');
   await sleep(5000);
 }
-// a volte l'endpoint SQL risponde poco dopo lo stato "healthy"
+// sometimes the SQL endpoint answers a bit after the "healthy" status
 for (let i = 0; ; i++) {
   try {
     await query('select 1');
@@ -267,8 +267,8 @@ if (!existsSync(keyPath)) {
 }
 const pubkey = readFileSync(`${keyPath}.pub`, 'utf8').trim();
 state.repo ??= await ask('Nome del repo GitHub (privato, con il codice)', { def: 'cerchio' });
-// Il codice resta privato; gli installer vanno in un secondo repo pubblico che
-// contiene solo le release (niente codice), così amici e aggiornamenti li scaricano senza login.
+// The code stays private; installers go to a second, public repo that only holds
+// releases (no code), so friends and updates can download them without logging in.
 state.releasesRepo ??= `${state.repo}-releases`;
 save();
 const rel = `${state.ghUser}/${state.releasesRepo}`;
@@ -276,7 +276,7 @@ const conf = JSON.parse(readFileSync('src-tauri/tauri.conf.json', 'utf8'));
 conf.plugins.updater.pubkey = pubkey;
 conf.plugins.updater.endpoints = [`https://github.com/${rel}/releases/latest/download/latest.json`];
 writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
-// Linux (Electron): aggiornamenti dallo stesso repo pubblico delle release.
+// Linux (Electron): updates from the same public releases repo.
 writeFileSync(
   'electron-builder.yml',
   readFileSync('electron-builder.yml', 'utf8')
@@ -296,7 +296,7 @@ sh('git add -A');
 try {
   sh('git commit -m "Cerchio: setup iniziale"');
 } catch {
-  /* niente da committare */
+  /* nothing to commit */
 }
 let hasRemote = true;
 try {
@@ -309,7 +309,7 @@ const ghq = (args) => spawnSync('gh', args, { encoding: 'utf8', shell: process.p
 let forcePush = false;
 const view = ghq(['repo', 'view', full, '--json', 'visibility,isEmpty']);
 if (view.status === 0) {
-  // Il repo esiste già: lo riusiamo.
+  // The repo already exists: reuse it.
   const info = JSON.parse(view.stdout);
   if (info.visibility !== 'PRIVATE') {
     console.log(`  Il repo ${full} esiste ed è ${info.visibility.toLowerCase()}: il codice sarebbe visibile a tutti.`);
@@ -329,7 +329,7 @@ if (view.status === 0) {
 } else if (!hasRemote) {
   sh(`gh repo create ${state.repo} --private --source . --remote origin --description "Cerchio — chat e vocale privati"`);
 }
-// Repo pubblico solo per gli installer (nessun codice).
+// Public repo for installers only (no code).
 if (spawnSync('gh', ['repo', 'view', rel], { stdio: 'ignore', shell: process.platform === 'win32' }).status !== 0) {
   sh(`gh repo create ${rel} --public --add-readme --description "Cerchio — download"`);
 }
@@ -338,12 +338,12 @@ const version = conf.version;
 try {
   sh(`git tag v${version}`);
 } catch {
-  /* tag già presente */
+  /* tag already exists */
 }
 sh(`git push origin v${version}`);
 done('Codice caricato nel repo privato');
 
-// Le chiavi e la build stanno nel repo pubblico delle release: solo tu puoi pubblicare.
+// The keys and the build live in the public releases repo: only you can publish.
 {
   const r = spawnSync('node', ['scripts/secure-releases.mjs'], { stdio: 'inherit', shell: process.platform === 'win32' });
   if (r.status !== 0) fail('Configurazione del repo delle release non riuscita.');

@@ -96,7 +96,7 @@
   .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 500; }
   .admin { color: var(--orange); display: flex; }
   .contrib { color: var(--accent); display: flex; }
-  /* Tooltip immediato sui badge (il title nativo arriva in ritardo o non compare). */
+  /* Instant tooltip on badges (the native title shows up late or not at all). */
   .badge { position: relative; }
   .badge:hover::after {
     content: attr(data-tip);

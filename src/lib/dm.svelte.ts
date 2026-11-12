@@ -1,5 +1,5 @@
-// Messaggi privati: stato, invio, ricezione in tempo reale. La cifratura sta in dmcrypto.ts,
-// le regole (chi legge, limiti, scadenza a 30 giorni) in supabase/migrations/0004_dm.sql.
+// Private messages: state, sending, real-time receiving. Encryption lives in dmcrypto.ts,
+// the rules (who can read, limits, 30-day expiry) in supabase/migrations/0004_dm.sql.
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { app, DM_VIEW } from './state.svelte';
@@ -10,7 +10,7 @@ import {
   type Identity, type WrappedKey,
 } from './dmcrypto';
 
-export const DM_MAX = 2000; // caratteri per messaggio
+export const DM_MAX = 2000; // characters per message
 export const DM_DAYS = 30;
 const PAGE = 50;
 const READ_KEY = 'feder-dm-read';
@@ -25,7 +25,7 @@ type Row = {
   body: string;
   created_at: string;
 };
-/** text null = non leggibile (es. codice rigenerato dopo l'invio). */
+/** text null = unreadable (e.g. recovery code regenerated after sending). */
 export type DmMessage = { id: number; sender: string; recipient: string; created_at: string; text: string | null };
 export type Prepared = { code: string; identity: Identity; wrapped: WrappedKey };
 export type Conversation = { peer: string; lastId: number; lastAt: string; lastSender: string };
@@ -99,13 +99,13 @@ class DmLog {
 }
 
 class DmState {
-  /** off: server senza messaggi privati (migrazione non applicata) o errore di rete. */
+  /** off: server without private messages (migration not applied) or network error. */
   status = $state<'idle' | 'loading' | 'setup' | 'locked' | 'ready' | 'off'>('idle');
   conversations = $state<Conversation[]>([]);
-  /** Chat aperta; null = schermata "Nuova chat". */
+  /** Open chat; null = "New chat" screen. */
   current = $state<string | null>(null);
   unread = $state<Record<string, number>>({});
-  /** Chiavi pubbliche dei membri: chi non ce l'ha non ha ancora attivato i messaggi. */
+  /** Members' public keys: whoever has none hasn't activated messages yet. */
   keys = $state<Record<string, string>>({});
   stars = $state<Record<number, true>>({});
 
@@ -125,7 +125,7 @@ class DmState {
   }
 
   // -------------------------------------------------------------------------
-  // Avvio e chiusura (Shell montato = dentro il server)
+  // Start and stop (Shell mounted = inside the server)
   // -------------------------------------------------------------------------
   async init() {
     const me = app.me;
@@ -135,7 +135,7 @@ class DmState {
 
     const [{ data: key, error }, local] = await Promise.all([supabase.rpc('dm_my_key').maybeSingle(), loadLocal(me)]);
     if (error) {
-      this.status = 'off'; // migrazione non ancora applicata: il resto dell'app funziona uguale
+      this.status = 'off'; // migration not applied yet: the rest of the app works the same
       return;
     }
     this.serverKey = (key as WrappedKey | null) ?? null;
@@ -143,12 +143,12 @@ class DmState {
     else if (local && local.publicKey === this.serverKey.public_key) this.ready(local);
     else this.status = 'locked';
 
-    await supabase.realtime.setAuth(); // l'RLS del tempo reale deve sapere chi sei
+    await supabase.realtime.setAuth(); // realtime RLS needs to know who you are
     this.listen();
     await Promise.all([this.loadConversations(), this.loadKeys(), this.loadStars()]);
   }
 
-  /** Esce dal server (o dall'app): chiude il canale, svuota la memoria. */
+  /** Leaves the server (or the app): closes the channel, clears memory. */
   async stop() {
     const ch = this.channel;
     this.channel = null;
@@ -164,7 +164,7 @@ class DmState {
     this.status = 'idle';
   }
 
-  /** Uscita dall'account: la chiave non resta su questo dispositivo. */
+  /** Sign out: the key doesn't stay on this device. */
   private async forget() {
     const me = app.me;
     if (me) await clearLocal(me);
@@ -174,11 +174,11 @@ class DmState {
   private ready(id: Identity) {
     this.identity = id;
     this.status = 'ready';
-    this.logs = {}; // ricarica decifrando con la chiave giusta
+    this.logs = {}; // reload, decrypting with the right key
   }
 
   private listen() {
-    // Canale a parte: se il server non ha ancora la tabella, gli altri aggiornamenti non ne risentono.
+    // Separate channel: if the server doesn't have the table yet, the other updates aren't affected.
     this.channel = supabase
       .channel('feder-dm')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dm_messages' }, ({ new: row }) => {
@@ -213,15 +213,15 @@ class DmState {
   }
 
   // -------------------------------------------------------------------------
-  // Codice di recupero
+  // Recovery code
   // -------------------------------------------------------------------------
-  /** Nuovo codice e nuove chiavi, ancora solo in memoria: si salvano con activate(). */
+  /** New code and new keys, still only in memory: activate() saves them. */
   async prepare(): Promise<Prepared> {
     const code = generateCode();
     return { code, ...(await createIdentity(code)) };
   }
 
-  /** Dopo che l'utente ha salvato il codice: pubblica la chiave e attiva i messaggi. */
+  /** After the user saved the code: publishes the key and activates messages. */
   async activate(p: Prepared): Promise<string | null> {
     const me = app.me;
     if (!me) return 'Non sei connesso.';
@@ -237,7 +237,7 @@ class DmState {
     this.keys[me] = p.wrapped.public_key;
     await saveLocal(me, p.identity);
     this.ready(p.identity);
-    // con un codice rigenerato le chat esistenti (e le tue stelline) restano
+    // with a regenerated code the existing chats (and your stars) stay
     await Promise.all([this.loadConversations(), this.loadStars()]);
     return null;
   }
@@ -258,7 +258,7 @@ class DmState {
   }
 
   // -------------------------------------------------------------------------
-  // Navigazione
+  // Navigation
   // -------------------------------------------------------------------------
   enter(peer?: string | null) {
     if (app.view !== DM_VIEW) this.prevView = app.view;
@@ -290,7 +290,7 @@ class DmState {
   }
 
   // -------------------------------------------------------------------------
-  // Invio e ricezione
+  // Sending and receiving
   // -------------------------------------------------------------------------
   async send(peer: string, text: string): Promise<string | null> {
     const me = app.me;
@@ -307,7 +307,7 @@ class DmState {
       const { data, error } = await supabase
         .rpc('dm_send', { p_to: peer, p_body: body, p_iv: iv, p_recipient_pub: peerPub })
         .single();
-      if (error?.message.includes('dm_key_changed')) continue; // ha rigenerato il codice: riprova con la chiave nuova
+      if (error?.message.includes('dm_key_changed')) continue; // they regenerated their code: retry with the new key
       if (error) return dmError(error);
       const row = data as Row;
       this.log(peer).push({ id: row.id, sender: me, recipient: peer, created_at: row.created_at, text: msg });
@@ -325,7 +325,7 @@ class DmState {
     const m = await this.decrypt(r);
     this.touch(peer, r);
     if (this.logs[peer]?.loaded) this.logs[peer].push(m);
-    if (r.sender === me) return; // inviato da un altro dispositivo
+    if (r.sender === me) return; // sent from another device
 
     const visible = app.view === DM_VIEW && this.current === peer && app.focused;
     if (visible) {

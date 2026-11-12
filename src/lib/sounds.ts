@@ -1,5 +1,5 @@
-// Suoni dell'interfaccia, sintetizzati al volo con Web Audio (nessun file audio).
-// Ognuno si può disattivare dalle impostazioni; il volume è unico.
+// Interface sounds, synthesized on the fly with Web Audio (no audio files).
+// Each one can be turned off in settings; there is a single volume.
 import { prefs } from './prefs.svelte';
 
 export type SoundKind = 'selfJoin' | 'selfLeave' | 'join' | 'leave' | 'call' | 'message' | 'mute' | 'unmute' | 'poke';
@@ -16,7 +16,7 @@ export const SOUND_LABELS: Record<SoundKind, string> = {
   poke: 'Qualcuno ti fa un poke',
 };
 
-// Note in Hz (scala di La maggiore, suona "morbida").
+// Notes in Hz (A major scale, sounds "soft").
 const N = { E5: 659.25, Fs5: 739.99, A5: 880, B5: 987.77, Cs6: 1108.73, E6: 1318.51, A4: 440, E4: 329.63 };
 
 type Note = { f: number; t: number; d: number; g?: number; type?: OscillatorType };
@@ -40,7 +40,7 @@ const PATTERNS: Record<SoundKind, Note[]> = {
     { f: N.A5, t: 0.08, d: 0.24 },
   ],
   call: [
-    // due "squilli" morbidi
+    // two soft "rings"
     { f: N.A5, t: 0, d: 0.18, g: 0.9 },
     { f: N.Cs6, t: 0.12, d: 0.18, g: 0.9 },
     { f: N.E6, t: 0.24, d: 0.34, g: 0.9 },
@@ -49,7 +49,7 @@ const PATTERNS: Record<SoundKind, Note[]> = {
     { f: N.E6, t: 1.04, d: 0.45, g: 0.9 },
   ],
   message: [{ f: N.B5, t: 0, d: 0.12, g: 0.6 }, { f: N.E6, t: 0.05, d: 0.16, g: 0.5 }],
-  // tre colpetti decisi: si sente anche sopra un gioco
+  // three firm taps: audible even over a game
   poke: [
     { f: N.E6, t: 0, d: 0.1, g: 1, type: 'triangle' },
     { f: N.E6, t: 0.16, d: 0.1, g: 1, type: 'triangle' },
@@ -61,7 +61,7 @@ const PATTERNS: Record<SoundKind, Note[]> = {
 
 let ctx: AudioContext | null = null;
 let sinkApplied = '';
-// Tra un suono e l'altro il contesto si sospende: niente thread audio acceso a vuoto.
+// Between sounds the context is suspended: no audio thread running idle.
 let idle: ReturnType<typeof setTimeout> | undefined;
 
 function context(): AudioContext {
@@ -70,7 +70,7 @@ function context(): AudioContext {
     sinkApplied = '';
   }
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-  // Stessa uscita audio scelta per le chiamate (se supportato).
+  // Same audio output chosen for calls (if supported).
   const c = ctx as AudioContext & { setSinkId?: (id: string) => Promise<void> };
   if (c.setSinkId && sinkApplied !== prefs.speakerId) {
     sinkApplied = prefs.speakerId;
@@ -80,15 +80,15 @@ function context(): AudioContext {
 }
 
 let last: Partial<Record<SoundKind, number>> = {};
-/** Ultimi suoni riprodotti (diagnostica/test). */
+/** Last sounds played (diagnostics/tests). */
 export const soundLog: SoundKind[] = [];
 
-/** Suona un evento se è attivo nelle impostazioni. `force` lo suona comunque (pulsante "prova"). */
+/** Plays an event if it's enabled in settings. `force` plays it anyway ("test" button). */
 export function playSound(kind: SoundKind, force = false) {
   if (!force && !prefs.sounds[kind]) return;
   const vol = prefs.soundVolume;
   if (vol <= 0) return;
-  // evita raffiche (es. tanti messaggi insieme)
+  // avoid bursts (e.g. many messages at once)
   const now = performance.now();
   const prev = last[kind];
   if (!force && prev !== undefined && now - prev < (kind === 'call' ? 4000 : 250)) return;
@@ -106,12 +106,12 @@ export function playSound(kind: SoundKind, force = false) {
       const g = c.createGain();
       osc.type = n.type ?? 'sine';
       osc.frequency.value = n.f;
-      // inviluppo morbido: attacco breve, decadimento esponenziale
+      // soft envelope: short attack, exponential decay
       const peak = n.g ?? 1;
       g.gain.setValueAtTime(0.0001, t0 + n.t);
       g.gain.exponentialRampToValueAtTime(peak, t0 + n.t + 0.012);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + n.t + n.d);
-      // leggera armonica per un timbro tipo "campanella"
+      // light harmonic for a "bell"-like timbre
       const osc2 = c.createOscillator();
       const g2 = c.createGain();
       osc2.frequency.value = n.f * 2;
@@ -128,6 +128,6 @@ export function playSound(kind: SoundKind, force = false) {
     clearTimeout(idle);
     idle = setTimeout(() => ctx?.state === 'running' && ctx.suspend().catch(() => {}), end * 1000 + 2000);
   } catch {
-    /* audio non disponibile */
+    /* audio not available */
   }
 }

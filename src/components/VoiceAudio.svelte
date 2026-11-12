@@ -1,6 +1,6 @@
 <script lang="ts">
-  // Audio della chiamata: sempre montato (anche mentre guardi un canale di testo),
-  // altrimenti uscendo dalla schermata vocale non sentiresti più gli altri.
+  // Call audio: always mounted (even while you look at a text channel),
+  // otherwise leaving the voice screen you'd stop hearing the others.
   import { app } from '../lib/state.svelte';
   import { voice } from '../lib/voice.svelte';
   import { prefs, userVolume, screenVolume } from '../lib/prefs.svelte';
@@ -8,8 +8,8 @@
 
   const peers = $derived(Object.values(voice.peers));
 
-  // Voce e audio dello schermo hanno volumi separati: puoi zittire la stream
-  // di un amico e continuare a sentire lui.
+  // Voice and screen audio have separate volumes: you can mute a friend's
+  // stream and keep hearing them.
   function volumeOf(id: string, screen: boolean) {
     if (voice.deaf) return 0;
     if (screen) return voice.watching[id] ? prefs.outputVolume * screenVolume(id) : 0;
@@ -17,8 +17,8 @@
     return prefs.outputVolume * userVolume(id);
   }
 
-  // Schermi condivisi: chi condivide sa se lo guardi, così se non lo guardi non te lo manda.
-  // Condivisione finita → la prossima volta che riparte va riaperta con un click.
+  // Shared screens: the sharer knows whether you watch, so if you don't they don't send it.
+  // Share ended → the next time it starts it must be reopened with a click.
   const sharing = (id: string) => !!app.presence[id]?.screen || !!voice.peers[id]?.hasScreen;
   $effect(() => {
     for (const id of Object.keys(voice.watching)) if (!sharing(id)) delete voice.watching[id];

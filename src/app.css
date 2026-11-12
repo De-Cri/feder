@@ -1,5 +1,5 @@
-/* Feder: stile ispirato a Discord. Tema chiaro/scuro: di default segue il sistema,
-   data-theme="light", "dark" (grigio), "black" (nero, come prima) o "oled" (nero profondo) (impostato da lib/theme.ts) lo forza. */
+/* Feder: Discord-inspired style. Light/dark theme: follows the system by default;
+   data-theme="light", "dark" (gray), "black" (black, as before) or "oled" (deep black) (set by lib/theme.ts) forces it. */
 
 :root,
 :root[data-theme='light'] {
@@ -51,7 +51,7 @@
   color-scheme: dark;
 }
 
-/* Tema di sistema scuro (nessuna scelta esplicita). */
+/* Dark system theme (no explicit choice). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     --bg: #313338;
@@ -72,7 +72,7 @@
   }
 }
 
-/* Nero: la palette scura delle versioni precedenti alla 0.4. */
+/* Black: the dark palette of versions before 0.4. */
 :root[data-theme='black'] {
   --bg: #1e1e20;
   --bg-sidebar: #19191b;
@@ -91,7 +91,7 @@
   color-scheme: dark;
 }
 
-/* Nero profondo: quasi nero, per la sera e gli schermi OLED. */
+/* Deep black: almost black, for the evening and OLED screens. */
 :root[data-theme='oled'] {
   --bg: #0e0e10;
   --bg-sidebar: #08080a;
@@ -199,11 +199,11 @@ input, textarea {
 ::-webkit-scrollbar-track { background: transparent; }
 
 .selectable { user-select: text; -webkit-user-select: text; }
-/* Pannelli laterali: sidebar chat, lista membri e menu impostazioni usano questa stessa classe. */
+/* Side panels: chat sidebar, member list and settings menu all use this class. */
 .side {
   background: var(--bg-sidebar);
 }
-/* Voci di navigazione: stesse misure nella sidebar delle chat e nelle impostazioni. */
+/* Navigation items: same sizes in the chat sidebar and in settings. */
 .nav-label {
   font-size: 11px;
   font-weight: 600;

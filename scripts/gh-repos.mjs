@@ -1,4 +1,4 @@
-// Nomi dei repo: codice (privato, remote "origin") e release (pubblico, da electron-builder.yml).
+// Repo names: code (remote "origin") and releases (public, from electron-builder.yml).
 import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 

@@ -1,15 +1,15 @@
 <script lang="ts">
   // Ritaglio foto profilo.
-  // L'immagine è centrata nel riquadro, spostata di (ox, oy) rispetto al centro.
-  // Lo zoom ingrandisce attorno al centro. Il riquadro VIEW è esattamente ciò che viene salvato.
+  // The image is centered in the frame, moved by (ox, oy) from the center.
+  // Zoom scales around the center. The VIEW frame is exactly what gets saved.
   let { file, onconfirm, oncancel }: {
     file: File;
     onconfirm: (blob: Blob) => void;
     oncancel: () => void;
   } = $props();
 
-  const VIEW = 260; // lato del riquadro (px)
-  const OUT = 256; // lato del file salvato (px)
+  const VIEW = 260; // frame side (px)
+  const OUT = 256; // saved file side (px)
 
   let img = $state.raw<HTMLImageElement | null>(null);
   let url = $state('');
@@ -34,15 +34,15 @@
     return () => URL.revokeObjectURL(u);
   });
 
-  // A zoom 1 il lato minore dell'immagine coincide con il riquadro, quindi nessun vuoto.
+  // At zoom 1 the image's shorter side matches the frame, so there are no gaps.
   const base = $derived(img ? VIEW / Math.min(img.naturalWidth, img.naturalHeight) : 1);
   const scale = $derived(base * zoom);
   const W = $derived(img ? img.naturalWidth * scale : VIEW);
   const H = $derived(img ? img.naturalHeight * scale : VIEW);
-  // Quanto si può spostare l'immagine dal centro senza lasciare bordi vuoti.
+  // How far the image can move from the center without leaving empty borders.
   const maxX = $derived(Math.max(0, (W - VIEW) / 2));
   const maxY = $derived(Math.max(0, (H - VIEW) / 2));
-  // Posizione dell'angolo in alto a sinistra dell'immagine, nel riquadro.
+  // Position of the image's top-left corner, inside the frame.
   const left = $derived(VIEW / 2 + ox - W / 2);
   const top = $derived(VIEW / 2 + oy - H / 2);
 
@@ -57,7 +57,7 @@
   }
   function move(e: PointerEvent) {
     if (!drag) return;
-    // Il mouse a destra sposta l'immagine a destra: stesso verso del trascinamento.
+    // Moving the mouse right moves the image right: same direction as the drag.
     ox = drag.ox + (e.clientX - drag.x);
     oy = drag.oy + (e.clientY - drag.y);
     clamp();
@@ -82,7 +82,7 @@
       return oncancel();
     }
     ctx.imageSmoothingQuality = 'high';
-    // Porzione dell'immagine originale che sta dentro il riquadro.
+    // Part of the original image that is inside the frame.
     const sx = -left / scale;
     const sy = -top / scale;
     const side = VIEW / scale;

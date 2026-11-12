@@ -11,10 +11,10 @@
   const joined = $derived(voice.channelId === channel.id);
   const others = $derived(app.inVoice(channel.id));
   const peers = $derived(Object.values(voice.peers));
-  let focus = $state<string | null>(null); // chiave del riquadro in primo piano
+  let focus = $state<string | null>(null); // key of the focused tile
   let menu = $state<{ id: string; x: number; y: number; screen: boolean } | null>(null);
 
-  // Ogni persona ha il suo riquadro; chi condivide lo schermo ne ha uno in più, separato.
+  // Everyone has their own tile; whoever shares their screen gets an extra, separate one.
   type Tile = {
     key: string;
     id: string;
@@ -41,7 +41,7 @@
     }
     for (const p of peers) {
       const pres = app.presence[p.id];
-      // Versioni vecchie non dicono quale video è lo schermo: si deduce dalla presenza.
+      // Old versions don't say which video is the screen: it's inferred from presence.
       const legacyScreen = p.screenStreamId === undefined && !!pres?.screen && !pres?.cam;
       const camStream = legacyScreen ? null : p.camView;
       const camLive = legacyScreen ? false : p.hasCam;
@@ -67,7 +67,7 @@
     if (focus && !tiles.some((t) => t.key === focus && !locked(t))) focus = null;
   });
 
-  // Lo schermo degli altri parte chiuso: un click lo apre piccolo, doppio click grande.
+  // Other people's screens start closed: a click opens them small, a double click large.
   const locked = (t: Tile) => t.screen && t.id !== app.me && !voice.watching[t.id];
   function watch(t: Tile) {
     if (locked(t)) voice.watching[t.id] = true;
@@ -82,7 +82,7 @@
     menu = { id, screen, x: e.clientX, y: e.clientY };
   }
 
-  // Silenzia o riattiva l'audio della condivisione schermo di qualcuno (per te).
+  // Mutes or unmutes someone's screen share audio (for you).
   function toggleScreenAudio(id: string) {
     prefs.screenVolumes[id] = screenVolume(id) > 0 ? 0 : 1;
     savePrefs();
@@ -204,8 +204,8 @@
     justify-content: center;
     container-type: size;
   }
-  /* Riquadri 16:9: la griglia non può essere più larga di quanto ci sta in altezza,
-     altrimenti con la finestra larga e bassa i riquadri escono sopra e sotto. */
+  /* 16:9 tiles: the grid can't be wider than what fits in its height,
+     otherwise with a wide, short window the tiles overflow at top and bottom. */
   .grid {
     width: min(100%, 1200px, calc((100cqh - (var(--rows) - 1) * 10px) / var(--rows) * 16 / 9 * var(--cols) + (var(--cols) - 1) * 10px));
     display: grid;

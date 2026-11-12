@@ -1,4 +1,4 @@
--- Preferenze utente sincronizzate tra app desktop e browser.
+-- User preferences synced between the desktop app and the browser.
 create table if not exists public.user_prefs (
   user_id uuid primary key references auth.users(id) on delete cascade,
   data jsonb not null default '{}'::jsonb,

@@ -1,17 +1,17 @@
-// Caccia alle perdite di memoria: ripete N volte schermo e webcam (accendi/spegni, da entrambe
-// le parti) e controlla che dopo ogni giro non resti niente in più: transceiver, AudioContext,
-// <video>/<audio>, nodi del DOM, listener, heap JS (dopo il garbage collector) e RAM dei processi.
+// Memory-leak hunt: repeats screen and webcam N times (on/off, on both sides)
+// and checks that nothing is left behind after each round: transceivers, AudioContexts,
+// <video>/<audio>, DOM nodes, listeners, JS heap (after garbage collection) and process RAM.
 //
-//   npm run test:memory              10 giri
-//   npm run test:memory -- 30        30 giri
-// Il server di test parte da solo. Esce con errore (e dice cosa cresce) se trova una perdita.
+//   npm run test:memory              10 rounds
+//   npm run test:memory -- 30        30 rounds
+// The test server starts by itself. Exits with an error (saying what grows) if it finds a leak.
 const { chromium } = require('playwright');
 const startServer = require('./server.cjs');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const CYCLES = Number(process.argv[2] ?? 10);
 const MB = 1024 * 1024;
 
-// Conta gli AudioContext vivi (creati e non ancora chiusi) e le tracce media aperte.
+// Counts live AudioContexts (created and not yet closed) and open media tracks.
 const probe = () => {
   const AC = window.AudioContext;
   window.__ac = 0;
@@ -41,7 +41,7 @@ const probe = () => {
   }
   for (const u of ['a', 'b']) await pages[u].p.evaluate(() => window.voice.join(3));
   await sleep(3000);
-  // toggleScreen vuole un gesto dell'utente: un pulsante da cliccare.
+  // toggleScreen needs a user gesture: a button to click.
   for (const u of ['a', 'b'])
     await pages[u].p.evaluate(() => {
       const bt = document.createElement('button'); bt.id = 'scr'; bt.textContent = 'scr';
@@ -66,14 +66,14 @@ const probe = () => {
 
   const cycle = async () => {
     for (const u of ['a', 'b']) {
-      await pages[u].p.click('#scr'); await sleep(1500); // schermo acceso, l'altro lo riceve
+      await pages[u].p.click('#scr'); await sleep(1500); // screen on, the other side receives it
       await pages[u].p.click('#scr'); await sleep(800);
       await pages[u].p.evaluate(() => window.voice.toggleCam()); await sleep(1500);
       await pages[u].p.evaluate(() => window.voice.toggleCam()); await sleep(800);
     }
   };
 
-  // Due giri di riscaldamento (cache, codec, prima negoziazione), poi la base.
+  // Two warm-up rounds (caches, codecs, first negotiation), then the baseline.
   await cycle(); await cycle(); await sleep(1500);
   const base = await both();
   const row = (i, s) =>
@@ -93,7 +93,7 @@ const probe = () => {
     row(i, last);
   }
 
-  // Cosa conta come perdita: qualcosa che cresce col numero di giri.
+  // What counts as a leak: something that grows with the number of rounds.
   const fails = [];
   for (const u of ['a', 'b']) {
     const d = (k) => last[u][k] - base[u][k];

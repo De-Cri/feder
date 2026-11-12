@@ -7,8 +7,8 @@
   import Icon from './Icon.svelte';
   import VolumeSlider from './VolumeSlider.svelte';
 
-  // Tasto destro sull'icona del microfono: volume di ingresso con livello in tempo reale,
-  // volume di uscita, scorciatoie. Si apre sopra il pulsante (che sta in fondo alla sidebar).
+  // Right-click on the microphone icon: input volume with live level,
+  // output volume, shortcuts. Opens above the button (which sits at the bottom of the sidebar).
   let { anchor, onclose }: { anchor: DOMRect; onclose: () => void } = $props();
 
   let panel: HTMLDivElement | undefined;
@@ -44,7 +44,7 @@
   }
 
   onMount(() => {
-    // Il livello si legge solo mentre il menu è aperto: nessun costo quando è chiuso.
+    // The level is read only while the menu is open: no cost when it's closed.
     let raf = 0;
     const loop = () => {
       level = voice.mic && live ? dbToMeter(voice.mic.levelDb()) : 0;
@@ -118,7 +118,7 @@
   .title { font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
   .device { font-size: 12px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
 
-  /* Barra del livello allineata alla traccia dello slider sopra. */
+  /* Level bar aligned with the slider track above. */
   .meter {
     position: relative;
     height: 4px;

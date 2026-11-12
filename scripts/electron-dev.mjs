@@ -1,4 +1,4 @@
-// Avvia Vite e poi Electron puntato al dev server (hot reload dell'interfaccia).
+// Starts Vite, then Electron pointed at the dev server (hot reload of the interface).
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 

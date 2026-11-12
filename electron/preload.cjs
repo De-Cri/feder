@@ -1,4 +1,4 @@
-// Ponte minimo e tipizzato tra l'interfaccia e il processo principale.
+// Minimal, typed bridge between the interface and the main process.
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('cerchio', {
@@ -12,7 +12,7 @@ contextBridge.exposeInMainWorld('cerchio', {
   },
   pickSource: (id) => ipcRenderer.send('screen:picked', id),
   setBackground: (background) => ipcRenderer.send('background', !!background),
-  // Finestra minimizzata/nascosta: l'interfaccia smette di disegnare i video.
+  // Minimized/hidden window: the interface stops drawing videos.
   onWindowHidden: (cb) => {
     ipcRenderer.removeAllListeners('window:hidden');
     ipcRenderer.on('window:hidden', (_e, hidden) => cb(!!hidden));

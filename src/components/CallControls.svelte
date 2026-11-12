@@ -1,13 +1,13 @@
 <script lang="ts">
-  // Pulsanti della chiamata, in basso a sinistra nella barra laterale.
-  // Microfono e cuffie ci sono sempre (così entri in chiamata già mutato), il resto solo in chiamata.
+  // Call buttons, bottom left in the sidebar.
+  // Microphone and headphones are always there (so you can join already muted), the rest only in a call.
   import { voice, screenShareSupported } from '../lib/voice.svelte';
   import Icon from './Icon.svelte';
   import MicMenu from './MicMenu.svelte';
 
   const size = 17;
 
-  // Tasto destro sul microfono: volumi di ingresso/uscita e livello.
+  // Right-click on the microphone: input/output volumes and level.
   let micMenu = $state<DOMRect | null>(null);
   function openMicMenu(e: MouseEvent) {
     e.preventDefault();

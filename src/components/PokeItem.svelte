@@ -2,7 +2,7 @@
   import { app, POKE_MAX } from '../lib/state.svelte';
   import Icon from './Icon.svelte';
 
-  // Voce "Poke" nei menu: per chi ha l'audio disattivato (come su TeamSpeak).
+  // "Poke" menu entry: for people with their audio off (like on TeamSpeak).
   let { id, onsent }: { id: string; onsent: () => void } = $props();
 
   let open = $state(false);

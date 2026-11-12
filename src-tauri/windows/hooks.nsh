@@ -1,8 +1,8 @@
-; Paper si chiama ora Feder: l'installer nuovo finisce in una cartella nuova
-; (il nome dell'app decide la cartella e la voce in "App installate").
-; Dopo l'installazione disinstalla in silenzio la vecchia "Paper", se c'è.
-; I dati (accesso, preferenze) restano: dipendono dall'identificativo, che non cambia,
-; e la disinstallazione silenziosa non cancella i dati dell'app.
+; Paper is now called Feder: the new installer goes into a new folder
+; (the app name decides the folder and the "Installed apps" entry).
+; After installing, it silently uninstalls the old "Paper", if present.
+; Data (login, preferences) stays: it depends on the identifier, which doesn't change,
+; and the silent uninstall doesn't delete the app's data.
 !macro NSIS_HOOK_POSTINSTALL
   ReadRegStr $R0 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Paper" "UninstallString"
   StrCmp $R0 "" feder_old_done

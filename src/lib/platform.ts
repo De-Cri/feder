@@ -1,5 +1,5 @@
-// Astrazione sopra i due contenitori: Tauri (Windows) ed Electron (Linux).
-// Il resto del frontend usa solo queste funzioni.
+// Abstraction over the two shells: Tauri (Windows) and Electron (Linux).
+// The rest of the frontend only uses these functions.
 
 export type UpdateInfo = { version: string; install: () => Promise<void> };
 export type ScreenSource = { id: string; name: string; thumb: string };
@@ -57,7 +57,7 @@ export async function checkUpdate(): Promise<UpdateInfo | null> {
       };
     }
   } catch {
-    /* offline o updater non configurato */
+    /* offline or updater not configured */
   }
   return null;
 }
@@ -78,11 +78,11 @@ export async function showNotification(title: string, body: string) {
     if (Notification.permission === 'default') await Notification.requestPermission();
     if (Notification.permission === 'granted') new Notification(title, { body, silent: false });
   } catch {
-    /* ignora */
+    /* ignore */
   }
 }
 
-/** Electron: il processo principale chiede quale schermo/finestra condividere. */
+/** Electron: the main process asks which screen/window to share. */
 export function onPickScreenSource(cb: (sources: ScreenSource[]) => void) {
   electron?.onPickSource(cb);
 }
@@ -91,8 +91,8 @@ export function pickScreenSource(id: string | null) {
 }
 
 /**
- * Finestra nascosta senza chiamata: meno memoria (Windows/WebView2) e meno CPU
- * (Electron: timer rallentati in background). Si annulla appena torni.
+ * Hidden window with no call: less memory (Windows/WebView2) and less CPU
+ * (Electron: background timer throttling). Undone as soon as you come back.
  */
 export async function setBackgroundMode(background: boolean) {
   try {
@@ -102,18 +102,18 @@ export async function setBackgroundMode(background: boolean) {
       await invoke('set_background_mode', { background });
     }
   } catch {
-    /* non supportato: nessun problema */
+    /* not supported: no problem */
   }
 }
 
-// ---- Finestra nascosta/minimizzata ------------------------------------------
-// In Electron, con backgroundThrottling disattivato (serve alla chiamata),
-// document.hidden resta sempre false anche a finestra minimizzata: lo stato vero
-// arriva dal processo principale. Altrove basta la Page Visibility API.
+// ---- Hidden/minimized window ------------------------------------------------
+// In Electron, with backgroundThrottling disabled (calls need it),
+// document.hidden stays false even when minimized: the real state comes from
+// the main process. Elsewhere the Page Visibility API is enough.
 let winHidden = false;
 const hiddenListeners = new Set<(hidden: boolean) => void>();
 
-/** true se la finestra è minimizzata o nascosta (nessuno vede la pagina). */
+/** true if the window is minimized or hidden (nobody sees the page). */
 export function isHidden(): boolean {
   return winHidden || (typeof document !== 'undefined' && document.hidden);
 }
@@ -131,7 +131,7 @@ if (typeof document !== 'undefined') {
   });
 }
 
-/** Avvisa quando la finestra viene nascosta o torna visibile. Restituisce la funzione per smettere. */
+/** Notifies when the window gets hidden or visible again. Returns the function to stop listening. */
 export function onHiddenChange(cb: (hidden: boolean) => void): () => void {
   hiddenListeners.add(cb);
   return () => {

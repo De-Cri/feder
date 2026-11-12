@@ -8,7 +8,7 @@
   import { SCREEN_OPTIONS, screenWarning } from '../lib/screenQuality';
   import Dropdown from './Dropdown.svelte';
 
-  // spettatori: quelli nella tua chiamata, o 4 come stima se non sei in chiamata
+  // viewers: the people in your call, or 4 as an estimate if you're not in a call
   const viewers = $derived(voice.channelId !== null ? Math.max(1, Object.keys(voice.peers).length) : 4);
   const warning = $derived.by(() => {
     void prefs.screenHeight; void prefs.screenFps; void prefs.screenMode;
@@ -51,7 +51,7 @@
     ...cams.map((d) => ({ value: d.deviceId, label: d.label || 'Webcam' })),
   ]);
 
-  // Test microfono: usa la catena della chiamata se sei in vocale, altrimenti una temporanea.
+  // Microphone test: uses the call's chain if you're in voice, otherwise a temporary one.
   let test = $state<MicPipeline | null>(null);
   let testing = $state(false);
   let hearMe = $state(false);
@@ -65,8 +65,8 @@
 
   async function refreshDevices() {
     try {
-      // Chromium aggiunge le voci virtuali "Predefinito - …" e "Comunicazioni - …":
-      // doppioni di "Predefinito di sistema" (e "Comunicazioni" manda le cuffie BT in vivavoce).
+      // Chromium adds the virtual entries "Default - …" and "Communications - …":
+      // duplicates of "System default" (and "Communications" switches BT headsets to hands-free).
       devices = (await navigator.mediaDevices.enumerateDevices()).filter(
         (d) => d.deviceId !== 'default' && d.deviceId !== 'communications',
       );
@@ -97,7 +97,7 @@
     try {
       test = await MicPipeline.create(micOptions());
       testing = true;
-      refreshDevices(); // dopo il permesso compaiono i nomi dei dispositivi
+      refreshDevices(); // device names show up after the permission is granted
     } catch {
       testing = false;
     }
@@ -122,13 +122,13 @@
     a?.setSinkId?.(sink || '').catch(() => {});
   });
 
-  // Le uscite audio (e i nomi) compaiono solo dopo il permesso del microfono:
-  // rileggi l'elenco quando parte la chiamata o il test.
+  // Audio outputs (and names) only show up after the microphone permission:
+  // reload the list when the call or the test starts.
   $effect(() => {
     if (active) refreshDevices();
   });
 
-  // Le modifiche alla catena ricreano il microfono (debounce per gli slider).
+  // Changes to the chain rebuild the microphone (debounced for the sliders).
   let timer: ReturnType<typeof setTimeout> | undefined;
   function rebuild() {
     clearTimeout(timer);

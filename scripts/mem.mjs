@@ -1,26 +1,26 @@
 #!/usr/bin/env node
-// Quanta RAM usa davvero Feder, sommando TUTTI i suoi processi (come il Task Manager).
+// How much RAM Feder really uses, adding up ALL its processes (like Task Manager).
 //
-//   npm run mem                 campiona ogni 2 s finché premi Ctrl+C, poi riepilogo
-//   npm run mem -- --every 5    ogni 5 s
-//   npm run mem -- --for 300    per 300 s e poi si ferma da solo
-//   npm run mem -- --once       una sola misura
-//   npm run mem -- --pid 1234   misura l'albero di processi che parte da quel PID
+//   npm run mem                 samples every 2 s until you press Ctrl+C, then a summary
+//   npm run mem -- --every 5    every 5 s
+//   npm run mem -- --for 300    for 300 s, then it stops by itself
+//   npm run mem -- --once       a single measurement
+//   npm run mem -- --pid 1234   measures the process tree starting at that PID
 //
-// Linux (Electron): somma la memoria PRIVATA di ogni processo (USS, da /proc/<pid>/smaps_rollup),
-//   più la PSS (privata + quota delle parti condivise). L'RSS di `top` conta più volte le
-//   librerie condivise tra i processi: per questo sembra più alto.
-// Windows (Tauri): Feder.exe + i processi msedgewebview2.exe che apre (pagina, GPU, audio, rete…).
-//   Mostra il "working set privato", lo stesso numero della colonna Memoria del Task Manager.
+// Linux (Electron): adds up each process's PRIVATE memory (USS, from /proc/<pid>/smaps_rollup),
+//   plus PSS (private + share of the shared parts). `top`'s RSS counts libraries shared
+//   between processes several times: that's why it looks higher.
+// Windows (Tauri): Feder.exe + the msedgewebview2.exe processes it opens (page, GPU, audio, network…).
+//   Shows the "private working set", the same number as Task Manager's Memory column.
 //
-// Scrive anche un CSV in mem-AAAA-MM-GG-hhmmss.csv per confrontare le prove.
+// Also writes a CSV to mem-YYYY-MM-DD-hhmmss.csv to compare runs.
 import { readFileSync, readdirSync, readlinkSync, writeFileSync, appendFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 const MB = 1024 * 1024;
-const NAMES = /^(feder|paper|cerchio)(\.exe)?$/i; // nomi dell'app, anche quelli vecchi
+const NAMES = /^(feder|paper|cerchio)(\.exe)?$/i; // the app's names, including the old ones
 
-/** Tipo di processo Chromium dalla riga di comando (--type=…, --utility-sub-type=…). */
+/** Chromium process type from the command line (--type=…, --utility-sub-type=…). */
 function kind(cmd) {
   const t = /--type=([\w-]+)/.exec(cmd)?.[1];
   if (!t) return 'principale';
@@ -51,11 +51,11 @@ function linuxProcs() {
       try {
         exe = readlinkSync(`/proc/${d}/exe`);
       } catch {
-        /* processo di un altro utente */
+        /* another user's process */
       }
       all.push({ pid: Number(d), ppid, cmd, exe });
     } catch {
-      /* processo appena terminato */
+      /* process just ended */
     }
   }
   return all;
@@ -86,10 +86,10 @@ function windowsProcs() {
   return JSON.parse(out).map((p) => ({ pid: p.pid, ppid: p.ppid, cmd: p.cmd ?? p.name ?? '', exe: p.name ?? '', priv: p.priv ?? 0 }));
 }
 
-// ---- comune ----------------------------------------------------------------
+// ---- common ----------------------------------------------------------------
 const win = process.platform === 'win32';
 
-/** Le radici: i processi principali dell'app (o il PID dato), poi tutti i discendenti. */
+/** The roots: the app's main processes (or the given PID), then all descendants. */
 function tree(all, rootPid) {
   const base = (p) => (p.exe || p.cmd.split(' ')[0]).split(/[\\/]/).pop();
   const roots = rootPid
@@ -103,7 +103,7 @@ function tree(all, rootPid) {
   return all.filter((p) => ids.has(p.pid));
 }
 
-/** `only`: tiene solo i processi la cui riga di comando corrisponde (es. il browser dei test). */
+/** `only`: keeps only processes whose command line matches (e.g. the test browser). */
 export function measure(rootPid, only) {
   const procs = tree(win ? windowsProcs() : linuxProcs(), rootPid).filter((p) => !only || only.test(p.cmd));
   const rows = [];
@@ -121,7 +121,7 @@ export function measure(rootPid, only) {
   };
 }
 
-// ---- riga di comando -------------------------------------------------------
+// ---- command line ----------------------------------------------------------
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('mem.mjs')) {
   const arg = (k) => {
     const i = process.argv.indexOf(k);

@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Icone a tratto (stile Lucide/SF Symbols leggero), inline per non dipendere da niente.
+  // Stroke icons (light Lucide/SF Symbols style), inline so we depend on nothing.
   const paths: Record<string, string> = {
     hash: 'M4 9h16M4 15h16M10 3 8 21M16 3l-2 18',
     volume: 'M11 5 6 9H2v6h4l5 4V5zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14',

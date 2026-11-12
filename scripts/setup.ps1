@@ -1,5 +1,5 @@
-# Feder - avvio del wizard su Windows.
-# Se manca Node.js (serve per il wizard) chiede il permesso e lo installa con winget.
+# Feder - starts the wizard on Windows.
+# If Node.js is missing (the wizard needs it) it asks for permission and installs it with winget.
 $ErrorActionPreference = 'Continue'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Set-Location (Split-Path -Parent $PSScriptRoot)

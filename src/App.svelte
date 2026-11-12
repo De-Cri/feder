@@ -8,7 +8,7 @@
   import Join from './components/Join.svelte';
   import Shell from './components/Shell.svelte';
 
-  // Tema applicato subito, prima del primo render.
+  // Theme applied right away, before the first render.
   applyTheme();
 
   onMount(() => {
@@ -23,7 +23,7 @@
       if (uid !== lastUser) {
         lastUser = uid;
         app.membership = 'unknown';
-        // fuori dal callback per evitare deadlock interni di supabase-js
+        // outside the callback to avoid supabase-js internal deadlocks
         if (uid) setTimeout(() => app.checkMembership().finally(() => (app.booted = true)), 0);
         else app.booted = true;
       }
@@ -33,8 +33,8 @@
     window.addEventListener('focus', onFocus);
     window.addEventListener('blur', onBlur);
 
-    // Niente menu del browser (Ricarica, Salva con nome, Stampa…) ovunque,
-    // tranne dove serve copiare/incollare.
+    // No browser menu (Reload, Save as, Print…) anywhere,
+    // except where copy/paste is needed.
     const noNativeMenu = (e: MouseEvent) => {
       const el = e.target as Element | null;
       if (el?.closest('input, textarea, [contenteditable="true"], .allow-native-menu')) return;

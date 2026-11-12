@@ -1,4 +1,4 @@
-// Test end-to-end della mesh WebRTC: 3 utenti nello stesso canale vocale.
+// End-to-end test of the WebRTC mesh: 3 users in the same voice channel.
 const { chromium } = require('playwright');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1); } else console.log('ok -', m); };
@@ -46,7 +46,7 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
   await pages.a.evaluate(() => window.voice.setInputGain(1));
   console.log('livello con gain 0:', silent.toFixed(1), 'dB');
   assert(silent < -60, 'gain di input a 0 silenzia il microfono');
-  // cambio impostazioni durante la chiamata: la catena viene ricreata e i peer restano connessi
+  // settings change during the call: the chain is rebuilt and peers stay connected
   await pages.a.evaluate(async () => { window.prefs.noiseMode = 'standard'; window.prefs.gateEnabled = true; await window.voice.rebuildMic(); });
   await sleep(1500);
   const afterRebuild = await Promise.all(['b', 'c'].map(snap));
@@ -119,7 +119,7 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
   }
   assert(ok, 'chi entra dopo vede subito la webcam già accesa di b');
 
-  // Cambio canale senza riagganciare: a passa da 3 a 4, poi torna in 3.
+  // Channel switch without hanging up: a moves from 3 to 4, then back to 3.
   await pages.a.evaluate(() => window.voice.join(4));
   ok = false;
   for (let i = 0; i < 40 && !ok; i++) {

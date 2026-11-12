@@ -1,4 +1,4 @@
--- Stub minimale dell'ambiente Supabase per testare la migrazione su Postgres vanilla.
+-- Minimal stubs of the Supabase environment to test the migrations on vanilla Postgres.
 do $$ begin create role anon nologin; exception when duplicate_object then null; end $$; do $$ begin create role authenticated nologin; exception when duplicate_object then null; end $$; do $$ begin create role service_role nologin bypassrls; exception when duplicate_object then null; end $$;
 create schema extensions; create schema auth; create schema storage; create schema realtime;
 grant usage on schema public, auth, storage, realtime, extensions to anon, authenticated;
