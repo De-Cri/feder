@@ -91,7 +91,7 @@
     place-items: center;
     padding: 40px;
   }
-  /* Misure sulla finestra (non sulla griglia): l'immagine si ridimensiona insieme alla finestra. */
+  /* Sized on the window (not the grid): the image resizes together with the window. */
   .lightbox img {
     max-width: calc(100vw - 80px);
     max-height: calc(100vh - 80px);

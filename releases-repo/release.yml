@@ -1,17 +1,17 @@
 name: Release
 
-# Questo workflow vive nel repo PUBBLICO delle release (es. cerchio-releases), non
-# in quello del codice. Così solo chi ha accesso in scrittura a questo repo (tu)
-# può pubblicare: i collaboratori del repo privato possono pushare tag quanto
-# vogliono, ma non fanno partire nessuna release e non vedono le chiavi.
+# This workflow lives in the PUBLIC releases repo (e.g. cerchio-releases), not in
+# the code repo. This way only whoever can write to this repo (you) can publish:
+# collaborators on the code repo can push as many tags as they want, but they
+# can't start a release and can't see the keys.
 #
-# Lo avvia `npm run release -- X.Y.Z` (con `gh workflow run`), oppure a mano da
-# Actions → Release → Run workflow, indicando il tag (es. v0.3.0).
+# Started by `npm run release -- X.Y.Z` (with `gh workflow run`), or by hand from
+# Actions → Release → Run workflow, giving the tag (e.g. v0.3.0).
 #
-# Secrets di questo repo:  CODE_TOKEN (lettura del repo privato),
+# Secrets of this repo:    CODE_TOKEN (read access to the code repo),
 #   TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD
-# Variabile:               CODE_REPO (es. De-Cri/cerchio)
-# Li imposta `node scripts/secure-releases.mjs`.
+# Variable:                CODE_REPO (e.g. De-Cri/cerchio)
+# Set by `node scripts/secure-releases.mjs`.
 on:
   workflow_dispatch:
     inputs:

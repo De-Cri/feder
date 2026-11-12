@@ -8,8 +8,8 @@
   import VolumeSlider from './VolumeSlider.svelte';
   import PokeItem from './PokeItem.svelte';
 
-  // Menu del tasto destro su una persona in vocale: volume, silenzio, mute admin.
-  // Si chiude con un clic o un tasto destro fuori dal menu, oppure con Esc.
+  // Right-click menu on a person in voice: volume, mute, admin mute.
+  // Closes with a click or right-click outside the menu, or with Esc.
   let { id, x, y, screen = false, onclose }: {
     id: string;
     x: number;
@@ -35,8 +35,8 @@
     await supabase.rpc('admin_set_voice_mute', { p_user: id, p_muted: !app.voiceMutes[id] });
   }
 
-  // Clic o tasto destro fuori dal menu lo chiudono. La fase "capture" fa sì che la
-  // chiusura avvenga prima che il nuovo clic destro apra il menu di un'altra persona.
+  // A click or right-click outside the menu closes it. The "capture" phase makes it
+  // close before the new right-click opens another person's menu.
   function outside(e: Event) {
     if (panel && e.target instanceof Node && panel.contains(e.target)) return;
     onclose();

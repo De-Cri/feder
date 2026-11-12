@@ -1,11 +1,11 @@
-// Note di rilascio mostrate nel canale "novità" (le ultime 3 versioni, la più recente prima).
-// A ogni release: aggiungi la nuova in cima e togli l'ultima.
+// Release notes shown in the "novità" channel (the last 3 versions, newest first).
+// On every release: add the new one at the top and remove the last one.
 
 export type Release = {
   version: string;
-  date: string; // gg mese aaaa
-  added: string[]; // cosa c'è di nuovo, in breve
-  test: string[]; // come provarlo nell'app
+  date: string; // dd month yyyy
+  added: string[]; // what's new, briefly
+  test: string[]; // how to try it in the app
 };
 
 export const RELEASES: Release[] = [
@@ -65,7 +65,7 @@ export const RELEASES: Release[] = [
 
 const SEEN_KEY = 'cerchio-releases-seen';
 
-/** C'è una versione che l'utente non ha ancora letto nel canale novità. */
+/** There is a version the user hasn't read yet in the release notes channel. */
 export function hasUnseenRelease(): boolean {
   try {
     return localStorage.getItem(SEEN_KEY) !== RELEASES[0].version;

@@ -1,4 +1,4 @@
-// Mock con dati finti per vedere la UI senza backend (solo sviluppo/screenshot).
+// Mock with fake data to see the UI without a backend (development/screenshots only).
 import { createIdentity, encryptDm, type Identity } from '../../src/lib/dmcrypto';
 const ME = 'u1';
 const now = Date.now();
@@ -33,7 +33,7 @@ const db: Record<string, any[]> = {
   ].map((m) => ({ attachment_path: null, attachment_name: null, attachment_mime: null, attachment_size: null, ...m })),
 };
 
-// Messaggi privati: marco, giulia e fede hanno attivato (chiavi vere), luca e ale no.
+// Private messages: marco, giulia and fede have activated them (real keys), luca and ale haven't.
 db.dm_keys = [];
 db.dm_messages = [];
 db.dm_stars = [];
@@ -45,7 +45,7 @@ const peersReady = (async () => {
   }
 })();
 let myKey: any = null;
-// ?dm=locked: chiave già sul server ma non su questo dispositivo (schermata di sblocco)
+// ?dm=locked: key already on the server but not on this device (unlock screen)
 if (new URLSearchParams(location.search).get('dm') === 'locked') {
   myKey = { public_key: 'x'.repeat(88), wrapped_key: 'x'.repeat(208), salt: 'x'.repeat(24), iv: 'x'.repeat(16), iterations: 600000 };
 }

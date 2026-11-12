@@ -1,5 +1,5 @@
 \set ON_ERROR_STOP 1
--- Canali realtime privati (0005_realtime_topics.sql). Gira dopo 01 e 02: a e b sono membri, c no.
+-- Private realtime channels (0005_realtime_topics.sql). Runs after 01 and 02: a and b are members, c isn't.
 set role authenticated;
 create function pg_temp.can(topic text, ext text) returns boolean language plpgsql as $$
 begin
@@ -22,13 +22,13 @@ do $$ begin
   assert not pg_temp.can(null, 'broadcast'), 'senza topic';
   assert not pg_temp.can('cerchio:lobby', 'postgres_changes'), 'estensione non usata';
 end $$;
--- lettura: solo i canali permessi
+-- reading: only the allowed channels
 select set_config('realtime.topic', 'dm:segreto', false);
 do $$ begin assert (select count(*) from realtime.messages) = 0, 'legge un canale inventato'; end $$;
 select set_config('realtime.topic', 'cerchio:lobby', false);
 do $$ begin assert (select count(*) from realtime.messages) > 0, 'non legge la lobby'; end $$;
 
--- c non è membro: nemmeno la lobby
+-- c isn't a member: not even the lobby
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', false);
 do $$ begin assert not pg_temp.can('cerchio:lobby', 'presence'), 'non membro nella lobby'; end $$;
 

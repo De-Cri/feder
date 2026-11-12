@@ -1,8 +1,8 @@
-// Qualità della condivisione schermo: risoluzione e fps liberi, con stima del
-// carico e avvisi quando si esagera.
+// Screen sharing quality: resolution and fps, with a load estimate and
+// warnings when it's too much.
 import { prefs, clampScreen } from './prefs.svelte';
 
-/** Le sole combinazioni permesse: oltre, il carico su PC e rete non regge in una chiamata a più persone. */
+/** The only allowed combinations: beyond these, PC and network can't keep up in a group call. */
 export const SCREEN_OPTIONS = [
   { height: 720, fps: 30, label: '720p · 30 fps' },
   { height: 720, fps: 60, label: '720p · 60 fps' },
@@ -12,18 +12,18 @@ export const SCREEN_OPTIONS = [
 export type ScreenSettings = {
   height: number;
   fps: number;
-  bitrate: number; // bps per spettatore
+  bitrate: number; // bps per viewer
   hint: 'motion' | 'detail';
   degradation: RTCDegradationPreference;
 };
 
-/** Pixel per una risoluzione 16:9. */
+/** Pixels for a 16:9 resolution. */
 const pixels = (h: number) => Math.round((h * 16) / 9) * h;
 
 export function screenSettings(): ScreenSettings {
   const { height, fps } = clampScreen(prefs.screenHeight, prefs.screenFps);
   const motion = prefs.screenMode === 'motion';
-  // ~0,08 bit per pixel per fotogramma in movimento, meno per testo (cambia poco)
+  // ~0.08 bits per pixel per frame for motion, less for text (changes little)
   const bpp = motion ? 0.08 : 0.05;
   const bitrate = Math.min(20_000_000, Math.max(800_000, pixels(height) * fps * bpp));
   return {
@@ -37,10 +37,10 @@ export function screenSettings(): ScreenSettings {
 
 export type ScreenWarning = { level: 'ok' | 'warn' | 'danger'; text: string };
 
-/** Avviso in base al carico: pixel al secondo e upload per spettatore. */
+/** Warning based on load: pixels per second and upload per viewer. */
 export function screenWarning(viewers = 4): ScreenWarning {
   const s = screenSettings();
-  const load = pixels(s.height) * s.fps; // pixel al secondo da codificare (per ogni spettatore)
+  const load = pixels(s.height) * s.fps; // pixels per second to encode (for each viewer)
   const base = 1280 * 720 * 30;
   const mbps = s.bitrate / 1_000_000;
   const total = (mbps * viewers).toFixed(0);

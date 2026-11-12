@@ -1,5 +1,5 @@
--- Badge "Contributor" per chi ha contribuito al codice su GitHub.
--- Solo l'admin può assegnarlo o toglierlo (admin_set_contributor).
+-- "Contributor" badge for people who contributed code on GitHub.
+-- Only the admin can grant or remove it (admin_set_contributor).
 alter table public.members add column if not exists contributor boolean not null default false;
 
 create or replace function public.admin_set_contributor(p_user uuid, p_on boolean)

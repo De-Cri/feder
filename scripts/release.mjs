@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Pubblica una nuova versione:  npm run release -- 0.4.0
-// 1. aggiorna la versione ovunque, committa, crea il tag e fa push sul repo del codice;
-// 2. avvia la build nel repo PUBBLICO delle release (dove solo tu puoi farlo).
-// Gli utenti ricevono l'aggiornamento appena la build finisce (~10 minuti).
+// Publishes a new version:  npm run release -- 0.4.0
+// 1. bumps the version everywhere, commits, tags and pushes to the code repo;
+// 2. starts the build in the PUBLIC releases repo (where only you can do it).
+// Users get the update as soon as the build finishes (~10 minutes).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { execSync, spawnSync } from 'node:child_process';
 import { releasesRepo } from './gh-repos.mjs';
@@ -14,7 +14,7 @@ if (!/^\d+\.\d+\.\d+$/.test(v ?? '')) {
 }
 const rel = releasesRepo();
 
-// Prima di toccare qualcosa: solo chi può scrivere nel repo delle release può pubblicare.
+// Before touching anything: only whoever can write to the releases repo can publish.
 const perm = spawnSync('gh', ['api', `repos/${rel}`, '--jq', '.permissions.push'], { encoding: 'utf8', shell: process.platform === 'win32' });
 if (perm.stdout.trim() !== 'true') {
   console.error(`Solo il proprietario di ${rel} può pubblicare una release.`);

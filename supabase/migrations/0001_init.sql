@@ -1,8 +1,8 @@
 -- =============================================================================
--- Cerchio — schema iniziale
--- Un solo server, 4 canali fissi (2 testo, 2 voce/video), un admin.
--- Tutto l'accesso passa da RLS: chi non ha inserito la password del server
--- (cioè non è in public.members) non vede e non scrive niente.
+-- Cerchio (now Feder) — initial schema
+-- A single server, 4 fixed channels (2 text, 2 voice/video), one admin.
+-- All access goes through RLS: whoever hasn't entered the server password
+-- (i.e. isn't in public.members) can't see or write anything.
 -- =============================================================================
 
 create extension if not exists pgcrypto with schema extensions;
@@ -11,7 +11,7 @@ create schema if not exists private;
 revoke all on schema private from public, anon, authenticated;
 
 -- -----------------------------------------------------------------------------
--- Tabelle
+-- Tables
 -- -----------------------------------------------------------------------------
 
 create table public.profiles (
@@ -61,14 +61,14 @@ create table public.messages (
 );
 create index messages_channel_id_idx on public.messages (channel_id, id desc);
 
--- Mute imposto dall'admin nei canali vocali (lato client: il muto non trasmette
--- e tutti gli altri ignorano comunque il suo audio).
+-- Admin-imposed mute in voice channels (client-side: the muted user doesn't transmit
+-- and everyone else ignores their audio anyway).
 create table public.voice_mutes (
   user_id    uuid primary key references public.profiles (id) on delete cascade,
   muted_at   timestamptz not null default now()
 );
 
--- Configurazione privata (non esposta via API).
+-- Private configuration (not exposed through the API).
 create table private.server_config (
   id            boolean primary key default true check (id),
   password_hash text not null,
@@ -104,7 +104,7 @@ as $$
   );
 $$;
 
--- Crea il profilo alla registrazione (username dai metadata).
+-- Creates the profile on sign-up (username from the metadata).
 create or replace function private.handle_new_user()
 returns trigger
 language plpgsql security definer
@@ -129,9 +129,9 @@ create trigger on_auth_user_created
   for each row execute function private.handle_new_user();
 
 -- -----------------------------------------------------------------------------
--- Ingresso nel server con password
--- Ritorna uno stato invece di sollevare eccezioni, così il tentativo resta
--- registrato (rate limit: 5 tentativi ogni 15 minuti).
+-- Joining the server with the password
+-- Returns a status instead of raising exceptions, so the attempt stays
+-- recorded (rate limit: 5 attempts every 15 minutes).
 -- -----------------------------------------------------------------------------
 
 create or replace function public.join_server(p_password text)
@@ -182,7 +182,7 @@ end;
 $$;
 
 -- -----------------------------------------------------------------------------
--- Funzioni admin
+-- Admin functions
 -- -----------------------------------------------------------------------------
 
 create or replace function public.admin_kick(p_user uuid)
@@ -253,7 +253,7 @@ begin
 end;
 $$;
 
--- Usata solo dallo script di setup (con service_role / SQL editor).
+-- Used only by the setup script (with service_role / SQL editor).
 create or replace function private.configure_server(p_password text, p_admin uuid)
 returns void
 language plpgsql security definer
@@ -296,17 +296,17 @@ alter table public.channels    enable row level security;
 alter table public.messages    enable row level security;
 alter table public.voice_mutes enable row level security;
 
--- profiles: il proprio sempre; tutti gli altri solo se sei membro.
+-- profiles: your own always; everyone else's only if you're a member.
 create policy profiles_select on public.profiles for select to authenticated
   using (id = auth.uid() or public.is_member());
 create policy profiles_update on public.profiles for update to authenticated
   using (id = auth.uid()) with check (id = auth.uid());
 
--- members: i membri vedono la lista; il proprio stato sempre (per sapere se sei dentro).
+-- members: members see the list; your own row always (to know whether you're in).
 create policy members_select on public.members for select to authenticated
   using (user_id = auth.uid() or public.is_member());
 
--- bans: solo admin; il diretto interessato vede il proprio ban.
+-- bans: admin only; the banned user sees their own ban.
 create policy bans_select on public.bans for select to authenticated
   using (user_id = auth.uid() or public.is_admin());
 
@@ -329,7 +329,7 @@ create policy messages_delete on public.messages for delete to authenticated
 create policy voice_mutes_select on public.voice_mutes for select to authenticated
   using (public.is_member());
 
--- Supabase dà di default tutti i privilegi ad anon/authenticated: si riparte da zero.
+-- Supabase grants every privilege to anon/authenticated by default: start from zero.
 revoke all on public.profiles, public.members, public.bans, public.channels,
               public.messages, public.voice_mutes from authenticated;
 grant select on public.profiles, public.members, public.bans, public.channels,
@@ -343,8 +343,8 @@ revoke all on public.profiles, public.members, public.bans, public.channels,
               public.messages, public.voice_mutes from anon;
 
 -- -----------------------------------------------------------------------------
--- Storage: bucket privato per allegati e avatar (max 50 MB a file, limite free)
--- Path: <user_id>/<uuid>-<nome file>
+-- Storage: private bucket for attachments and avatars (max 50 MB per file, free tier limit)
+-- Path: <user_id>/<uuid>-<file name>
 -- -----------------------------------------------------------------------------
 
 insert into storage.buckets (id, name, public, file_size_limit)
@@ -367,8 +367,8 @@ create policy attachments_delete on storage.objects for delete to authenticated
 
 -- -----------------------------------------------------------------------------
 -- Realtime
--- postgres_changes per messaggi/membri/mute; canali privati (broadcast +
--- presence) per presenza online e signaling WebRTC, solo per i membri.
+-- postgres_changes for messages/members/mutes; private channels (broadcast +
+-- presence) for online presence and WebRTC signaling, members only.
 -- -----------------------------------------------------------------------------
 
 alter publication supabase_realtime add table

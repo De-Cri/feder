@@ -1,5 +1,5 @@
-// Un lato ricrea la connessione (presenza persa per un attimo), l'altro tiene la vecchia.
-// Entrambi devono tornare "connected" (prima: uno restava su "connessione…").
+// One side recreates the connection (presence lost for a moment), the other keeps the old one.
+// Both must get back to "connected" (before: one stayed on "connecting…").
 const { chromium } = require('playwright');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1); } console.log('ok -', m); };
@@ -34,7 +34,7 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
     assert(audio > 0, `${other} riceve di nuovo l'audio di ${who}`);
   }
 
-  // Segnali persi: a ricrea ma offerta/candidati non arrivano (come un broadcast perso).
+  // Lost signals: a recreates but offer/candidates don't arrive (like a lost broadcast).
   for (const [who, other] of [['a', 'b'], ['b', 'a']]) {
     await pages[who].evaluate((o) => {
       const v = window.voice; const send = v.send.bind(v);

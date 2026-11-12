@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Schermata dei messaggi privati: attivazione / sblocco col codice di recupero, nuova chat, conversazione.
+  // Private messages screen: activation / unlock with the recovery code, new chat, conversation.
   import { app } from '../lib/state.svelte';
   import { dm, type Prepared } from '../lib/dm.svelte';
   import { normalizeCode, isFullCode } from '../lib/dmcrypto';
@@ -7,11 +7,11 @@
   import Avatar from './Avatar.svelte';
   import DmChat from './DmChat.svelte';
 
-  // --- Codice di recupero ---
+  // --- Recovery code ---
   let busy = $state(false);
   let error = $state<string | null>(null);
-  let resetting = $state(false); // "Ho perso il codice"
-  let prepared = $state<Prepared | null>(null); // codice generato, non ancora confermato
+  let resetting = $state(false); // "I lost the code"
+  let prepared = $state<Prepared | null>(null); // generated code, not confirmed yet
   let saved = $state(false);
   let copied = $state(false);
   let code = $state('');
@@ -63,7 +63,7 @@
     code = '';
   }
 
-  // --- Nuova chat: membri in ordine alfabetico, prima chi inizia con quello che scrivi ---
+  // --- New chat: members in alphabetical order, those starting with what you type first ---
   let query = $state('');
   const candidates = $derived.by(() => {
     const q = query.trim().toLowerCase();
@@ -78,7 +78,7 @@
   });
 
   $effect(() => {
-    // le chiavi possono essere cambiate da quando è partita l'app (qualcuno ha appena attivato)
+    // keys may have changed since the app started (someone just activated)
     if (dm.status === 'ready' && dm.current === null) dm.loadKeys();
   });
 

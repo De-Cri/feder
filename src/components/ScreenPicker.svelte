@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { onPickScreenSource, pickScreenSource, type ScreenSource } from '../lib/platform';
 
-  // Selettore schermo/finestra per Electron su X11 (su Wayland usa quello di sistema).
+  // Screen/window picker for Electron on X11 (on Wayland the system one is used).
   let sources = $state<ScreenSource[] | null>(null);
   const screens = $derived(sources?.filter((s) => s.id.startsWith('screen:')) ?? []);
   const windows = $derived(sources?.filter((s) => !s.id.startsWith('screen:')) ?? []);

@@ -10,7 +10,7 @@
   import PokeItem from './PokeItem.svelte';
   import { dm } from '../lib/dm.svelte';
 
-  // Menu del tasto destro su una persona. Usato da lista membri, sidebar vocale e chat.
+  // Right-click menu on a person. Used by the member list, voice sidebar and chat.
   let {
     id,
     x,
@@ -22,7 +22,7 @@
     x: number;
     y: number;
     onclose: () => void;
-    // il genitore apre la finestra di conferma per espulsione e ban
+    // the parent opens the confirmation dialog for kick and ban
     onconfirm: (action: 'kick' | 'ban') => void;
   } = $props();
 
@@ -53,7 +53,7 @@
   }
 
   onMount(() => {
-    // La fase di cattura chiude il menu prima che il nuovo clic destro ne apra un altro.
+    // The capture phase closes the menu before the new right-click opens another one.
     window.addEventListener('pointerdown', outside, true);
     window.addEventListener('contextmenu', outside, true);
     return () => {

@@ -1,149 +1,154 @@
 # Feder
 
-Un Discord privato per pochi amici: **un solo server**, **2 canali chat**, **2 canali voce/video**, un solo admin.
-App desktop per **Windows** (Tauri 2, circa 4 MB) e **Linux** (Electron, perché la webview di sistema su Linux spesso non ha WebRTC). Il backend è Supabase free, la voce viaggia P2P (WebRTC). **Costo: 0 €.**
+A private Discord for a small group of friends: **one server**, **2 chat channels**, **2 voice/video channels**, a single admin.
+Desktop app for **Windows** (Tauri 2, about 4 MB) and **Linux** (Electron, because the system webview on Linux often lacks WebRTC). The backend is Supabase free tier, voice goes peer-to-peer (WebRTC). **Cost: €0.**
 
-## Cosa fa
+The app is available in Italian and English.
 
-- Ci si registra con email e password, poi si inserisce la **password del server** per entrare.
-- `#generale` e `#random`: messaggi in tempo reale, immagini, video e file fino a 50 MB, link cliccabili, notifiche desktop.
-- `Lounge` e `Gaming`: voce, webcam e condivisione schermo, peer-to-peer.
+## Features
+
+- Sign up with email and password, then enter the **server password** to join.
+- `#generale` and `#random`: real-time messages, images, videos and files up to 50 MB, clickable links, desktop notifications.
+- **Private messages**, end-to-end encrypted: not even the server can read them. They disappear after 30 days, except the ones you star.
+- `Lounge` and `Gaming`: voice, webcam and screen sharing, peer-to-peer.
 - **Audio**:
-  - soppressione del rumore a scelta tra disattivata, standard del browser o **AI (RNNoise)**, che toglie tastiera, ventole e rumori di fondo;
-  - cancellazione dell'eco e regolazione automatica del guadagno;
-  - **soglia di attivazione** (noise gate);
-  - **volume del microfono** fino al 200% e **volume di uscita**;
-  - **volume per singolo amico**: tasto destro sul suo riquadro;
-  - scelta dei dispositivi di input e output, e test del microfono con meter e ascolto di ritorno.
-- **Condivisione schermo**:
-  - qualità *Fluida* (720p 60fps) o *Nitida* (1080p 30fps);
-  - audio del sistema su Windows;
-  - selettore di schermo/finestra con anteprime (su Wayland si usa quello di sistema);
-  - chi condivide viene messo in primo piano in automatico.
-- Si vede chi è online e chi è in quale canale vocale, con indicatore di chi sta parlando.
-- **Admin** (solo tu): cancella qualsiasi messaggio, espelle, banna/sbanna, muta in vocale, cambia la password del server.
-- Aggiornamenti automatici: pubblichi una versione e l'app si aggiorna da sola.
-- Interfaccia minimal stile macOS/GNOME che segue il tema chiaro/scuro di sistema.
+  - noise suppression: off, the browser's standard one, or **AI (RNNoise)**, which removes keyboard, fans and background noise;
+  - echo cancellation and automatic gain control;
+  - **voice activation threshold** (noise gate);
+  - **microphone volume** up to 200% and **output volume** (also from a right-click on the mic icon);
+  - **per-friend volume**: right-click on their tile;
+  - input and output device selection, and a microphone test with level meter and loopback.
+- **Screen sharing**:
+  - quality *Smooth* (720p 60fps) or *Sharp* (1080p 30fps);
+  - system audio on Windows;
+  - screen/window picker with previews (on Wayland the system one is used);
+  - viewers open a stream with a click: whoever isn't watching doesn't download it.
+- See who is online and who is in which voice channel, with a speaking indicator.
+- **Admin** (only you): delete any message, kick, ban/unban, server-mute in voice, change the server password.
+- Automatic updates: publish a version and the app updates itself.
+- Minimal macOS/GNOME-style interface that follows the system light/dark theme.
 
-## Creare gli installer (wizard)
+## Building the installers (wizard)
 
-Non serve installare niente a mano: il wizard controlla cosa manca, **ti chiede il permesso** e lo installa lui.
+You don't need to install anything by hand: the wizard checks what is missing, **asks for permission** and installs it.
 
-- **Windows:** doppio clic su **`Setup.cmd`**
+- **Windows:** double-click **`Setup.cmd`**
 - **Linux:** `./setup.sh`
 
-Se manca Node.js lo installa (winget su Windows; dnf/apt/pacman su Linux), poi ti fa scegliere come creare gli installer:
+If Node.js is missing it installs it (winget on Windows; dnf/apt/pacman on Linux), then lets you choose how to build the installers:
 
-| Modalità | Cosa installa sul PC | Cosa ottieni |
+| Mode | What it installs on your PC | What you get |
 |---|---|---|
-| **Nel cloud** (consigliata) | git e GitHub CLI (e il login a GitHub dal browser) | GitHub Actions compila `.exe` per Windows e `.AppImage`/`.rpm`/`.deb` per Linux, crea il link da mandare agli amici e gli aggiornamenti automatici. Alla fine scarica gli installer nella cartella `installer/`. |
-| **Su questo PC** | Windows: Rust, Visual Studio Build Tools (C++, ~3–6 GB) e WebView2 se manca. Fedora: `rpm-build`. | L'installer per il sistema che stai usando, nella cartella `installer/`. Utile per provare subito, ma senza link condiviso né aggiornamenti automatici (a meno che tu non abbia già fatto la modalità cloud). |
+| **In the cloud** (recommended) | git and GitHub CLI (plus the GitHub login in the browser) | GitHub Actions builds the `.exe` for Windows and `.AppImage`/`.rpm`/`.deb` for Linux, creates the link to send to your friends and the automatic updates. At the end it downloads the installers into the `installer/` folder. |
+| **On this PC** | Windows: Rust, Visual Studio Build Tools (C++, ~3–6 GB) and WebView2 if missing. Fedora: `rpm-build`. | The installer for the system you are using, in the `installer/` folder. Useful to try it right away, but without a shared link or automatic updates (unless you already did the cloud mode). |
 
-Supabase è già configurato (`cerchio.config.json`). La modalità cloud, al primo giro, crea **due repo**:
+Supabase is already configured (`cerchio.config.json`). On the first run, the cloud mode creates **two repos**:
 
-- **`cerchio`**, privato: contiene il codice e le GitHub Actions che compilano.
-- **`cerchio-releases`**, pubblico: contiene solo gli installer, niente codice. Da qui gli amici scaricano l'app e l'app scarica gli aggiornamenti, senza login.
+- **`cerchio`**: the code and the GitHub Actions that check it.
+- **`cerchio-releases`**, public: only the installers, no code. Friends download the app from here and the app downloads its updates from here, without logging in.
 
-Le chiavi private stanno in `.cerchio-secrets/`, una cartella ignorata da git: **fanne un backup**.
+The private keys live in `.cerchio-secrets/`, a folder ignored by git: **back it up**.
 
-> Le Actions nei repo privati hanno 2000 minuti gratis al mese, e quelli su Windows contano doppio. Una release costa circa 40 minuti, quindi sono circa 50 release al mese.
+> Actions in private repos get 2000 free minutes a month, and Windows minutes count double. A release costs about 40 minutes, so about 50 releases a month. Public repos have no limit.
 
-## Per i tuoi amici
+## For your friends
 
-1. Aprono `https://github.com/<tuo-user>/cerchio-releases/releases/latest`
-2. Windows: scaricano `Paper_x.y.z_x64-setup.exe`. Linux: `.rpm` (Fedora), `.deb` (Ubuntu/Debian) o `.AppImage` (qualsiasi distro).
-3. Si registrano e inseriscono la password del server.
+1. They open `https://github.com/<your-user>/cerchio-releases/releases/latest`
+2. Windows: they download `Feder_x.y.z_x64-setup.exe`. Linux: `.rpm` (Fedora), `.deb` (Ubuntu/Debian) or `.AppImage` (any distro).
+3. They sign up and enter the server password.
 
-**Windows SmartScreen**: l'installer non è firmato (un certificato costa), quindi al primo avvio compare "Windows ha protetto il PC". Basta cliccare *Ulteriori informazioni → Esegui comunque*. Gli aggiornamenti successivi sono comunque verificati con la chiave di firma dell'updater.
+**Windows SmartScreen**: the installer isn't signed (a certificate costs money), so on first launch "Windows protected your PC" shows up. Just click *More info → Run anyway*. Later updates are still verified with the updater signing key.
 
-## Pubblicare una nuova versione
+## Publishing a new version
 
 ```bash
 npm run release -- 0.4.0
 ```
 
-Lo script aggiorna la versione, crea il tag, fa push e avvia la build nel repo pubblico delle release. Dopo circa 10 minuti le app installate si aggiornano da sole.
+The script bumps the version, creates the tag, pushes and starts the build in the public releases repo. After about 10 minutes the installed apps update themselves.
 
-**Solo il proprietario può pubblicare.** Il workflow di build e le chiavi di firma stanno nel repo pubblico `cerchio-releases`, dove scrivi solo tu. I collaboratori del repo privato del codice possono pushare e aprire Pull Request, ma non possono avviare release né leggere le chiavi. Con il piano GitHub Free i repo privati non hanno protezioni sui rami, quindi è l'unico modo gratuito per ottenere questo risultato. Per configurarlo, una volta sola: `node scripts/secure-releases.mjs`, sul PC dove c'è `.cerchio-secrets/`.
+**Only the owner can publish.** The build workflow and the signing keys live in the public `cerchio-releases` repo, where only you can write. Collaborators on the code repo can push and open Pull Requests, but they can't start a release or read the keys. To set it up, once: `node scripts/secure-releases.mjs`, on the PC that has `.cerchio-secrets/`.
 
-## Limiti da conoscere
+## Known limitations
 
-| Cosa | Dettaglio |
+| What | Details |
 |---|---|
-| **Linux = Electron** | Su Linux l'app è Electron e non Tauri, perché WebKitGTK delle distro spesso non ha WebRTC (verificato su Ubuntu 24.04, WebKitGTK 2.52). Pesa ~90–125 MB invece di 4 MB, ma voce, video e schermo funzionano sempre. |
-| **AppImage su Ubuntu 24.04** | AppArmor blocca la sandbox di Electron negli AppImage. Su Ubuntu usa il `.deb`, oppure avvia l'AppImage con `--no-sandbox`. Su Fedora nessun problema. |
-| **Audio dello schermo** | Si può condividere solo su Windows. Su Linux Chromium non supporta la cattura dell'audio di sistema. |
-| **Video P2P a 5** | Ognuno invia il proprio video agli altri 4. La webcam è limitata a ~0,9 Mbps per peer e lo schermo a ~2,5 Mbps. Con la fibra non ci sono problemi, con 4G o ADSL meglio solo audio. |
-| **NAT difficili** | Senza TURN, alcune reti (CGNAT mobile, reti aziendali) non riescono a collegarsi in P2P. Vedi *TURN opzionale* più sotto. |
-| **Pausa Supabase** | Il piano free mette in pausa il progetto dopo ~7 giorni di inattività. Il workflow `keepalive.yml` lo pinga ogni giorno e una volta al mese fa un commit vuoto, così GitHub non disattiva il workflow. |
-| **Password dimenticata** | Non c'è recupero via email, perché la conferma email è disattivata. L'admin può resettarla dalla dashboard di Supabase (Authentication → Users). |
-| **Kick** | L'espulso perde subito l'accesso al database. La sua app chiude da sola la chiamata, e gli altri chiudono subito la connessione P2P con lui. |
+| **Linux = Electron** | On Linux the app is Electron, not Tauri, because distros' WebKitGTK often lacks WebRTC (checked on Ubuntu 24.04, WebKitGTK 2.52). It weighs ~90–125 MB instead of 4 MB, but voice, video and screen always work. |
+| **AppImage on Ubuntu 24.04** | AppArmor blocks Electron's sandbox inside AppImages. On Ubuntu use the `.deb`, or start the AppImage with `--no-sandbox`. No problem on Fedora. |
+| **Screen audio** | Only on Windows. On Linux Chromium doesn't support capturing system audio. |
+| **P2P video with 5 people** | Everyone sends their video to the other 4. The webcam is capped at ~0.9 Mbps per peer and the screen at ~2.5 Mbps. Fine on fiber; on 4G or ADSL better stick to audio. |
+| **Hard NATs** | Without TURN, some networks (mobile CGNAT, corporate networks) can't connect peer-to-peer. See *Optional TURN* below. |
+| **Supabase pause** | The free tier pauses the project after ~7 days of inactivity. The `keepalive.yml` workflow pings it every day and once a month makes an empty commit, so GitHub doesn't disable the workflow. |
+| **Forgotten password** | There is no email recovery, because email confirmation is disabled. The admin can reset it from the Supabase dashboard (Authentication → Users). |
+| **Kick** | A kicked user loses database access immediately. Their app closes the call by itself, and the others immediately close the P2P connection with them. |
 
-## TURN opzionale (Cloudflare, gratis)
+## Optional TURN (Cloudflare, free)
 
-Serve solo se due persone non riescono a sentirsi (resta su "connessione…").
+Only needed if two people can't hear each other (stuck on "connecting…").
 
-1. Crea una TURN key su Cloudflare (Dashboard → Realtime → TURN). Il free tier basta e avanza.
-2. Fai il deploy della funzione:
+1. Create a TURN key on Cloudflare (Dashboard → Realtime → TURN). The free tier is more than enough.
+2. Deploy the function:
    ```bash
    npx supabase@latest login
    npx supabase@latest functions deploy turn --project-ref <ref>
    npx supabase@latest secrets set CF_TURN_KEY_ID=... CF_TURN_API_TOKEN=... --project-ref <ref>
    ```
-3. In `cerchio.config.json` metti `"turn": true` e pubblica una nuova versione.
+3. Set `"turn": true` in `cerchio.config.json` and publish a new version.
 
-## Sviluppo
+## Development
 
 ```bash
-npm run tauri dev        # app in sviluppo (Windows / Tauri)
-npm run electron:dev     # app in sviluppo (Linux / Electron)
-npm run electron:build   # pacchetti Linux in release/
+npm run tauri dev        # app in development (Windows / Tauri)
+npm run electron:dev     # app in development (Linux / Electron)
+npm run electron:build   # Linux packages in release/
 npm run check            # type-check
 ```
 
-### Struttura
+### Layout
 
 ```
-supabase/migrations/0001_init.sql   schema, RLS, funzioni admin, storage, realtime
-supabase/functions/turn/            credenziali TURN (opzionale)
-src/lib/state.svelte.ts             stato app, realtime, presence
-src/lib/voice.svelte.ts             mesh WebRTC (perfect negotiation)
-src/lib/audio.ts                    catena microfono: RNNoise, noise gate, guadagno
-src/lib/platform.ts                 astrazione Tauri / Electron
-electron/                           shell Linux (Electron)
+supabase/migrations/                schema, RLS, admin functions, storage, realtime, private messages
+supabase/functions/turn/            TURN credentials (optional)
+src/lib/state.svelte.ts             app state, realtime, presence
+src/lib/voice.svelte.ts             WebRTC mesh (perfect negotiation)
+src/lib/audio.ts                    microphone chain: RNNoise, noise gate, gain
+src/lib/dm.svelte.ts, dmcrypto.ts   private messages and their end-to-end encryption
+src/lib/platform.ts                 Tauri / Electron abstraction
+electron/                           Linux shell (Electron)
 src/components/                     UI (Svelte 5)
-src-tauri/                          shell Windows (Tauri / Rust)
-scripts/setup.mjs                   setup automatico
-.github/workflows/                  release + keep-alive
+src-tauri/                          Windows shell (Tauri / Rust)
+scripts/setup.mjs                   automatic setup
+.github/workflows/                  checks + keep-alive
 ```
 
-### Sicurezza
+### Security
 
-- La password del server è salvata come hash bcrypt in uno schema `private` non esposto, e la verifica `join_server()` gira nel DB, con un limite di 5 tentativi ogni 15 minuti.
-- Tutte le tabelle hanno RLS: chi non è membro vede solo il proprio profilo.
-- I canali Realtime (presenza e signaling WebRTC) sono **privati**, con policy su `realtime.messages`: solo i membri possono iscriversi.
-- Gli allegati stanno in un bucket privato, si leggono con URL firmati e ognuno può caricare solo nella propria cartella.
-- I messaggi privati sono cifrati end-to-end nell'app (ECDH P-256 + AES-GCM, solo WebCrypto): il server vede chi scrive a chi e quando, mai il testo. La chiave privata sta sul server solo cifrata con un codice di recupero casuale che conosce soltanto l'utente. Dettagli in `src/lib/dmcrypto.ts` e `supabase/migrations/0004_dm.sql`.
+- The server password is stored as a bcrypt hash in a non-exposed `private` schema, and `join_server()` checks it inside the DB, with a limit of 5 attempts every 15 minutes.
+- Every table has RLS: non-members only see their own profile.
+- Realtime channels (presence and WebRTC signaling) are **private**, with policies on `realtime.messages`: only members can join, and only the channels the app uses.
+- Attachments live in a private bucket, are read through signed URLs, and everyone can upload only to their own folder.
+- Private messages are end-to-end encrypted in the app (ECDH P-256 + AES-GCM, WebCrypto only): the server sees who writes to whom and when, never the text. The private key is on the server only encrypted with a random recovery code that only the user knows. Details in `src/lib/dmcrypto.ts` and `supabase/migrations/0004_dm.sql`.
+- Known open issues are tracked with the [`security`](../../issues?q=label%3Asecurity) label.
 
-### Test
+### Tests
 
 ```bash
-# SQL + RLS su Postgres locale (stub dell'ambiente Supabase)
+# SQL + RLS on a local Postgres (stubs of the Supabase environment)
 psql -d test -f supabase/tests/00_stubs.sql $(printf -- '-f %s ' supabase/migrations/*.sql) \
-  -f supabase/tests/01_test.sql -f supabase/tests/02_dm_test.sql
+  -f supabase/tests/01_test.sql -f supabase/tests/02_dm_test.sql -f supabase/tests/03_realtime_test.sql
 
-# Mesh WebRTC a 3 peer in Chromium (signaling simulato): connessione, audio,
-# RNNoise, gain, rebuild del microfono in chiamata, webcam, uscita/rientro
-npx vite --config tests/voice/vite.config.ts &  node tests/voice/run.cjs
+# 3-peer WebRTC mesh in Chromium (simulated signaling): connection, audio,
+# RNNoise, gain, microphone rebuild during a call, webcam, leave/rejoin
+npm run test:voice
 
-# UI con dati finti
+# UI with fake data
 npx vite --config tests/ui/vite.config.ts
 ```
 
-## Licenza
+## License
 
-Feder è software libero, distribuito con licenza [GNU GPL v3 o successiva](LICENSE): puoi usarlo, studiarlo,
-modificarlo e ridistribuirlo, a patto che anche le versioni modificate che distribuisci restino libere con la
-stessa licenza e con il loro codice sorgente.
+Feder is free software, released under the [GNU GPL v3 or later](LICENSE): you can use, study, modify and
+redistribute it, as long as the modified versions you distribute stay free under the same license, with their
+source code.
 
-Scritto da Samuele De Cristofaro, con i contributi di Giovanni Intrieri e Daniele Filice.
+Written by Samuele De Cristofaro, with contributions from Giovanni Intrieri and Daniele Filice.

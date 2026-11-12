@@ -1,4 +1,4 @@
-// Presenza nella lobby: aggiornamenti ravvicinati, stati duplicati, suono "chiamata".
+// Lobby presence: updates close together, duplicate states, "call" sound.
 const { chromium } = require('playwright');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1); } console.log('ok -', m); };
@@ -18,13 +18,13 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
   const seen = () => pages.b.evaluate(() => (window.app.online.a ? window.app.online.a.voice : 'assente'));
   assert((await seen()) === null, 'b vede a online, non in vocale');
 
-  // a entra nel canale 3: per b (fuori dal vocale) è una "chiamata"
+  // a joins channel 3: for b (outside voice) it's a "call"
   await pages.a.evaluate(() => { window.app.myPresence.voice = 3; window.app.publishPresence(); });
   await sleep(400);
   assert((await seen()) === 3, 'b vede a nel canale 3');
   assert((await pages.b.evaluate(() => window.soundLog.includes('call'))), 'b sente il suono di chiamata');
 
-  // raffica: 3 → null → 4 → null (come cambiare canale e riagganciare)
+  // burst: 3 → null → 4 → null (like switching channel and hanging up)
   await pages.a.evaluate(() => {
     const ap = window.app;
     for (const v of [null, 4, null]) { ap.myPresence.voice = v; ap.publishPresence(); }
@@ -33,7 +33,7 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
   assert((await seen()) === null, 'dopo la raffica b vede a fuori dal vocale (niente fantasma)');
   const metas = await pages.b.evaluate(() => window.app['lobby'].presenceState().a.length);
   assert(metas === 2, 'stati duplicati presenti nel mock (scenario reale riprodotto)');
-  // Il server "perde" a dopo aggiornamenti troppo ravvicinati: a deve ricomparire da solo.
+  // The server "loses" a after updates too close together: a must reappear by itself.
   for (const u of ['a', 'b']) await pages[u].goto(`http://localhost:5199/?u=${u}&drop=1`);
   for (const u of ['a', 'b']) { await pages[u].waitForFunction(() => !!window.app); await pages[u].evaluate(() => window.app.subscribe()); }
   await sleep(500);
@@ -45,7 +45,7 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
   assert(selfVoice === 4, 'a vede comunque se stesso nel canale giusto');
   await sleep(2000);
   assert((await seen()) === 4, 'a ricompare da solo per b, nel canale 4');
-  // Il server tiene uno stato vecchio (ignora l'aggiornamento): deve correggersi da solo.
+  // The server keeps a stale state (ignores the update): it must fix itself.
   for (const u of ['a', 'b']) await pages[u].goto(`http://localhost:5199/?u=${u}&stale=1`);
   for (const u of ['a', 'b']) { await pages[u].waitForFunction(() => !!window.app); await pages[u].evaluate(() => window.app.subscribe()); }
   await sleep(800);

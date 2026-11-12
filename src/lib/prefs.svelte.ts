@@ -1,7 +1,7 @@
-// Preferenze utente.
-// - localStorage: copia immediata, così l'app parte anche senza rete.
-// - Supabase (tabella user_prefs): le stesse impostazioni in app desktop e nel browser.
-// Microfono, webcam e uscita audio restano solo su questo dispositivo: gli ID cambiano tra app e browser.
+// User preferences.
+// - localStorage: immediate copy, so the app starts even without network.
+// - Supabase (user_prefs table): the same settings in the desktop app and in the browser.
+// Microphone, webcam and audio output stay on this device only: their IDs differ between app and browser.
 import { supabase } from './supabase';
 import { configured } from './config';
 import type { NoiseMode } from './audio';
@@ -12,22 +12,22 @@ export type Theme = 'system' | 'light' | 'dark' | 'black' | 'oled';
 export type Prefs = {
   theme: Theme;
   notifications: boolean;
-  // solo su questo dispositivo
+  // this device only
   micId: string;
   camId: string;
   speakerId: string;
-  // sincronizzate tra app e browser
+  // synced between app and browser
   noiseMode: NoiseMode;
   echoCancellation: boolean;
   autoGain: boolean;
   inputGain: number; // 0..2 (100% = 1)
   gateEnabled: boolean;
-  gateDb: number; // soglia di attivazione, -80..-10
+  gateDb: number; // activation threshold, -80..-10
   outputVolume: number; // 0..1
-  userVolumes: Record<string, number>; // 0..2 per utente (voce)
-  screenVolumes: Record<string, number>; // 0..1 per utente (audio della condivisione)
-  screenHeight: number; // 720 o 1080
-  screenFps: number; // 30 o 60
+  userVolumes: Record<string, number>; // 0..2 per user (voice)
+  screenVolumes: Record<string, number>; // 0..1 per user (screen share audio)
+  screenHeight: number; // 720 or 1080
+  screenFps: number; // 30 or 60
   screenMode: 'motion' | 'detail';
   screenAudio: boolean;
   sounds: Record<SoundKind, boolean>;
@@ -63,17 +63,17 @@ const defaults: Prefs = {
   soundVolume: 0.6,
 };
 
-/** Solo 720p30, 720p60 o 1080p30: riporta valori vecchi o non validi alla combinazione più vicina. */
+/** Only 720p30, 720p60 or 1080p30: maps old or invalid values to the closest combination. */
 export function clampScreen(height: number, fps: number): { height: number; fps: number } {
   if (height >= 1080 || height === 0) return { height: 1080, fps: 30 };
   return { height: 720, fps: fps >= 45 ? 60 : 30 };
 }
 
-// Corregge e completa un oggetto preferenze (vecchi formati, valori mancanti).
+// Fixes and completes a preferences object (old formats, missing values).
 function normalize(raw: any): Prefs {
   if (raw.noiseSuppression === false && !raw.noiseMode) raw.noiseMode = 'off';
 
-  // vecchi preset di qualità → valori liberi
+  // old quality presets → free values
   if (raw.screenQuality && raw.screenHeight === undefined) {
     const map: Record<string, [number, number, 'motion' | 'detail']> = {
       smooth: [720, 30, 'motion'],
@@ -90,7 +90,7 @@ function normalize(raw: any): Prefs {
   }
   delete raw.noiseSuppression;
 
-  if (raw.theme === 'black-blue') raw.theme = 'black'; // "Nero blu" tolto: stessa palette di "Nero"
+  if (raw.theme === 'black-blue') raw.theme = 'black'; // "Nero blu" removed: same palette as "Nero"
   if (!THEMES.includes(raw.theme)) raw.theme = 'system';
 
   return { ...defaults, ...raw, sounds: { ...defaults.sounds, ...(raw.sounds ?? {}) } };
@@ -99,7 +99,7 @@ function normalize(raw: any): Prefs {
 function load(): Prefs {
   try {
     const raw = JSON.parse(localStorage.getItem(LOCAL_KEY) ?? '{}');
-    // il tema era salvato a parte in una versione precedente
+    // the theme was stored separately in an older version
     if (raw.theme === undefined) raw.theme = localStorage.getItem(OLD_THEME_KEY) ?? 'system';
     return normalize(raw);
   } catch {
@@ -110,7 +110,7 @@ function load(): Prefs {
 export const prefs = $state<Prefs>(load());
 
 // ---------------------------------------------------------------------------
-// Tema
+// Theme
 // ---------------------------------------------------------------------------
 export function getTheme(): Theme {
   return prefs.theme;
@@ -129,17 +129,17 @@ export function setTheme(t: Theme) {
 }
 
 // ---------------------------------------------------------------------------
-// Salvataggio locale e remoto
+// Local and remote saving
 // ---------------------------------------------------------------------------
 function persistLocal() {
   try {
     localStorage.setItem(LOCAL_KEY, JSON.stringify($state.snapshot(prefs)));
   } catch {
-    /* storage pieno o non disponibile */
+    /* storage full or unavailable */
   }
 }
 
-// Momento dell'ultima modifica fatta su questo dispositivo (per decidere cosa vince).
+// Time of the last change made on this device (to decide which side wins).
 function changedAt(): number {
   try {
     return Number(localStorage.getItem(CHANGED_KEY)) || 0;
@@ -156,7 +156,7 @@ function markChanged(ts: number) {
   }
 }
 
-// Solo le preferenze che valgono ovunque (senza i dispositivi).
+// Only the preferences that apply everywhere (without devices).
 function syncedPrefs(): Record<string, unknown> {
   const out: Record<string, unknown> = { ...$state.snapshot(prefs) };
   for (const k of DEVICE_KEYS) delete out[k];
@@ -197,7 +197,7 @@ function flushPush() {
   pushNow();
 }
 
-// Applica le preferenze arrivate dal server, mantenendo i dispositivi di questa macchina.
+// Applies the preferences from the server, keeping this machine's devices.
 function applyRemote(remote: Record<string, unknown>) {
   const local = { micId: prefs.micId, camId: prefs.camId, speakerId: prefs.speakerId };
   Object.assign(prefs, normalize({ ...remote, ...local }));
@@ -205,7 +205,7 @@ function applyRemote(remote: Record<string, unknown>) {
   applyTheme();
 }
 
-/** Confronta con il server: vince la modifica più recente. */
+/** Compares with the server: the most recent change wins. */
 export async function syncPrefs() {
   const uid = userId;
   if (!uid || !configured) return;
@@ -219,7 +219,7 @@ export async function syncPrefs() {
 
   const local = changedAt();
   if (!data) {
-    // primo accesso: il server non ha ancora nulla, carica quelle locali
+    // first login: the server has nothing yet, upload the local ones
     pushNow();
     return;
   }
@@ -232,7 +232,7 @@ export async function syncPrefs() {
   }
 }
 
-/** Salva le preferenze: locale subito, sul server dopo un attimo. */
+/** Saves preferences: locally right away, on the server shortly after. */
 export function savePrefs() {
   markChanged(Date.now());
   persistLocal();
@@ -240,15 +240,15 @@ export function savePrefs() {
   schedulePush();
 }
 
-// Login/logout e ritorno nella finestra.
+// Login/logout and coming back to the window.
 if (configured && typeof window !== 'undefined') {
   supabase.auth.onAuthStateChange((_event, session) => {
     const uid = session?.user.id ?? null;
     if (uid === userId) return;
-    // se c'è una modifica in attesa, va salvata prima di cambiare utente
+    // a pending change must be saved before switching user
     flushPush();
     userId = uid;
-    // fuori dal callback per evitare deadlock interni di supabase-js
+    // outside the callback to avoid supabase-js internal deadlocks
     if (uid) setTimeout(() => syncPrefs(), 0);
   });
 
@@ -258,7 +258,7 @@ if (configured && typeof window !== 'undefined') {
 }
 
 // ---------------------------------------------------------------------------
-// Helper usati dall'audio
+// Helpers used by the audio code
 // ---------------------------------------------------------------------------
 export function micOptions() {
   return {

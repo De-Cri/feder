@@ -1,24 +1,24 @@
 -- =============================================================================
--- Messaggi privati cifrati end-to-end.
+-- End-to-end encrypted private messages.
 --
--- Il server non vede mai il testo: ogni membro ha una coppia di chiavi (ECDH P-256)
--- creata nell'app; la chiave privata arriva qui solo cifrata con il codice di recupero,
--- casuale, che il server non conosce. Il server vede solo chi scrive a chi e quando.
+-- The server never sees the text: every member has a key pair (ECDH P-256)
+-- created in the app; the private key arrives here only encrypted with the random
+-- recovery code, which the server doesn't know. The server only sees who writes to whom and when.
 --
--- - I messaggi si leggono solo se sei mittente o destinatario (RLS); in tempo reale
---   arrivano solo a quei due (postgres_changes rispetta l'RLS), niente broadcast.
--- - Si scrive solo con dm_send: limiti anti-spam e anti-broadcast lato server.
--- - Dopo 30 giorni un messaggio sparisce per chi non gli ha messo la stellina;
---   quando non ce l'ha più nessuno viene cancellato (dm_purge, senza pg_cron).
+-- - Messages can be read only by sender or recipient (RLS); in real time they
+--   reach only those two (postgres_changes respects RLS), no broadcast.
+-- - Writing only through dm_send: anti-spam and anti-broadcast limits on the server.
+-- - After 30 days a message disappears for whoever didn't star it;
+--   when nobody has it starred anymore it's deleted (dm_purge, no pg_cron needed).
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- Chiavi
+-- Keys
 -- -----------------------------------------------------------------------------
 create table public.dm_keys (
   user_id     uuid primary key references public.profiles (id) on delete cascade,
   public_key  text not null check (char_length(public_key) between 40 and 200),
-  -- chiave privata (pkcs8) cifrata con AES-GCM, chiave derivata dal codice con PBKDF2
+  -- private key (pkcs8) encrypted with AES-GCM, key derived from the code with PBKDF2
   wrapped_key text not null check (char_length(wrapped_key) between 40 and 400),
   salt        text not null check (char_length(salt) between 16 and 64),
   iv          text not null check (char_length(iv) between 12 and 32),
@@ -27,18 +27,18 @@ create table public.dm_keys (
 );
 
 -- -----------------------------------------------------------------------------
--- Messaggi
+-- Messages
 -- -----------------------------------------------------------------------------
 create table public.dm_messages (
   id            bigint generated always as identity primary key,
   sender        uuid not null references public.profiles (id) on delete cascade,
   recipient     uuid not null references public.profiles (id) on delete cascade,
-  -- chiavi pubbliche in uso all'invio: se una delle due persone rigenera il codice,
-  -- l'altra continua a leggere la cronologia
+  -- public keys in use when sending: if one of the two regenerates their code,
+  -- the other keeps reading the history
   sender_pub    text not null,
   recipient_pub text not null,
   iv            text not null check (char_length(iv) between 12 and 32),
-  -- testo cifrato in base64: 2000 caratteri in chiaro stanno sotto 11000
+  -- base64 ciphertext: 2000 plaintext characters stay below 11000
   body          text not null check (char_length(body) between 1 and 11000),
   created_at    timestamptz not null default now(),
   check (sender <> recipient)
@@ -47,7 +47,7 @@ create index dm_messages_sender_idx    on public.dm_messages (sender, created_at
 create index dm_messages_recipient_idx on public.dm_messages (recipient, created_at desc);
 create index dm_messages_created_idx   on public.dm_messages (created_at);
 
--- Stellina personale: ognuno vede solo le proprie.
+-- Personal star: everyone sees only their own.
 create table public.dm_stars (
   user_id    uuid   not null references public.profiles (id) on delete cascade,
   message_id bigint not null references public.dm_messages (id) on delete cascade,
@@ -59,7 +59,7 @@ create index dm_stars_message_idx on public.dm_stars (message_id);
 -- Helper
 -- -----------------------------------------------------------------------------
 
--- Visibile per me: sono uno dei due e il messaggio ha meno di 30 giorni o la mia stellina.
+-- Visible to me: I'm one of the two and the message is less than 30 days old or has my star.
 create or replace function public.dm_visible(p_sender uuid, p_recipient uuid, p_created timestamptz, p_id bigint)
 returns boolean
 language sql stable security definer
@@ -72,7 +72,7 @@ $$;
 revoke execute on function public.dm_visible(uuid, uuid, timestamptz, bigint) from public, anon;
 grant execute on function public.dm_visible(uuid, uuid, timestamptz, bigint) to authenticated;
 
--- Cancella i messaggi scaduti senza stelline.
+-- Deletes expired messages without stars.
 create or replace function private.dm_purge()
 returns void
 language sql volatile security definer
@@ -84,10 +84,10 @@ as $$
 $$;
 
 -- -----------------------------------------------------------------------------
--- Funzioni
+-- Functions
 -- -----------------------------------------------------------------------------
 
--- La propria chiave (anche la parte cifrata, che agli altri non è leggibile).
+-- Your own key (including the encrypted part, which others can't read).
 create or replace function public.dm_my_key()
 returns table (public_key text, wrapped_key text, salt text, iv text, iterations int)
 language sql stable security definer
@@ -97,7 +97,7 @@ as $$
   from public.dm_keys k where k.user_id = auth.uid() and public.is_member();
 $$;
 
--- Crea o sostituisce la propria chiave (prima attivazione o codice perso).
+-- Creates or replaces your own key (first activation or lost code).
 create or replace function public.dm_set_key(
   p_public text, p_wrapped text, p_salt text, p_iv text, p_iterations int)
 returns void
@@ -115,8 +115,8 @@ begin
 end;
 $$;
 
--- Invia un messaggio già cifrato. Limiti (per mittente):
---   5 messaggi ogni 5 s, 60 al minuto; al massimo 3 persone diverse ogni 2 minuti.
+-- Sends an already encrypted message. Limits (per sender):
+--   5 messages every 5 s, 60 per minute; at most 3 different people every 2 minutes.
 create or replace function public.dm_send(p_to uuid, p_body text, p_iv text, p_recipient_pub text)
 returns public.dm_messages
 language plpgsql volatile security definer
@@ -140,7 +140,7 @@ begin
   if v_rpub is null then raise exception 'dm_recipient_no_key'; end if;
   if v_rpub is distinct from p_recipient_pub then raise exception 'dm_key_changed'; end if;
 
-  -- un invio alla volta per mittente, così i conteggi sotto sono esatti
+  -- one send at a time per sender, so the counts below are exact
   perform pg_advisory_xact_lock(hashtextextended('dm:' || v_me::text, 0));
 
   if (select count(*) from public.dm_messages
@@ -164,7 +164,7 @@ begin
 end;
 $$;
 
--- Mette o toglie la propria stellina. Senza stelline un messaggio scaduto sparisce subito.
+-- Adds or removes your own star. Without stars an expired message disappears right away.
 create or replace function public.dm_star(p_id bigint, p_on boolean)
 returns void
 language plpgsql volatile security definer
@@ -188,7 +188,7 @@ begin
 end;
 $$;
 
--- Elenco delle mie chat: con chi, ultimo messaggio (solo quelli che vedo).
+-- My chats: with whom, last message (only the ones I can see).
 create or replace function public.dm_conversations()
 returns table (peer uuid, last_id bigint, last_at timestamptz, last_sender uuid)
 language sql stable security invoker
@@ -216,7 +216,7 @@ grant execute on function public.dm_star(bigint, boolean) to authenticated;
 grant execute on function public.dm_conversations() to authenticated;
 
 -- -----------------------------------------------------------------------------
--- RLS e permessi: lettura diretta limitata, scrittura solo tramite le funzioni.
+-- RLS and permissions: limited direct reads, writes only through the functions.
 -- -----------------------------------------------------------------------------
 alter table public.dm_keys     enable row level security;
 alter table public.dm_messages enable row level security;
@@ -230,9 +230,9 @@ create policy dm_stars_select on public.dm_stars for select to authenticated
   using (user_id = auth.uid());
 
 revoke all on public.dm_keys, public.dm_messages, public.dm_stars from anon, authenticated;
--- della tabella chiavi gli altri vedono solo la parte pubblica
+-- from the keys table, others only see the public part
 grant select (user_id, public_key, updated_at) on public.dm_keys to authenticated;
 grant select on public.dm_messages, public.dm_stars to authenticated;
 
--- I nuovi messaggi arrivano in tempo reale solo a mittente e destinatario (RLS).
+-- New messages arrive in real time only to sender and recipient (RLS).
 alter publication supabase_realtime add table public.dm_messages;

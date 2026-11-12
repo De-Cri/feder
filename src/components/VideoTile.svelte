@@ -30,11 +30,11 @@
     mirror?: boolean;
     focused?: boolean;
     connecting?: boolean;
-    /** riquadro della condivisione schermo (separato da quello della persona) */
+    /** screen share tile (separate from the person's tile) */
     screen?: boolean;
-    /** solo riquadri schermo: audio della stream silenziato per te */
+    /** screen tiles only: stream audio muted for you */
     audioMuted?: boolean;
-    /** solo riquadri schermo altrui: non ancora aperto, si mostra "Clicca per guardare" */
+    /** other people's screen tiles only: not opened yet, shows "Click to watch" */
     locked?: boolean;
     ontoggleaudio?: () => void;
     onstopwatch?: () => void;
@@ -47,10 +47,10 @@
   let tile: HTMLDivElement | undefined = $state();
   const p = $derived(app.presence[id]);
 
-  // Il video si collega solo se qualcuno può vederlo: finestra minimizzata/nascosta
-  // o riquadro fuori dalla vista → srcObject = null, così il lettore libera i suoi
-  // fotogrammi e smette di disegnare. Le tracce restano vive: l'audio continua e
-  // gli altri continuano a vedere la tua webcam/il tuo schermo.
+  // The video is attached only if someone can see it: minimized/hidden window
+  // or tile out of view → srcObject = null, so the player frees its frames
+  // and stops drawing. The tracks stay alive: audio keeps playing and
+  // the others keep seeing your webcam/screen.
   let hidden = $state(isHidden());
   let inView = $state(true);
   const show = $derived(!hidden && inView);
@@ -70,8 +70,8 @@
     if (v.srcObject !== src) v.srcObject = src;
     if (src) v.play().catch(() => {});
   });
-  // Quando il <video> sparisce (video spento, riquadro chiuso) stacca lo stream
-  // subito, invece di aspettare il garbage collector.
+  // When the <video> goes away (video off, tile closed) detach the stream
+  // right away, instead of waiting for the garbage collector.
   $effect(() => {
     const v = video;
     if (!v) return;
@@ -80,7 +80,7 @@
     };
   });
 
-  // Se il video è attivo ma non arriva nessuna immagine, lo diciamo invece di mostrare nero.
+  // If the video is on but no frame arrives, say so instead of showing black.
   let noFrames = $state(false);
   $effect(() => {
     noFrames = false;

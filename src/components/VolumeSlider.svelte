@@ -1,7 +1,7 @@
 <script lang="ts">
-  // Volume: cursore + percentuale modificabile. Rotellina e frecce = 1% alla volta,
-  // così si arriva a qualsiasi valore (col solo trascinamento un pixel vale più di 1%).
-  // max in percento (200 = fino al doppio). Oltre il 100% la traccia ha una tacca di riferimento.
+  // Volume: slider + editable percentage. Wheel and arrows = 1% at a time,
+  // so any value is reachable (dragging alone, one pixel is worth more than 1%).
+  // max in percent (200 = up to double). Past 100% the track has a reference mark.
   let { label, value, max = 200, onchange }: {
     label: string;
     value: number;
@@ -55,7 +55,7 @@
   .vol { display: flex; align-items: center; gap: 10px; padding: 6px 8px; font-size: 13px; }
   .label { min-width: 60px; color: var(--text-2); }
 
-  /* Traccia sottile riempita fino al valore, pallino che cresce al passaggio. */
+  /* Thin track filled up to the value, thumb that grows on hover. */
   .range {
     flex: 1;
     min-width: 0;
@@ -98,7 +98,7 @@
   .range:hover::-webkit-slider-thumb { transform: scale(1.15); }
   .range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--accent-soft), 0 1px 3px rgba(0, 0, 0, 0.35); }
 
-  /* Percentuale: testo semplice, diventa un campo solo al passaggio o in modifica. */
+  /* Percentage: plain text, becomes a field only on hover or while editing. */
   .pct {
     display: flex;
     align-items: baseline;

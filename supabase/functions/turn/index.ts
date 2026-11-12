@@ -1,8 +1,8 @@
-// Edge Function opzionale: genera credenziali TURN temporanee (Cloudflare Realtime TURN, free tier)
-// solo per i membri del server. Serve quando due amici sono dietro NAT "difficili"
-// (es. rete mobile/CGNAT) e la connessione diretta P2P non riesce.
+// Optional Edge Function: generates temporary TURN credentials (Cloudflare Realtime TURN, free tier)
+// for server members only. Needed when two friends are behind "hard" NATs
+// (e.g. mobile network/CGNAT) and the direct P2P connection fails.
 //
-// Secrets richiesti:  CF_TURN_KEY_ID, CF_TURN_API_TOKEN
+// Required secrets:  CF_TURN_KEY_ID, CF_TURN_API_TOKEN
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const cors = {

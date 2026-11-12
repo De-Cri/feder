@@ -23,7 +23,7 @@ export function bytes(n: number | null): string {
   return `${n.toFixed(i ? 1 : 0)} ${u[i]}`;
 }
 
-// Colori di sistema stile Apple per gli avatar (stabili per utente).
+// Apple-style system colors for avatars (stable per user).
 const AVATAR_COLORS = ['#0a84ff', '#30b0c7', '#34c759', '#ff9f0a', '#ff6482', '#bf5af2', '#5e5ce6', '#ac8e68'];
 
 export function avatarColor(id: string): string {
@@ -32,7 +32,7 @@ export function avatarColor(id: string): string {
   return AVATAR_COLORS[(h >>> 0) % AVATAR_COLORS.length];
 }
 
-/** Linkifica testo in modo sicuro (niente HTML dall'utente). */
+/** Safely turns links in text into anchors (no HTML from the user). */
 export function splitLinks(text: string): { t: string; href?: string }[] {
   const out: { t: string; href?: string }[] = [];
   const re = /https?:\/\/[^\s<]+[^\s<.,:;"')\]]/g;

@@ -1,6 +1,6 @@
-// Voce/video peer-to-peer (mesh): ogni partecipante è collegato direttamente agli altri.
-// Signaling via Supabase Realtime (canale privato, solo membri) con il pattern
-// "perfect negotiation" per gestire offerte simultanee e rinegoziazioni.
+// Peer-to-peer voice/video (mesh): every participant connects directly to the others.
+// Signaling via Supabase Realtime (private channel, members only) with the
+// "perfect negotiation" pattern to handle simultaneous offers and renegotiations.
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { app, presenceBudget as budget } from './state.svelte';
@@ -24,16 +24,16 @@ type Signal = {
   to: string;
   description?: RTCSessionDescriptionInit;
   candidate?: RTCIceCandidateInit | null;
-  /** id dello stream dello schermo di chi invia (null = non condivide). */
+  /** id of the sender's screen stream (null = not sharing). */
   screen?: string | null;
-  /** id della connessione di chi invia: se cambia, l'altro l'ha ricreata da zero. */
+  /** id of the sender's connection: if it changes, the other side recreated it from scratch. */
   sid?: string;
-  /** chi invia guarda (true) o no (false) il tuo schermo condiviso */
+  /** whether the sender is watching (true) or not (false) your shared screen */
   watch?: boolean;
 };
 
 const STUN: RTCIceServer[] = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }];
-const CAM_BITRATE = 900_000; // mesh a 5: ~0.9 Mbps per peer in upload
+const CAM_BITRATE = 900_000; // 5-person mesh: ~0.9 Mbps upload per peer
 const SPEAKING_DB = -50;
 
 async function loadIceServers(): Promise<RTCIceServer[]> {
@@ -45,15 +45,15 @@ async function loadIceServers(): Promise<RTCIceServer[]> {
       return [...STUN, ...extra];
     }
   } catch {
-    /* fallback a solo STUN */
+    /* fall back to STUN only */
   }
   return STUN;
 }
 
 // ---------------------------------------------------------------------------
-// "Sta parlando" per gli stream remoti (AnalyserNode sul contesto condiviso).
-// Usa lo stesso AudioContext del microfono: un contesto in più vuol dire un altro
-// thread audio e un'altra uscita aperta, solo per misurare un livello.
+// "Is speaking" for remote streams (AnalyserNode on the shared context).
+// Uses the microphone's AudioContext: one more context would mean another
+// audio thread and another open output, just to measure a level.
 // ---------------------------------------------------------------------------
 function analyser(stream: MediaStream, onLevel: (speaking: boolean) => void): () => void {
   try {
@@ -65,7 +65,7 @@ function analyser(stream: MediaStream, onLevel: (speaking: boolean) => void): ()
     const buf = new Uint8Array(an.fftSize);
     let hold = 0;
     const t = setInterval(() => {
-      if (isHidden()) return; // finestra nascosta: nessuno vede l'indicatore
+      if (isHidden()) return; // hidden window: nobody sees the indicator
       an.getByteTimeDomainData(buf);
       let sum = 0;
       for (const v of buf) sum += (v - 128) * (v - 128);
@@ -85,9 +85,9 @@ function analyser(stream: MediaStream, onLevel: (speaking: boolean) => void): ()
 }
 
 /**
- * Su Windows il codec H.264 è codificato dalla scheda video: molta meno CPU e
- * stream più fluida. Lo mettiamo per primo (gli altri restano come riserva).
- * Su Linux Chromium codifica comunque via software, quindi resta VP8.
+ * On Windows H.264 is encoded by the graphics card: much less CPU and a
+ * smoother stream. We put it first (the others stay as fallback).
+ * On Linux Chromium encodes in software anyway, so VP8 stays.
  */
 export function preferHardwareCodec(pc: RTCPeerConnection, sender: RTCRtpSender, force = false) {
   try {
@@ -99,14 +99,14 @@ export function preferHardwareCodec(pc: RTCPeerConnection, sender: RTCRtpSender,
     if (!h264.length) return;
     tr.setCodecPreferences([...h264, ...caps.filter((c) => !/h264/i.test(c.mimeType))]);
   } catch {
-    /* preferenza non applicabile: si usa il predefinito */
+    /* preference not applicable: use the default */
   }
 }
 
 /**
- * Vincoli di cattura dello schermo. Solo `ideal` non basta: su monitor 1440p/4K
- * Chromium catturava a risoluzione nativa e ogni peer della mesh codificava quel
- * flusso (CPU al limite = lag). Servono i `max`.
+ * Screen capture constraints. `ideal` alone isn't enough: on 1440p/4K monitors
+ * Chromium captured at native resolution and every mesh peer encoded that
+ * stream (CPU maxed out = lag). The `max` values are needed.
  */
 function screenVideo(q: { fps: number; height: number }): MediaTrackConstraints {
   return {
@@ -116,7 +116,7 @@ function screenVideo(q: { fps: number; height: number }): MediaTrackConstraints 
   };
 }
 
-/** Aggiunge x-google-start/min-bitrate ai codec video dell'SDP (kbps). */
+/** Adds x-google-start/min-bitrate to the SDP's video codecs (kbps). */
 export function boostVideoBitrate(sdp: string, start = 1500, min = 300): string {
   if (!sdp.includes('m=video')) return sdp;
   const lines = sdp.split('\r\n');
@@ -124,7 +124,7 @@ export function boostVideoBitrate(sdp: string, start = 1500, min = 300): string 
   let inVideo = false;
   const seenFmtp = new Set<string>();
   const videoPts: string[] = [];
-  // chiude la sezione video aggiungendo le fmtp mancanti
+  // closes the video section adding the missing fmtp lines
   const flush = () => {
     for (const pt of videoPts) if (!seenFmtp.has(pt)) out.push(`a=fmtp:${pt} x-google-start-bitrate=${start};x-google-min-bitrate=${min}`);
   };
@@ -151,7 +151,7 @@ export function boostVideoBitrate(sdp: string, start = 1500, min = 300): string 
     out.push(line);
   }
   if (inVideo) {
-    // sezione video in fondo: inserisce prima della riga vuota finale
+    // video section at the end: insert before the final empty line
     const tail = out.length && out[out.length - 1] === '' ? out.pop() : undefined;
     flush();
     if (tail !== undefined) out.push(tail);
@@ -165,33 +165,33 @@ class Peer {
   polite: boolean;
   makingOffer = false;
   ignoreOffer = false;
-  /** Tutte le tracce remote ricevute (diagnostica). */
+  /** All received remote tracks (diagnostics). */
   stream = new MediaStream();
-  /** Audio da riprodurre, uno stream per sorgente (microfono, audio dello schermo). */
+  /** Audio to play, one stream per source (microphone, screen audio). */
   audioStreams = $state<{ key: string; stream: MediaStream }[]>([]);
   audioSender: RTCRtpSender | null = null;
   camSender: RTCRtpSender | null = null;
   screenSender: RTCRtpSender | null = null;
   screenAudioSender: RTCRtpSender | null = null;
-  /** L'altro guarda il mio schermo? Se no, la mia stream verso di lui va in pausa.
-   *  Parte da true: le versioni vecchie non lo dicono e lo mostrano sempre. */
+  /** Is the other side watching my screen? If not, my stream to them is paused.
+   *  Starts as true: old versions don't say it and always show it. */
   wantsScreen = true;
   /**
-   * Sender rimasti fermi dopo aver spento webcam/schermo. Alla riaccensione si
-   * riusa lo stesso transceiver: con addTrack ne nasceva uno nuovo ogni volta
-   * (+2 per ogni condivisione schermo, da entrambe le parti, mai liberati).
+   * Senders left idle after turning webcam/screen off. When turned back on, the
+   * same transceiver is reused: with addTrack a new one was created every time
+   * (+2 for every screen share, on both sides, never freed).
    */
   idle: Partial<Record<SenderKey, RTCRtpSender>> = {};
   private stopAnalyser: (() => void) | null = null;
-  /** Chiave dello stream audio su cui gira l'analizzatore. */
+  /** Key of the audio stream the analyser runs on. */
   private analysedKey: string | null = null;
   private streamMap = new Map<string, MediaStream>();
 
-  /** id dello stream dello schermo dell'altro (undefined = versione vecchia, non lo manda). */
+  /** id of the other side's screen stream (undefined = old version, doesn't send it). */
   screenStreamId: string | null | undefined = undefined;
   private camTrack: MediaStreamTrack | null = null;
   private screenTrack: MediaStreamTrack | null = null;
-  /** Uno stream nuovo per ogni traccia video: il <video> non resta mai su una traccia vecchia (nero). */
+  /** A new stream for every video track: the <video> never sticks to an old (black) track. */
   camView = $state<MediaStream | null>(null);
   screenView = $state<MediaStream | null>(null);
   hasCam = $state(false);
@@ -230,15 +230,15 @@ class Peer {
     this.pc.ontrack = ({ track, streams }) => {
       if (!this.stream.getTracks().includes(track)) this.stream.addTrack(track);
       if (track.kind === 'video') {
-        // Schermo o webcam? Lo dice l'id dello stream che l'altro ci ha comunicato.
+        // Screen or webcam? The stream id the other side sent us tells.
         const isScreen = !!streams[0] && streams[0].id === this.screenStreamId;
         if (isScreen) {
-          // Un piccolo buffer in più (150 ms) assorbe gli sbalzi di rete: stream più regolare.
+          // A slightly larger buffer (150 ms) absorbs network jitter: smoother stream.
           try {
             const r = this.pc.getReceivers().find((x) => x.track === track) as RTCRtpReceiver & { jitterBufferTarget?: number };
             if (r && 'jitterBufferTarget' in r) r.jitterBufferTarget = 150;
           } catch {
-            /* non supportato */
+            /* not supported */
           }
           this.screenTrack = track;
           this.screenView = new MediaStream([track]);
@@ -275,15 +275,15 @@ class Peer {
       if (this.pc.connectionState === 'connected') this.room.tuneBitrate(this);
     };
 
-    // Evita offerte incrociate alla prima connessione (causano candidati ICE persi
-    // in Chromium): chi ha l'id minore offre subito, l'altro aggiunge le sue
-    // tracce quando riceve l'offerta (o dopo 2,5 s se l'offerta non arriva).
+    // Avoid crossed offers on the first connection (they cause lost ICE candidates
+    // in Chromium): the lower id offers right away, the other adds its
+    // tracks when the offer arrives (or after 2.5 s if it doesn't).
     if (!this.polite) this.attachLocalTracks();
     else this.attachTimer = setTimeout(() => this.attachLocalTracks(), 2500);
 
-    // Watchdog: dopo 10 s non connesso riavvia ICE; dopo 20 s ricrea la connessione.
-    // Un segnale perso (offerta/risposta) altrimenti lascia un lato su "connessione…"
-    // per sempre, mentre l'altro resta sulla vecchia; il nuovo `sid` riallinea l'altro.
+    // Watchdog: after 10 s without connection restart ICE; after 20 s recreate the connection.
+    // Otherwise a lost signal (offer/answer) leaves one side on "connecting…"
+    // forever, while the other keeps the old one; the new `sid` realigns the other side.
     let stuck = 0;
     this.watchdog = setInterval(() => {
       const st = this.pc.connectionState;
@@ -312,15 +312,15 @@ class Peer {
     this.room.tuneBitrate(this);
   }
 
-  /** Le tracce aggiunte dopo (webcam/schermo) passano di qui solo se già collegato. */
+  /** Tracks added later (webcam/screen) go through here only once connected. */
   get ready() {
     return this.attached;
   }
 
   /**
-   * Una traccia remota non arriverà più (l'altro ha tolto webcam/schermo, o è
-   * finita): via da tutti i riferimenti, così <video>/<audio> e i loro buffer
-   * vengono liberati invece di restare agganciati a una traccia muta.
+   * A remote track won't receive anything anymore (the other side removed webcam/screen,
+   * or it ended): drop it from every reference, so <video>/<audio> and their buffers
+   * are freed instead of staying attached to a silent track.
    */
   private forget(track: MediaStreamTrack) {
     this.stream.removeTrack(track);
@@ -349,9 +349,9 @@ class Peer {
   }
 
   /**
-   * Dopo ogni negoziazione: i transceiver su cui l'altro non invia più
-   * (removeTrack dall'altra parte → sendonly/inactive) hanno una traccia
-   * che resterebbe muta per sempre. Chromium non la chiude: lo facciamo noi.
+   * After each negotiation: transceivers the other side no longer sends on
+   * (removeTrack on their side → sendonly/inactive) have a track
+   * that would stay silent forever. Chromium doesn't end it: we do.
    */
   private prune() {
     let changed = false;
@@ -373,20 +373,20 @@ class Peer {
     this.rev++;
   }
 
-  /** L'audio con questa chiave è quello dello schermo condiviso (non la voce)? */
+  /** Is the audio with this key the shared screen's audio (not the voice)? */
   isScreenAudio(key: string) {
     return !!this.screenStreamId && key === this.screenStreamId;
   }
 
-  /** Compatibilità (test e codice vecchio): c'è almeno un video attivo. */
+  /** Compatibility (tests and old code): there is at least one active video. */
   get hasVideo() {
     return this.hasCam || this.hasScreen;
   }
 
-  // I segnali vanno applicati in ordine: un candidato ICE elaborato prima che
-  // la descrizione remota sia impostata andrebbe perso.
+  // Signals must be applied in order: an ICE candidate processed before the
+  // remote description is set would be lost.
   private queue: Promise<void> = Promise.resolve();
-  /** Contatori diagnostici (utili nei test). */
+  /** Diagnostic counters (useful in tests). */
   stats = { sent: 0, recv: 0, candErr: 0, ignored: 0 };
   handle(sig: Signal) {
     this.remoteSid ??= sig.sid;
@@ -406,21 +406,21 @@ class Peer {
           return;
         }
         if (sig.screen !== undefined) this.screenStreamId = sig.screen;
-        // Partenza veloce del video: senza, Chromium parte da ~300 kbps e lo schermo
-        // resta sgranato per decine di secondi. Se la modifica non piace al browser
-        // si usa la descrizione originale.
+        // Fast video start: without it, Chromium starts at ~300 kbps and the screen
+        // stays blurry for tens of seconds. If the browser rejects the change
+        // the original description is used.
         try {
           await pc.setRemoteDescription({ type: d.type, sdp: boostVideoBitrate(d.sdp ?? '') });
         } catch {
           await pc.setRemoteDescription(d);
         }
         if (d.type === 'offer') {
-          // Aggiunte dopo l'offerta, le tracce riusano i transceiver già negoziati.
+          // Added after the offer, the tracks reuse the already negotiated transceivers.
           this.attachLocalTracks();
           await pc.setLocalDescription();
           this.room.send(this.id, { description: pc.localDescription!.toJSON(), screen: this.room.screenStreamIdIfActive });
         }
-        this.prune(); // negoziazione conclusa (risposta applicata): direzioni aggiornate
+        this.prune(); // negotiation done (answer applied): directions are up to date
       } else if (sig.candidate !== undefined) {
         this.stats.recv++;
         try {
@@ -442,7 +442,7 @@ class Peer {
     this.stopAnalyser = null;
     this.pc.close();
     this.stream.getTracks().forEach((t) => t.stop());
-    // Niente riferimenti residui: i componenti che li mostrano li rilasciano subito.
+    // No leftover references: the components showing them release them right away.
     this.streamMap.clear();
     this.audioStreams = [];
     this.camView = this.screenView = null;
@@ -461,7 +461,7 @@ class VoiceRoom {
   deaf = $state(false);
   camOn = $state(false);
   screenOn = $state(false);
-  /** Anteprime locali: uno stream per la webcam e uno per lo schermo. */
+  /** Local previews: one stream for the webcam and one for the screen. */
   camPreview = $state<MediaStream | null>(null);
   screenPreview = $state<MediaStream | null>(null);
   localSpeaking = $state(false);
@@ -469,7 +469,7 @@ class VoiceRoom {
   error = $state<string | null>(null);
   notice = $state<string | null>(null);
   joining = $state(false);
-  /** Condivisioni schermo che hai scelto di guardare (chiave = id di chi condivide). */
+  /** Screen shares you chose to watch (key = sharer's id). */
   watching = $state<Record<string, true>>({});
 
   me = '';
@@ -497,7 +497,7 @@ class VoiceRoom {
       this.error = 'WebRTC non disponibile in questa installazione.';
       return;
     }
-    // Un clic su un altro canale annulla anche un ingresso ancora in corso.
+    // A click on another channel also cancels a join still in progress.
     if (this.channelId !== null || this.joining) await this.leave(true);
     const seq = ++this.joinSeq;
     this.joining = true;
@@ -505,7 +505,7 @@ class VoiceRoom {
     this.me = app.me!;
     try {
       const [mic, ice] = await Promise.all([MicPipeline.create(micOptions()), loadIceServers()]);
-      if (seq !== this.joinSeq) return mic.stop(); // superato da un altro clic
+      if (seq !== this.joinSeq) return mic.stop(); // superseded by another click
       this.ice = ice;
       this.setMic(mic);
     } catch (e) {
@@ -521,20 +521,20 @@ class VoiceRoom {
       config: { private: true, broadcast: { self: false }, presence: { key: this.me } },
     });
     this.rt = rt;
-    let known: Set<string> | null = null; // chi c'era al mio ingresso (niente suono per loro)
-    let settledAt = Infinity; // fino a poco dopo l'ingresso lo stato può arrivare a pezzi
+    let known: Set<string> | null = null; // who was there when I joined (no sound for them)
+    let settledAt = Infinity; // until shortly after joining, state may arrive in pieces
     let subscribed = false;
     let retrack: ReturnType<typeof setTimeout> | undefined;
     rt.on('broadcast', { event: 'signal' }, ({ payload }) => {
       const sig = payload as Signal;
       if (sig.to !== this.me || sig.from === this.me) return;
       if (!app.members.some((m) => m.user_id === sig.from)) return;
-      // L'altro ha ricreato la connessione (es. la presenza ci ha persi per un attimo)
-      // mentre noi teniamo la vecchia, ancora "connessa": la sua offerta nuova non
-      // attaccherebbe mai e lui resterebbe su "connessione…". Ricreiamo anche la nostra.
+      // The other side recreated the connection (e.g. presence lost us for a moment)
+      // while we keep the old one, still "connected": their new offer would
+      // never stick and they would stay on "connecting…". We recreate ours too.
       const old = this.peers[sig.from];
       if (old?.remoteSid && sig.sid && sig.sid !== old.remoteSid) {
-        if (sig.description?.type !== 'offer') return; // residui della connessione vecchia
+        if (sig.description?.type !== 'offer') return; // leftovers of the old connection
         this.drop(sig.from);
       }
       if (sig.watch !== undefined) {
@@ -548,7 +548,7 @@ class VoiceRoom {
     })
       .on('presence', { event: 'sync' }, () => {
         const state = rt.presenceState();
-        // Se il server ci ha perso dalla stanza, ci ripresentiamo (gli altri non ci vedrebbero).
+        // If the server lost us from the room, we show up again (the others wouldn't see us).
         if (subscribed && !(this.me in state)) {
           clearTimeout(retrack);
           retrack = setTimeout(() => {
@@ -560,12 +560,12 @@ class VoiceRoom {
         const ids = new Set(Object.keys(state));
         app.room = { channel: channelId, ids: [this.me, ...[...ids].filter((id) => id !== this.me && app.members.some((m) => m.user_id === id))] };
         ids.delete(this.me);
-        // Solo chi ha l'id minore avvia la connessione; l'altro risponde all'offerta.
+        // Only the lower id starts the connection; the other answers the offer.
         for (const id of ids) {
           if (!app.members.some((m) => m.user_id === id)) continue;
           if (this.me < id) this.peer(id);
           else
-            // Rete di sicurezza: se l'altro non si fa vivo, avvio io.
+            // Safety net: if the other side doesn't show up, I start.
             setTimeout(() => {
               if (this.rt === rt && !this.peers[id] && id in rt.presenceState()) this.peer(id);
             }, 3000);
@@ -594,9 +594,9 @@ class VoiceRoom {
     this.syncPresence();
   }
 
-  /** @param switching true quando si passa a un altro canale (niente suono di uscita). */
+  /** @param switching true when moving to another channel (no leave sound). */
   async leave(switching = false) {
-    this.joinSeq++; // annulla eventuali ingressi in corso
+    this.joinSeq++; // cancels joins in progress
     if (this.channelId !== null && !switching) playSound('selfLeave');
     const rt = this.rt;
     this.rt = null;
@@ -643,7 +643,7 @@ class VoiceRoom {
     delete this.peers[id];
   }
 
-  // ---- microfono ---------------------------------------------------------
+  // ---- microphone --------------------------------------------------------
   private setMic(mic: MicPipeline) {
     const old = this.audioTrack;
     if (old) this.localStream.removeTrack(old);
@@ -661,7 +661,7 @@ class VoiceRoom {
         this.localSpeaking = false;
         return;
       }
-      if (isHidden()) return; // finestra nascosta: l'indicatore non si vede
+      if (isHidden()) return; // hidden window: the indicator isn't visible
       const threshold = prefs.gateEnabled ? prefs.gateDb : SPEAKING_DB;
       if (this.mic.levelDb() > threshold) hold = 3;
       else if (hold > 0) hold--;
@@ -669,7 +669,7 @@ class VoiceRoom {
     }, 100);
   }
 
-  /** Ricrea la catena del microfono (cambio dispositivo/soppressione/gate) senza uscire. */
+  /** Rebuilds the microphone chain (device/suppression/gate change) without leaving. */
   async rebuildMic() {
     if (this.channelId === null) return;
     const run = async () => {
@@ -716,36 +716,36 @@ class VoiceRoom {
     this.syncPresence();
   }
 
-  // ---- video: webcam e schermo sono indipendenti (anche insieme) --------
-  /** id dello stream dello schermo da comunicare agli altri (null se non condividi). */
+  // ---- video: webcam and screen are independent (even together) ---------
+  /** id of the screen stream to send to the others (null if not sharing). */
   get screenStreamIdIfActive(): string | null {
     return this.screenTrack ? this.screenStream.id : null;
   }
 
   private forReadyPeers(fn: (p: Peer) => void) {
-    for (const p of Object.values(this.peers)) if (p.ready) fn(p); // gli altri ricevono tutto quando si collegano
+    for (const p of Object.values(this.peers)) if (p.ready) fn(p); // the others get everything when they connect
   }
 
   private removeSender(p: Peer, key: SenderKey) {
     const sender = p[key];
     if (!sender) return;
     try {
-      // Il transceiver resta (smette solo di inviare): chi guarda vede la traccia
-      // spegnersi come prima, e alla prossima accensione lo riusiamo.
+      // The transceiver stays (it only stops sending): viewers see the track
+      // go off as before, and we reuse it next time.
       p.pc.removeTrack(sender);
       p.idle[key] = sender;
     } catch {
-      /* connessione già chiusa */
+      /* connection already closed */
     }
     p[key] = null;
   }
 
   /**
-   * Inizia a inviare `track`: sul transceiver usato l'ultima volta per lo stesso
-   * scopo se c'è (stessa riga SDP, niente transceiver nuovi a ogni accensione),
-   * altrimenti con addTrack come sempre. Per chi riceve è identico: la riga torna
-   * attiva con lo stesso id di stream, quindi anche le versioni vecchie la
-   * riconoscono (schermo o webcam) come prima.
+   * Starts sending `track`: on the transceiver last used for the same purpose
+   * if there is one (same SDP line, no new transceivers every time),
+   * otherwise with addTrack as usual. For the receiver it's identical: the line
+   * becomes active again with the same stream id, so old versions still
+   * recognize it (screen or webcam) as before.
    */
   private addSender(p: Peer, key: SenderKey, track: MediaStreamTrack, stream: MediaStream): RTCRtpSender {
     const old = p.idle[key];
@@ -755,11 +755,11 @@ class VoiceRoom {
       try {
         old.setStreams?.(stream);
         void old.replaceTrack(track).catch(() => {});
-        // l'inverso di removeTrack: recvonly → sendrecv, inactive → sendonly
+        // the inverse of removeTrack: recvonly → sendrecv, inactive → sendonly
         tr.direction = tr.direction === 'inactive' || tr.direction === 'sendonly' ? 'sendonly' : 'sendrecv';
         return old;
       } catch {
-        /* non riusabile: se ne crea uno nuovo */
+        /* not reusable: create a new one */
       }
     }
     return p.pc.addTrack(track, stream);
@@ -827,20 +827,20 @@ class VoiceRoom {
           : false,
       });
     } catch {
-      return; // annullato dall'utente
+      return; // cancelled by the user
     }
     const track = s.getVideoTracks()[0];
     const audio = s.getAudioTracks()[0] ?? null;
-    // Tracce in più che non usiamo: fermate subito, altrimenti la cattura resta aperta.
+    // Extra tracks we don't use: stop them now, or the capture stays open.
     for (const t of s.getTracks()) if (t !== track && t !== audio) t.stop();
     if (!track || this.channelId === null) return s.getTracks().forEach((t) => t.stop());
     track.contentHint = q.hint;
-    track.onended = () => this.screenTrack === track && this.stopScreen(); // "Interrompi condivisione" del sistema
+    track.onended = () => this.screenTrack === track && this.stopScreen(); // the system's "Stop sharing"
     this.screenTrack = track;
     this.screenStream.addTrack(track);
     this.screenPreview = new MediaStream([track]);
     this.screenOn = true;
-    // Audio di sistema/scheda (Windows: spunta "Condividi audio" nel selettore).
+    // System/tab audio (Windows: "Share audio" checkbox in the picker).
     if (audio) {
       this.screenAudioTrack = audio;
       this.screenStream.addTrack(audio);
@@ -874,7 +874,7 @@ class VoiceRoom {
     if (sync && had) this.syncPresence();
   }
 
-  /** Applica subito le nuove impostazioni di qualità a una condivisione in corso. */
+  /** Applies new quality settings to an ongoing share right away. */
   async applyScreenSettings() {
     const t = this.screenTrack;
     if (!t) return;
@@ -883,12 +883,12 @@ class VoiceRoom {
     try {
       await t.applyConstraints(screenVideo(q));
     } catch {
-      /* il sistema non permette di cambiarla al volo: varrà alla prossima condivisione */
+      /* the system doesn't allow changing it on the fly: it applies to the next share */
     }
     for (const p of Object.values(this.peers)) this.tuneBitrate(p);
   }
 
-  /** Spegne webcam e schermo. */
+  /** Turns webcam and screen off. */
   stopVideo(sync = true) {
     this.stopCam(false);
     this.stopScreen(false);
@@ -905,12 +905,12 @@ class VoiceRoom {
         if (degradation) params.degradationPreference = degradation;
         await sender.setParameters(params);
       } catch {
-        /* non ancora negoziato: riprova a connessione avvenuta */
+        /* not negotiated yet: retry once connected */
       }
     };
     await set(p.camSender, { maxBitrate: CAM_BITRATE, maxFramerate: 30 });
     const q = screenSettings();
-    // Chi non guarda il mio schermo non lo riceve: niente codifica né banda sprecate.
+    // Whoever isn't watching my screen doesn't receive it: no wasted encoding or bandwidth.
     const active = p.wantsScreen;
     await set(p.screenSender, { maxBitrate: q.bitrate, maxFramerate: q.fps, active }, q.degradation);
     await set(p.screenAudioSender, { active });
@@ -927,21 +927,21 @@ class VoiceRoom {
 
 export const voice = new VoiceRoom();
 
-// Se l'utente viene espulso o esce, chiude la chiamata; se un membro viene
-// rimosso, chiude subito la connessione diretta con lui.
+// If the user is kicked or leaves, close the call; if a member is
+// removed, close the direct connection with them right away.
 app.onKicked = () => {
   if (voice.channelId !== null) voice.leave();
 };
 app.onMemberLeft = (id) => voice.drop(id);
 
-// Diagnostica da console (F12): `await cerchioStats()` mostra cosa viene inviato e
-// ricevuto con ogni persona (utile se qualcuno vede nero o non si sente).
+// Console diagnostics (F12): `await cerchioStats()` shows what is sent and
+// received with each person (useful if someone sees black or can't be heard).
 (globalThis as { cerchioStats?: () => Promise<unknown> }).cerchioStats = async () => {
   const rows: Record<string, unknown>[] = [];
   for (const p of Object.values(voice.peers)) {
     const stats = await p.pc.getStats();
     stats.forEach((r) => {
-      // rete tra voi (round-trip) dalla coppia ICE attiva
+      // network between you (round-trip) from the active ICE pair
       if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') {
         rows.push({
           con: app.name(p.id),
@@ -961,7 +961,7 @@ app.onMemberLeft = (id) => voice.drop(id);
           size: r.frameWidth ? `${r.frameWidth}x${r.frameHeight}` : '',
           fps: r.framesPerSecond ?? '',
           limite: r.qualityLimitationReason ?? '',
-          // lato chi guarda: blocchi del video, fotogrammi buttati, ritardo del buffer
+          // viewer side: video freezes, dropped frames, buffer delay
           blocchi: r.type === 'inbound-rtp' && r.kind === 'video' ? `${r.freezeCount ?? 0} (${(r.totalFreezesDuration ?? 0).toFixed(1)} s)` : '',
           persi: r.type === 'inbound-rtp' ? `${r.packetsLost ?? 0} pkt / ${r.framesDropped ?? 0} frm` : '',
           buffer:

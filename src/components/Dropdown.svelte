@@ -24,7 +24,7 @@
     if (v !== value) onchange(v);
   }
 
-  // Clic fuori dal menu lo chiude (fase di cattura, come gli altri menu).
+  // A click outside the menu closes it (capture phase, like the other menus).
   function outside(e: Event) {
     if (root && e.target instanceof Node && root.contains(e.target)) return;
     open = false;

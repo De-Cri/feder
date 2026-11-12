@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 // =============================================================================
-// Cerchio — wizard di installazione e build
+// Feder — install and build wizard
 //
-// Windows: doppio clic su  Setup.cmd
+// Windows: double-click   Setup.cmd
 // Linux:   ./setup.sh
 //
-// Controlla cosa manca (git, GitHub CLI, Rust, Visual Studio Build Tools,
-// WebView2, rpm-build…), chiede il permesso e lo installa, poi crea gli
-// installer. Due modalità:
-//   1. Nel cloud (consigliata): GitHub Actions compila Windows + Linux.
-//      Sul PC servono solo git e GitHub CLI.
-//   2. Su questo PC: compila l'installer per il sistema che stai usando.
+// Checks what is missing (git, GitHub CLI, Rust, Visual Studio Build Tools,
+// WebView2, rpm-build…), asks for permission and installs it, then builds the
+// installers. Two modes:
+//   1. In the cloud (recommended): GitHub Actions builds Windows + Linux.
+//      The PC only needs git and GitHub CLI.
+//   2. On this PC: builds the installer for the system you are using.
 // =============================================================================
 import { spawnSync, execSync } from 'node:child_process';
 import { createInterface } from 'node:readline/promises';
@@ -25,12 +25,12 @@ const LINUX = platform === 'linux';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 process.chdir(ROOT);
 const OUT = join(ROOT, 'installer');
-const DRY = process.argv.includes('--dry-run'); // mostra cosa farebbe senza installare
+const DRY = process.argv.includes('--dry-run'); // shows what it would do without installing
 
 const rl = createInterface({ input: stdin, output: stdout });
 let rlClosed = false;
 rl.on('close', () => (rlClosed = true));
-/** Come rl.question, ma se l'input è chiuso (es. pipe esaurita) usa la risposta predefinita. */
+/** Like rl.question, but if input is closed (e.g. exhausted pipe) it uses the default answer. */
 function ask(q) {
   if (rlClosed) return Promise.resolve('');
   return new Promise((resolve) => {
@@ -76,21 +76,21 @@ async function choose(q, options) {
   }
 }
 
-/** Esegue un comando mostrando l'output. */
+/** Runs a command showing its output. */
 function run(cmd, args = [], opts = {}) {
   info(`$ ${cmd} ${args.join(' ')}`);
   if (DRY) return true;
   const r = spawnSync(cmd, args, { stdio: 'inherit', shell: WIN, ...opts });
   return r.status === 0;
 }
-/** Esegue e restituisce l'output (null se fallisce). */
+/** Runs and returns the output (null if it fails). */
 function out(cmd, args = [], opts = {}) {
   const r = spawnSync(cmd, args, { encoding: 'utf8', shell: WIN, stdio: ['ignore', 'pipe', 'pipe'], ...opts });
   return r.status === 0 ? (r.stdout || '').trim() : null;
 }
 const has = (cmd, args = ['--version']) => out(cmd, args) !== null;
 
-/** Windows: dopo un'installazione il PATH del processo è vecchio, lo rileggiamo dal registro. */
+/** Windows: after an install the process PATH is stale, so we re-read it from the registry. */
 function refreshPath() {
   if (WIN) {
     const p = out('powershell', [
@@ -105,7 +105,7 @@ function refreshPath() {
   if (existsSync(cargoBin) && !(env.PATH ?? '').includes(cargoBin)) env.PATH = env.Path = `${cargoBin}${sep}${env.PATH}`;
 }
 
-// ---- gestori di pacchetti -----------------------------------------------------
+// ---- package managers -----------------------------------------------------------
 function linuxDistro() {
   try {
     const os = readFileSync('/etc/os-release', 'utf8');
@@ -140,7 +140,7 @@ function pkgInstall(pkgs) {
 }
 
 /**
- * Requisito: controlla, e se manca spiega, chiede il permesso e installa.
+ * Requirement: checks it, and if missing explains, asks for permission and installs.
  * @param {{name:string, why:string, size?:string, check:()=>boolean, pkgs?:Array<[string, string[]?]>, install?:()=>boolean, manual?:string}} r
  */
 async function need(r) {
@@ -160,7 +160,7 @@ async function need(r) {
   ok(`${r.name} installato`);
 }
 
-// ---- requisiti ----------------------------------------------------------------
+// ---- requirements -------------------------------------------------------------
 const REQ = {
   git: {
     name: 'git',
@@ -181,7 +181,7 @@ const REQ = {
     why: 'compila l’app Windows (Tauri)',
     size: '~1 GB',
     check: () => has('cargo') && has('rustc'),
-    // rustup da winget, poi la toolchain stabile (senza, cargo non parte).
+    // rustup from winget, then the stable toolchain (without it cargo doesn't start).
     install: () => pkgInstall([['Rustlang.Rustup']]) && (refreshPath(), run('rustup', ['default', 'stable-msvc'])),
     manual: 'https://rustup.rs',
   },
@@ -224,10 +224,10 @@ const REQ = {
   },
 };
 
-// ---- passi ------------------------------------------------------------------
+// ---- steps ------------------------------------------------------------------
 async function ghLogin() {
   if (out('gh', ['auth', 'status']) !== null) {
-    // Serve il permesso "workflow" per caricare le GitHub Actions.
+    // The "workflow" scope is needed to upload the GitHub Actions.
     const scopes = spawnSync('gh', ['auth', 'status'], { encoding: 'utf8', shell: WIN });
     if (!/workflow/.test(`${scopes.stdout}${scopes.stderr}`)) {
       info('Serve un permesso in più su GitHub (workflow): si apre il browser per confermarlo.');
@@ -274,8 +274,8 @@ async function buildWindowsHere() {
   ok('Dipendenze installate');
 
   title('Compilazione (la prima volta ~5–10 minuti)');
-  // Con le chiavi dell'updater (create da `npm run setup`) firmiamo anche l'aggiornamento;
-  // senza, si crea solo l'installer.
+  // With the updater keys (created by `npm run setup`) we also sign the update;
+  // without them, only the installer is built.
   const key = join('.cerchio-secrets', 'updater.key');
   const localConf = join(ROOT, 'src-tauri', 'tauri.local.conf.json');
   const e = { ...env };

@@ -8,7 +8,7 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: false,
-    // Mai inline gli AudioWorklet come data: URL (la CSP li bloccherebbe).
+    // Never inline AudioWorklets as data: URLs (the CSP would block them).
     assetsInlineLimit: (file) => (file.endsWith('.js') || file.endsWith('.wasm') ? false : undefined),
   },
 });

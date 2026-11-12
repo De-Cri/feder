@@ -1,4 +1,4 @@
-# Build Linux (Electron). Windows usa Tauri (src-tauri/).
+# Linux build (Electron). Windows uses Tauri (src-tauri/).
 appId: app.cerchio.desktop
 productName: Feder
 copyright: Feder

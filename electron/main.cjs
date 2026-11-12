@@ -1,6 +1,6 @@
-// Feder — contenitore Electron (Linux; utile anche per sviluppare su Windows).
-// Su Linux la webview di sistema (WebKitGTK) spesso non ha WebRTC: Electron
-// porta con sé Chromium, così voce, video e condivisione schermo funzionano sempre.
+// Feder — Electron shell (Linux; also handy for developing on Windows).
+// On Linux the system webview (WebKitGTK) often lacks WebRTC: Electron
+// ships Chromium, so voice, video and screen sharing always work.
 const {
   app,
   BrowserWindow,
@@ -16,7 +16,7 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 const DIST = path.join(__dirname, '..', 'dist');
-const DEV_URL = process.env.CERCHIO_DEV_URL; // es. http://localhost:1420 con `npm run electron:dev`
+const DEV_URL = process.env.CERCHIO_DEV_URL; // e.g. http://localhost:1420 with `npm run electron:dev`
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'wasm-unsafe-eval'",
@@ -41,12 +41,12 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, codeCache: true } },
 ]);
 
-// Cattura schermo via PipeWire (Wayland: GNOME/KDE su Fedora) e Wayland nativo quando disponibile.
+// Screen capture via PipeWire (Wayland: GNOME/KDE on Fedora) and native Wayland when available.
 app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer,WaylandWindowDecorations');
 app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
 
-// I dati (login, impostazioni) restano nella cartella di quando l'app si chiamava
-// "Cerchio": così cambiare nome non fa perdere la sessione a nessuno.
+// Data (login, settings) stays in the folder from when the app was called
+// "Cerchio": this way the rename doesn't log anyone out.
 app.setPath('userData', path.join(app.getPath('appData'), 'Cerchio'));
 
 if (!app.requestSingleInstanceLock()) {
@@ -73,13 +73,13 @@ function createWindow() {
       sandbox: true,
       nodeIntegration: false,
       spellcheck: false,
-      backgroundThrottling: false, // la chiamata non deve rallentare con la finestra in background
+      backgroundThrottling: false, // the call must not slow down with the window in the background
     },
   });
   win.removeMenu();
   win.once('ready-to-show', () => win?.show());
 
-  // Link esterni → browser di sistema; nessuna navigazione fuori dall'app.
+  // External links → system browser; no navigation outside the app.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url)) shell.openExternal(url);
     return { action: 'deny' };
@@ -90,7 +90,7 @@ function createWindow() {
     if (/^https?:\/\//.test(url)) shell.openExternal(url);
   });
 
-  // F12 o Ctrl+Shift+I: strumenti per sviluppatori (utili per diagnosticare problemi).
+  // F12 or Ctrl+Shift+I: developer tools (useful to diagnose problems).
   win.webContents.on('before-input-event', (_e, input) => {
     if (input.type !== 'keyDown') return;
     if (input.key === 'F12' || (input.control && input.shift && input.key.toLowerCase() === 'i')) {
@@ -98,9 +98,9 @@ function createWindow() {
     }
   });
 
-  // Con backgroundThrottling disattivato la pagina non sa di essere minimizzata
-  // (document.hidden resta false) e continua a disegnare tutti i video. Glielo
-  // diciamo noi: smette di renderizzare i riquadri, audio e invio restano attivi.
+  // With backgroundThrottling disabled the page doesn't know it's minimized
+  // (document.hidden stays false) and keeps drawing every video. We tell it:
+  // it stops rendering the tiles, while audio and sending stay active.
   const sendHidden = (hidden) => {
     if (win && !win.webContents.isDestroyed()) win.webContents.send('window:hidden', hidden);
   };
@@ -108,7 +108,7 @@ function createWindow() {
   win.on('hide', () => sendHidden(true));
   win.on('restore', () => sendHidden(false));
   win.on('show', () => sendHidden(!!win?.isMinimized()));
-  win.on('focus', () => sendHidden(false)); // riserva: se un "restore" non arriva, il focus basta
+  win.on('focus', () => sendHidden(false)); // fallback: if a "restore" doesn't arrive, focus is enough
 
   win.loadURL(DEV_URL || 'app://cerchio/index.html');
   win.on('closed', () => {
@@ -118,9 +118,9 @@ function createWindow() {
   });
 }
 
-// Una sola richiesta di scelta alla volta, un solo ascoltatore fisso: prima ogni
-// condivisione aggiungeva un ipcMain.once, e se la risposta non arrivava (pagina
-// ricaricata) restava appeso con tutte le anteprime in memoria.
+// One pick request at a time, one fixed listener: before, every share added an
+// ipcMain.once, and if no answer arrived (page reloaded) it stayed pending with
+// all the previews in memory.
 let pendingPick = null;
 ipcMain.on('screen:picked', (_e, id) => {
   const resolve = pendingPick;
@@ -128,12 +128,12 @@ ipcMain.on('screen:picked', (_e, id) => {
   resolve?.(id);
 });
 
-// Anteprime in JPEG: molto più leggere dei PNG (base64 via IPC e decodifica
-// nella pagina a ogni apertura del selettore).
+// JPEG previews: much lighter than PNG (base64 over IPC and decoded
+// in the page every time the picker opens).
 const thumbURL = (img) => (img.isEmpty() ? '' : `data:image/jpeg;base64,${img.toJPEG(70).toString('base64')}`);
 
 function askScreenSource(sources) {
-  pendingPick?.(null); // la richiesta precedente non ha avuto risposta: annullata
+  pendingPick?.(null); // the previous request got no answer: cancelled
   pendingPick = null;
   return new Promise((resolve) => {
     if (!win) return resolve(null);
@@ -153,7 +153,7 @@ app.on('second-instance', () => {
 });
 
 app.whenReady().then(() => {
-  // File dell'app serviti da app://cerchio/ con CSP.
+  // App files served from app://cerchio/ with a CSP.
   protocol.handle('app', async (req) => {
     const { pathname } = new URL(req.url);
     const file = path.normalize(path.join(DIST, decodeURIComponent(pathname)));
@@ -171,8 +171,8 @@ app.whenReady().then(() => {
   ses.setPermissionRequestHandler((_wc, permission, cb) => cb(allowed.has(permission)));
   ses.setPermissionCheckHandler((_wc, permission) => allowed.has(permission));
 
-  // getDisplayMedia: su Wayland compare il selettore di sistema (portale);
-  // su X11 mostriamo il nostro selettore con le anteprime.
+  // getDisplayMedia: on Wayland the system picker (portal) shows up;
+  // on X11 we show our own picker with previews.
   ses.setDisplayMediaRequestHandler(async (_request, callback) => {
     let answered = false;
     const reply = (streams) => {
@@ -204,7 +204,7 @@ app.on('window-all-closed', () => app.quit());
 // ---- IPC -------------------------------------------------------------------
 ipcMain.on('app:version', (e) => (e.returnValue = app.getVersion()));
 
-// In background e senza chiamata i timer della pagina vengono rallentati (meno CPU).
+// In the background with no call, the page's timers are throttled (less CPU).
 ipcMain.on('background', (_e, background) => {
   win?.webContents.setBackgroundThrottling(!!background);
 });
@@ -213,7 +213,7 @@ ipcMain.handle('open', (_e, url) => {
   if (typeof url === 'string' && /^https?:\/\//.test(url)) return shell.openExternal(url);
 });
 
-// ---- Aggiornamenti (GitHub Releases, file latest-linux.yml) ------------------
+// ---- Updates (GitHub Releases, latest-linux.yml file) -------------------------
 let updater = null;
 function getUpdater() {
   if (updater || !app.isPackaged) return updater;

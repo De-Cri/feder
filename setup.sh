@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Feder - avvio del wizard su Linux:  ./setup.sh
-# Se manca Node.js (serve per il wizard) chiede il permesso e lo installa.
+# Feder - starts the wizard on Linux:  ./setup.sh
+# If Node.js is missing (the wizard needs it) it asks for permission and installs it.
 set -euo pipefail
 cd "$(dirname "$0")"
 

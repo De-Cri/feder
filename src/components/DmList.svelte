@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Barra laterale nella schermata dei messaggi privati: le tue chat, al posto dei canali.
+  // Sidebar on the private messages screen: your chats instead of the channels.
   import { app } from '../lib/state.svelte';
   import { dm } from '../lib/dm.svelte';
   import Icon from './Icon.svelte';

@@ -1,8 +1,8 @@
 <script module lang="ts">
   type SinkContext = AudioContext & { setSinkId?: (id: string) => Promise<void> };
-  // Un solo AudioContext per tutte le persone amplificate oltre il 100%, non uno
-  // a testa (ognuno è un thread audio con la sua uscita). Si chiude quando
-  // nessuno lo usa più.
+  // A single AudioContext for everyone boosted past 100%, not one each
+  // (each one is an audio thread with its own output). It closes when
+  // nobody uses it anymore.
   let shared: SinkContext | null = null;
   let users = 0;
   function acquire(): SinkContext {
@@ -21,14 +21,14 @@
 <script lang="ts">
   import { prefs } from '../lib/prefs.svelte';
 
-  // Riproduzione con <audio>: così la cancellazione dell'eco del browser
-  // "sente" anche l'audio degli altri e non lo rimanda indietro.
-  // Sopra il 100% <audio>.volume non basta (max 1): si passa da un GainNode
-  // e l'<audio> resta muto (in Chromium serve comunque per far scorrere lo stream remoto).
-  // ponytail: oltre il 100% l'AEC potrebbe non vedere l'audio amplificato; se torna eco, limitare a 1.
+  // Playback through <audio>: this way the browser's echo cancellation
+  // "hears" the others' audio too and doesn't send it back.
+  // Above 100% <audio>.volume isn't enough (max 1): we go through a GainNode
+  // and the <audio> stays muted (in Chromium it's still needed to keep the remote stream flowing).
+  // ponytail: above 100% AEC might not see the boosted audio; if echo comes back, cap at 1.
   let { stream, volume }: { stream: MediaStream; volume: number } = $props();
   let el: HTMLAudioElement | undefined = $state();
-  /** Amplificazione oltre il 100%: esiste solo mentre serve. */
+  /** Boost above 100%: exists only while needed. */
   let amp: { ctx: SinkContext; src: MediaStreamAudioSourceNode; gain: GainNode; stream: MediaStream } | null = null;
 
   function stopAmp() {
@@ -43,7 +43,7 @@
     if (el && el.srcObject !== stream) el.srcObject = stream;
     el?.play().catch(() => {});
   });
-  // Rimosso il componente (persona uscita, stream finita): stacca subito lo stream.
+  // Component removed (person left, stream ended): detach the stream right away.
   $effect(() => {
     const a = el;
     if (!a) return;
@@ -58,7 +58,7 @@
     if (v <= 1) {
       el.muted = false;
       el.volume = v;
-      stopAmp(); // non serve più: niente grafo audio acceso a guadagno 0
+      stopAmp(); // no longer needed: no audio graph running at gain 0
       return;
     }
     if (amp && amp.stream !== stream) stopAmp();

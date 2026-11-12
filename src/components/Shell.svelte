@@ -15,7 +15,7 @@
   import Releases from './Releases.svelte';
   import Pokes from './Pokes.svelte';
 
-  // Il canale aperto, separato per tipo: così TypeScript sa sempre quale prop passare.
+  // The open channel, split by kind: so TypeScript always knows which prop to pass.
   const current = $derived(app.channels.find((c) => c.id === app.view) ?? null);
   const textChannel = $derived(current && current.kind === 'text' ? current : null);
   const voiceChannel = $derived(current && current.kind === 'voice' ? current : null);
@@ -23,8 +23,8 @@
   let update = $state<UpdateInfo | null>(null);
   let installing = $state(false);
 
-  // Finestra nascosta e nessuna chiamata → modalità a basso consumo.
-  // isHidden() vede anche la finestra minimizzata in Electron (lì document.hidden resta false).
+  // Hidden window and no call → low-power mode.
+  // isHidden() also sees the minimized window in Electron (there document.hidden stays false).
   let hidden = $state(isHidden());
   $effect(() => {
     const low = hidden && voice.channelId === null;
@@ -44,7 +44,7 @@
   });
 
   $effect(() => {
-    // segna come letto il canale aperto quando la finestra è in primo piano
+    // mark the open channel as read when the window is focused
     if (app.focused && app.unread[app.view]) app.unread[app.view] = 0;
   });
 </script>
@@ -79,7 +79,7 @@
     {/if}
   </main>
 
-  <!-- La lista membri si vede solo nei canali di testo. -->
+  <!-- The member list is shown only in text channels. -->
   {#if textChannel}
     <MemberList />
   {/if}

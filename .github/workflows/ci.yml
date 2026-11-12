@@ -1,7 +1,7 @@
 name: Controlli
 
-# Ad ogni Pull Request e push: controlla che il codice compili.
-# Non pubblica niente e non usa segreti (le release partono dal repo delle release).
+# On every Pull Request and push: checks that the code compiles.
+# Publishes nothing and uses no secrets (releases start from the releases repo).
 on:
   pull_request:
   push:

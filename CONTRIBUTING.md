@@ -1,10 +1,12 @@
-# Sviluppare Feder insieme
+# Contributing to Feder
 
-Il codice sta nel repo **privato** `cerchio` (il nome del repo è rimasto quello vecchio: cambiarlo romperebbe gli aggiornamenti automatici). Gli installer vengono pubblicati nel repo pubblico `cerchio-releases`.
+The code lives in the `cerchio` repo (it still has Feder's old name). Installers are published in the public `cerchio-releases` repo.
 
-## Primo avvio (Windows o Linux)
+Everything in the repo is written in **English**: commits, branches, Pull Requests, issues, comments and docs. The app itself is in Italian and English.
 
-Serve solo **Node.js 22** e **git**. Rust non serve per sviluppare.
+## First run (Windows or Linux)
+
+You only need **Node.js 22** and **git**. Rust isn't needed for development.
 
 ```bash
 git clone https://github.com/De-Cri/cerchio.git
@@ -13,84 +15,88 @@ npm install
 npm run electron:dev
 ```
 
-`electron:dev` apre l'app in sviluppo: quando salvi un file dell'interfaccia (`src/`), si aggiorna da sola. Per F12 si aprono gli strumenti per sviluppatori.
+`electron:dev` opens the app in development mode: when you save a UI file (`src/`), it reloads by itself. F12 opens the developer tools.
 
-> L'app di sviluppo usa **lo stesso database dei tuoi amici** (Supabase, `cerchio.config.json`): i messaggi che scrivi li vedono tutti. Per provare, usa il canale `#random`.
+> The development app uses **the same database as your friends** (Supabase, `cerchio.config.json`): everyone sees the messages you write. To try things out, use the `#random` channel.
 
-Facoltativo, solo su Windows: per provare la versione Tauri (quella che ricevono gli amici Windows) servono Rust e Visual Studio Build Tools. Poi `npm run tauri dev`.
+Optional, Windows only: to try the Tauri version (the one Windows friends get) you need Rust and Visual Studio Build Tools. Then `npm run tauri dev`.
 
-## Come lavoriamo
+## How we work
 
-1. Prima di iniziare: `git pull`.
-2. Crea un ramo: `git checkout -b nome-della-modifica`.
-3. Fai le modifiche e prova con `npm run electron:dev`.
-4. Controlla che compili: `npm run check` (deve dire 0 errori).
-5. `git add -A && git commit -m "cosa hai fatto"` e poi `git push -u origin nome-della-modifica`.
-6. Su GitHub apri una **Pull Request** verso `main`. La approva Samuele.
+1. Before starting: `git pull`.
+2. Create a branch: `git checkout -b short-description`.
+3. Make your changes and try them with `npm run electron:dev`.
+4. Check that it compiles: `npm run check` (it must report 0 errors).
+5. `git add -A && git commit -m "What you did"`, then `git push -u origin short-description`.
+6. On GitHub open a **Pull Request** against `main`. Samuele approves it.
 
-**Le release le fa solo Samuele** (`npm run release -- X.Y.Z`): ogni release arriva subito a tutti gli amici come aggiornamento.
-La build parte dal repo pubblico `cerchio-releases`, dove solo lui ha accesso in scrittura: dal repo del codice nessuno può pubblicare, e le chiavi per firmare gli aggiornamenti non sono qui. Se lanci `npm run release` senza essere lui, lo script si ferma subito.
+**Only Samuele makes releases** (`npm run release -- X.Y.Z`): every release reaches all friends right away as an update.
+The build starts from the public `cerchio-releases` repo, where only he has write access: nobody can publish from the code repo, and the update signing keys aren't here. If you run `npm run release` without being him, the script stops immediately.
 
-Ad ogni Pull Request GitHub controlla da solo che il codice compili (workflow **Controlli**).
+On every Pull Request GitHub checks by itself that the code compiles (the **Controlli** workflow, job `check`).
 
-## Dove sta cosa
+## Where things are
 
-| Cartella / file | Cosa contiene |
+| Folder / file | What it contains |
 |---|---|
-| `src/components/` | interfaccia (Svelte 5) |
-| `src/lib/state.svelte.ts` | dati del server, messaggi in tempo reale, chi è online |
-| `src/lib/voice.svelte.ts` | chiamate: voce, webcam, schermo (WebRTC peer-to-peer) |
-| `src/lib/audio.ts` | microfono: soppressione rumore, guadagno |
-| `src/lib/sounds.ts` | suoni dell'interfaccia |
-| `supabase/migrations/` | database (tabelle e permessi). **Non modificare senza parlarne**: si applica a mano su Supabase |
-| `src-tauri/` | app Windows (Rust) |
-| `electron/` | app Linux |
+| `src/components/` | user interface (Svelte 5) |
+| `src/lib/state.svelte.ts` | server data, real-time messages, who is online |
+| `src/lib/voice.svelte.ts` | calls: voice, webcam, screen (peer-to-peer WebRTC) |
+| `src/lib/audio.ts` | microphone: noise suppression, gain |
+| `src/lib/dm.svelte.ts`, `src/lib/dmcrypto.ts` | private messages and their end-to-end encryption |
+| `src/lib/sounds.ts` | interface sounds |
+| `supabase/migrations/` | database (tables and permissions). **Don't change without discussing it first**: it's applied by hand on Supabase |
+| `src-tauri/` | Windows app (Rust) |
+| `electron/` | Linux app |
 
-## Test
+## Tests
 
-La prima volta: `npx playwright install chromium` (scarica il browser per i test).
-
-```bash
-npm run test:voice      # tutte le chiamate simulate in Chromium: voce, presenza, schermo, limiti, memoria
-npm run test:memory     # solo la caccia alle perdite di memoria (10 giri; `-- 30` per 30 giri)
-```
-
-Il server di test parte da solo. `test:memory` accende e spegne schermo e webcam da entrambe le parti
-e controlla che dopo ogni giro non resti niente in più (canali WebRTC, AudioContext, `<video>`/`<audio>`,
-nodi, listener, heap JS dopo il garbage collector). Se qualcosa cresce, fallisce e dice cosa.
-Lancialo prima di una PR che tocca `voice.svelte.ts`, `audio.ts` o i componenti della vocale.
-
-## Quanta RAM usa l'app
-
-Con Feder aperto (l'app installata, non serve il codice in esecuzione):
+The first time: `npx playwright install chromium` (downloads the browser used by the tests).
 
 ```bash
-npm run mem                 # una riga ogni 2 s; Ctrl+C per il riepilogo
-npm run mem -- --for 600    # 10 minuti, poi si ferma da solo
-npm run mem -- --once       # una sola misura
+npm run test:voice      # all simulated calls in Chromium: voice, presence, screen, limits, memory
+npm run test:memory     # only the memory-leak hunt (10 rounds; `-- 30` for 30 rounds)
 ```
 
-Somma tutti i processi dell'app e li divide per tipo (pagina, GPU, audio, rete, webcam/schermo…).
-Su Windows il numero è lo stesso della colonna *Memoria* del Task Manager; su Linux è la memoria privata
-(USS): `top`/`htop` sommati danno di più perché contano più volte le parti condivise.
-Salva un CSV (`mem-….csv`) per confrontare due prove. Per cercare una perdita: ripeti la stessa azione
-(es. avvia/ferma lo schermo 10 volte) e guarda se il totale continua a salire o si stabilizza.
+The test server starts by itself. `test:memory` turns screen and webcam on and off on both sides
+and checks that nothing is left behind after each round (WebRTC channels, AudioContext, `<video>`/`<audio>`,
+nodes, listeners, JS heap after garbage collection). If something grows, it fails and says what.
+Run it before a PR that touches `voice.svelte.ts`, `audio.ts` or the voice components.
 
-## Come entra una modifica in main
+Database tests (RLS, private messages, realtime) run on a plain Postgres with the stubs in
+`supabase/tests/00_stubs.sql`: see the *Tests* section of the README.
 
-`main` è protetto (regola in `.github/ruleset-main.json`, approvatore in `.github/CODEOWNERS`):
+## How much RAM the app uses
 
-- non si può pushare direttamente su `main`, né forzare o cancellare il branch;
-- si apre una Pull Request: servono i controlli verdi (`check`) e l'approvazione di Samuele;
-- se dopo l'approvazione arrivano altri commit, serve una nuova approvazione.
+With Feder open (the installed app, the code doesn't need to be running):
 
-Solo l'amministratore del repo (Samuele) può pushare direttamente.
+```bash
+npm run mem                 # one line every 2 s; Ctrl+C for the summary
+npm run mem -- --for 600    # 10 minutes, then it stops by itself
+npm run mem -- --once       # a single measurement
+```
 
-## Licenza dei contributi
+It adds up all of the app's processes and splits them by type (page, GPU, audio, network, webcam/screen…).
+On Windows the number matches the *Memory* column of Task Manager; on Linux it's private memory
+(USS): summing `top`/`htop` gives more because they count shared parts several times.
+It saves a CSV (`mem-….csv`) to compare two runs. To look for a leak: repeat the same action
+(e.g. start/stop the screen 10 times) and check whether the total keeps rising or levels off.
 
-Feder è distribuito con licenza GPL-3.0 o successiva (vedi `LICENSE`). Aprendo una Pull Request accetti che il tuo contributo sia distribuito con la stessa licenza.
+## How a change gets into main
 
-## Da non fare
+`main` is protected (rule in `.github/ruleset-main.json`, approver in `.github/CODEOWNERS`):
 
-- Non committare `.cerchio-secrets/` (è già in `.gitignore`): contiene le chiavi per firmare gli aggiornamenti.
-- Non cambiare `identifier` in `src-tauri/tauri.conf.json`, i nomi dei repo o i nomi dei canali realtime (`cerchio:lobby`, `cerchio:voice:*`): romperebbero aggiornamenti e chiamate tra versioni diverse.
+- nobody can push directly to `main`, force-push it or delete it;
+- you open a Pull Request: it needs green checks (`check`) and Samuele's approval;
+- if more commits arrive after the approval, a new approval is needed.
+
+Only the repo administrator (Samuele) can push directly.
+
+## License of contributions
+
+Feder is released under the GPL-3.0-or-later license (see `LICENSE`). By opening a Pull Request you agree that your contribution is released under the same license.
+
+## Don't
+
+- Don't commit `.cerchio-secrets/` (it's already in `.gitignore`): it holds the keys that sign updates.
+- Don't change `identifier` in `src-tauri/tauri.conf.json`, the repo names or the realtime channel names (`cerchio:lobby`, `cerchio:voice:*`): it would break updates and calls between different versions.

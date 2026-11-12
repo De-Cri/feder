@@ -22,8 +22,8 @@ export const POKE_MAX = 120;
 
 export type Presence = {
   user_id: string;
-  at?: number; // quando è stato pubblicato (per scartare stati vecchi)
-  dev?: string; // quale copia dell'app (stessa persona su app desktop + browser, o due PC)
+  at?: number; // when it was published (to discard stale states)
+  dev?: string; // which copy of the app (same person on desktop app + browser, or two PCs)
   voice: number | null;
   mic: boolean;
   deaf: boolean;
@@ -33,23 +33,23 @@ export type Presence = {
 
 const PAGE = 50;
 
-/** `app.view` del canale "novità" (note di rilascio, non è un canale del server). */
+/** `app.view` of the "novità" channel (release notes, not a server channel). */
 export const RELEASES_VIEW = -1;
-/** `app.view` della schermata dei messaggi privati (separata dal server). */
+/** `app.view` of the private messages screen (separate from the server). */
 export const DM_VIEW = -2;
 
-/** Identifica questa copia dell'app nella presenza (la chiave è l'utente, condivisa tra dispositivi). */
+/** Identifies this copy of the app in presence (the key is the user, shared across devices). */
 const DEVICE = crypto.randomUUID();
 
 /**
- * Supabase accetta al massimo 5 track() ogni 30 s per client: oltre, CHIUDE il canale
- * (ClientPresenceRateLimitReached) e la presenza smette di aggiornarsi per tutti.
- * Noi: 5 ogni 32 s (margine sulla finestra); il resto viene accorpato e inviato appena si può.
+ * Supabase accepts at most 5 track() calls every 30 s per client: beyond that it CLOSES the channel
+ * (ClientPresenceRateLimitReached) and presence stops updating for everyone.
+ * We use 5 every 32 s (margin on the window); the rest is merged and sent as soon as possible.
  */
 export class TrackBudget {
   private times: number[] = [];
   constructor(private max = 5, private windowMs = 32_000) {}
-  /** Millisecondi da aspettare prima del prossimo track() (0 = subito). */
+  /** Milliseconds to wait before the next track() (0 = now). */
   wait(now = Date.now()): number {
     this.times = this.times.filter((t) => now - t < this.windowMs);
     return this.times.length < this.max ? 0 : this.windowMs - (now - this.times[0]) + 100;
@@ -59,7 +59,7 @@ export class TrackBudget {
   }
 }
 
-/** Un solo conteggio per lobby e canale vocale: prudente anche se il limite fosse per connessione. */
+/** A single counter for lobby and voice channel: safe even if the limit were per connection. */
 export const presenceBudget = new TrackBudget();
 
 class ChannelLog {
@@ -70,7 +70,7 @@ class ChannelLog {
 
   constructor(public id: number) {}
 
-  /** Una pagina di messaggi (i più recenti, o quelli prima di `before`), in ordine cronologico. */
+  /** One page of messages (the latest, or those before `before`), in chronological order. */
   private async page(before?: number): Promise<Message[]> {
     let q = supabase.from('messages').select('*').eq('channel_id', this.id);
     if (before !== undefined) q = q.lt('id', before);
@@ -84,7 +84,7 @@ class ChannelLog {
     if (this.loaded || this.loading) return;
     this.loading = true;
     const rows = await this.page();
-    // Unisce eventuali messaggi arrivati via realtime durante il fetch.
+    // Merges any messages that arrived via realtime during the fetch.
     const ids = new Set(rows.map((m) => m.id));
     this.messages = [...rows, ...this.messages.filter((m) => !ids.has(m.id))];
     this.loaded = true;
@@ -119,28 +119,28 @@ class AppState {
   channels = $state<Channel[]>([]);
   voiceMutes = $state<Record<string, true>>({});
   online = $state<Record<string, Presence>>({});
-  /** Poke ricevuti (come su TeamSpeak), mostrati finché non li chiudi. */
+  /** Received pokes (like on TeamSpeak), shown until you close them. */
   pokes = $state<{ key: number; from: string; text: string }[]>([]);
   private pokeKey = 0;
   private lastPoke: Record<string, number> = {};
   logs: Record<number, ChannelLog> = {};
   unread = $state<Record<number, number>>({});
 
-  view = $state<number>(1); // canale visualizzato (testo o voce, o RELEASES_VIEW / DM_VIEW)
-  releasesUnseen = $state(hasUnseenRelease()); // pallino "nuovo" sul canale novità
+  view = $state<number>(1); // channel being shown (text or voice, or RELEASES_VIEW / DM_VIEW)
+  releasesUnseen = $state(hasUnseenRelease()); // "new" badge on the release notes channel
   settingsOpen = $state(false);
-  // scheda da mostrare alla prossima apertura delle impostazioni (es. 'media' dal menu del microfono)
+  // tab to show the next time settings open (e.g. 'media' from the microphone menu)
   settingsTab = $state<string>('profile');
   focused = $state(true);
 
-  /** Stato pubblicato in presence (aggiornato dalla stanza vocale). */
+  /** State published in presence (updated by the voice room). */
   myPresence = $state<Omit<Presence, 'user_id'>>({ voice: null, mic: true, deaf: false, cam: false, screen: false });
 
   private db: RealtimeChannel | null = null;
   private lobby: RealtimeChannel | null = null;
   onKicked: (() => void) | null = null;
   onMemberLeft: ((id: string) => void) | null = null;
-  /** Chiamato prima dell'uscita dall'account (i messaggi privati cancellano la chiave locale). */
+  /** Called before signing out (private messages delete the local key). */
   onSignOut: (() => Promise<void>) | null = null;
 
   get me(): string | null {
@@ -165,8 +165,8 @@ class AppState {
     return (id && this.profiles[id]?.username) || 'utente';
   }
   /**
-   * Presenza da mostrare: quella del server per gli altri, e per te sempre lo
-   * stato locale attuale (aggiornato subito, anche prima che il server risponda).
+   * Presence to show: the server's for everyone else, and for you always the
+   * current local state (updated immediately, even before the server answers).
    */
   get presence(): Record<string, Presence> {
     const me = this.me;
@@ -174,8 +174,8 @@ class AppState {
     return { ...this.online, [me]: { ...this.online[me], ...this.myPresence, user_id: me } };
   }
   /**
-   * Chi è nella tua stanza vocale secondo la stanza stessa (fonte più affidabile
-   * della lista generale per il canale in cui sei). Aggiornato da voice.svelte.ts.
+   * Who is in your voice room according to the room itself (more reliable than
+   * the general list for the channel you are in). Updated by voice.svelte.ts.
    */
   room = $state<{ channel: number | null; ids: string[] }>({ channel: null, ids: [] });
 
@@ -183,12 +183,12 @@ class AppState {
     const all = this.presence;
     const room = this.room.channel !== null ? this.room : null;
     if (room && channelId === room.channel) {
-      // la tua stanza: chi c'è davvero, anche se la lista generale è indietro
+      // your room: who is really there, even if the general list lags behind
       return room.ids.map(
         (id) => ({ ...(all[id] ?? { mic: true, deaf: false, cam: false, screen: false }), user_id: id, voice: channelId }) as Presence,
       );
     }
-    // gli altri canali: chi la stanza dice essere con te non può essere altrove
+    // other channels: whoever the room says is with you can't be elsewhere
     return Object.values(all).filter((p) => p.voice === channelId && !(room && room.ids.includes(p.user_id)));
   }
 
@@ -280,7 +280,7 @@ class AppState {
       .subscribe();
 
     this.joinLobby();
-    // Ripubblica ogni tanto: corregge eventuali stati persi o rimasti indietro sul server.
+    // Republish now and then: fixes states lost or left behind on the server.
     clearInterval(this.presenceTimer);
     this.presenceTimer = setInterval(() => this.lobbyJoined && this.publishPresence(), 45_000);
   }
@@ -298,9 +298,9 @@ class AppState {
         const best = pick(metas);
         if (best) next[key] = { ...best, user_id: key };
       }
-      // Il proprio stato è sempre quello locale (il server può essere un attimo indietro).
+      // Your own state is always the local one (the server may lag a moment behind).
       if (this.me && this.lobbyJoined) {
-        // Il server ci ha "perso" o ha uno stato vecchio: ripubblica.
+        // The server "lost" us or has a stale state: republish.
         if (!this.serverHasMine(state[this.me])) this.healPresence();
         next[this.me] = { ...(next[this.me] ?? {}), ...$state.snapshot(this.myPresence), user_id: this.me };
       }
@@ -311,16 +311,16 @@ class AppState {
       const { from, to, text } = (payload ?? {}) as { from?: string; to?: string; text?: string };
       if (to !== this.me || !from || !this.members.some((m) => m.user_id === from)) return;
       const msg = String(text ?? '').slice(0, POKE_MAX);
-      if (this.pokes.length >= 5) this.pokes = this.pokes.slice(-4); // niente pila infinita
+      if (this.pokes.length >= 5) this.pokes = this.pokes.slice(-4); // no endless stack
       this.pokes = [...this.pokes, { key: ++this.pokeKey, from, text: msg }];
       playSound('poke');
       notify(`${this.name(from)} ti ha fatto un poke`, msg || 'Poke!');
     }).subscribe(async (status) => {
-      if (this.lobby !== ch) return; // canale vecchio, già sostituito o chiuso da noi
+      if (this.lobby !== ch) return; // old channel, already replaced or closed by us
       this.lobbyJoined = status === 'SUBSCRIBED';
       if (status === 'SUBSCRIBED') return void (await this.publishPresence());
-      // Il server ha chiuso il canale (es. troppi aggiornamenti) o la rete è caduta:
-      // senza questo la barra laterale resterebbe ferma fino al riavvio dell'app.
+      // The server closed the channel (e.g. too many updates) or the network dropped:
+      // without this the sidebar would stay frozen until the app restarts.
       if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         console.warn('[presence] canale lobby perso:', status, '- mi ricollego');
         clearTimeout(this.lobbyRetry);
@@ -335,7 +335,7 @@ class AppState {
     });
   }
 
-  /** Manda un poke a qualcuno (max uno ogni 3 s per persona). false = troppo presto o non connesso. */
+  /** Sends someone a poke (at most one every 3 s per person). false = too soon or not connected. */
   poke(to: string, text: string): boolean {
     const now = Date.now();
     if (!this.lobby || !this.lobbyJoined || !this.me || now - (this.lastPoke[to] ?? 0) < 3000) return false;
@@ -348,7 +348,7 @@ class AppState {
     this.pokes = this.pokes.filter((p) => p.key !== key);
   }
 
-  /** Il server ha il nostro stato attuale (cercando tra gli stati di QUESTA copia dell'app). */
+  /** The server has our current state (looking among the states of THIS copy of the app). */
   private serverHasMine(metas: Presence[] | undefined): boolean {
     const mine = latest((metas ?? []).filter((m) => m.dev === DEVICE));
     return !!mine && this.samePresence(mine);
@@ -364,8 +364,8 @@ class AppState {
   private healTimer: ReturnType<typeof setTimeout> | undefined;
   private healAttempts = 0;
   /**
-   * Controlla poco dopo che il server abbia il proprio stato attuale; se manca o
-   * è vecchio lo ripubblica, riprovando con attese crescenti (0,8 s → 1,6 s → … max 10 s).
+   * Shortly after, checks that the server has our current state; if it's missing or
+   * stale, republishes it, retrying with growing delays (0.8 s → 1.6 s → … max 10 s).
    */
   private healPresence() {
     if (this.healTimer) return;
@@ -379,19 +379,19 @@ class AppState {
       }
       this.healAttempts++;
       console.info('[presence] stato sul server mancante o vecchio: ripubblico');
-      this.publishPresence(); // al termine richiama healPresence per verificare di nuovo
+      this.publishPresence(); // when done it calls healPresence again to re-check
     }, delay);
   }
 
-  // Una pubblicazione alla volta, sempre con lo stato più recente: chiamate
-  // ravvicinate (es. cambio canale vocale) non lasciano stati fantasma.
-  // Oltre il limite di Supabase l'invio viene rimandato (sempre con lo stato più recente).
+  // One publish at a time, always with the latest state: calls in quick
+  // succession (e.g. switching voice channel) leave no ghost states.
+  // Past Supabase's limit the send is postponed (still with the latest state).
   private publishing = false;
   private publishAgain = false;
   private publishTimer: ReturnType<typeof setTimeout> | undefined;
   async publishPresence() {
     if (!this.lobby || !this.me) return;
-    if (this.publishTimer) return; // un invio è già in programma: userà lo stato più recente
+    if (this.publishTimer) return; // a send is already scheduled: it will use the latest state
     if (this.publishing) {
       this.publishAgain = true;
       return;
@@ -416,11 +416,11 @@ class AppState {
     } finally {
       this.publishing = false;
     }
-    // Verifica poco dopo che il server abbia davvero lo stato appena pubblicato.
+    // Shortly after, check that the server really has the state just published.
     if (!deferred) this.healPresence();
   }
 
-  /** Suono "chiamata": qualcuno entra in un canale vocale vuoto mentre tu non sei in vocale. */
+  /** "Call" sound: someone joins an empty voice channel while you're not in voice. */
   private presenceReady = false;
   private detectCalls(next: Record<string, Presence>) {
     const prev = this.online;
@@ -431,7 +431,7 @@ class AppState {
     if (this.myPresence.voice !== null) return;
     for (const p of Object.values(next)) {
       if (p.user_id === this.me || p.voice === null) continue;
-      if (prev[p.user_id]?.voice === p.voice) continue; // era già lì
+      if (prev[p.user_id]?.voice === p.voice) continue; // was already there
       const alreadyBusy = Object.values(prev).some((o) => o.voice === p.voice && o.user_id !== p.user_id);
       if (alreadyBusy) continue;
       const ch = this.channels.find((c) => c.id === p.voice);
@@ -445,7 +445,7 @@ class AppState {
     if (data) this.profiles[id] = data as Profile;
   }
 
-  /** Chiude la chiamata e le iscrizioni e svuota i dati del server. */
+  /** Closes the call and the subscriptions and clears the server data. */
   private async reset() {
     this.onKicked?.();
     await this.unsubscribe();
@@ -469,7 +469,7 @@ class AppState {
     this.publishTimer = undefined;
     clearTimeout(this.lobbyRetry);
     const { db, lobby } = this;
-    this.db = this.lobby = null; // prima di chiudere: così i loro callback sanno che è voluto
+    this.db = this.lobby = null; // before closing: so their callbacks know it's intentional
     if (db) await supabase.removeChannel(db);
     if (lobby) await supabase.removeChannel(lobby);
   }
@@ -483,15 +483,15 @@ class AppState {
   }
 }
 
-/** Più stati per la stessa persona (aggiornamenti ravvicinati): vale il più recente. */
+/** Several states for the same person (updates in quick succession): the latest wins. */
 function latest(metas: Presence[]): Presence | null {
   return metas.reduce<Presence | null>((b, m) => (!b || (m.at ?? 0) >= (b.at ?? 0) ? m : b), null);
 }
 
 /**
- * Stato da mostrare per una persona. Per ogni copia dell'app vale il suo stato più
- * recente; se ne ha più di una (app + browser, due PC) conta quella in chiamata,
- * altrimenti gli altri la vedrebbero entrare e uscire di continuo.
+ * State to show for a person. For each copy of the app its latest state counts;
+ * if they have more than one (app + browser, two PCs) the one in a call wins,
+ * otherwise the others would see them join and leave all the time.
  */
 function pick(metas: Presence[]): Presence | null {
   const byDev = new Map<string, Presence[]>();
@@ -504,7 +504,7 @@ function pick(metas: Presence[]): Presence | null {
 export const app = new AppState();
 
 // ---------------------------------------------------------------------------
-// URL firmati per allegati/avatar (bucket privato), con cache.
+// Signed URLs for attachments/avatars (private bucket), cached.
 // ---------------------------------------------------------------------------
 const urlCache = new Map<string, { url: string; exp: number }>();
 

@@ -1,12 +1,12 @@
 -- =============================================================================
--- Canali realtime privati: solo quelli che l'app usa davvero.
+-- Private realtime channels: only the ones the app really uses.
 --
--- Prima ogni membro poteva iscriversi e scrivere su QUALSIASI canale privato.
--- Ora solo:
---   cerchio:lobby         presenza online e poke
---   cerchio:voice:<id>    signaling e presenza di un canale vocale esistente
--- e solo con broadcast e presence. I canali cerchio-db e feder-dm non sono
--- privati: usano postgres_changes, protetto dall'RLS delle tabelle.
+-- Before, every member could join and write to ANY private channel.
+-- Now only:
+--   cerchio:lobby         online presence and pokes
+--   cerchio:voice:<id>    signaling and presence of an existing voice channel
+-- and only with broadcast and presence. The cerchio-db and feder-dm channels aren't
+-- private: they use postgres_changes, protected by the tables' RLS.
 -- =============================================================================
 
 create or replace function public.realtime_topic_allowed(p_topic text)

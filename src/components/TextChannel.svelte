@@ -1,5 +1,5 @@
 <script module lang="ts">
-  // Posizione dello scroll per canale, finché l'app resta aperta.
+  // Scroll position per channel, while the app stays open.
   const scrollMemory = new Map<number, { top: number; bottom: boolean }>();
 </script>
 
@@ -23,8 +23,8 @@
   let error = $state<string | null>(null);
   let dragging = $state(false);
   let fileInput: HTMLInputElement;
-  // Se torni in un canale dove non eri in fondo, non ti riportiamo in fondo.
-  const saved = untrack(() => scrollMemory.get(channel.id)); // il componente è ricreato a ogni cambio canale
+  // If you go back to a channel where you weren't at the bottom, we don't jump to the bottom.
+  const saved = untrack(() => scrollMemory.get(channel.id)); // the component is recreated on every channel change
   let stick = !saved || saved.bottom;
 
   const MAX = 50 * 1024 * 1024;
@@ -50,13 +50,13 @@
   onMount(async () => {
     await log.loadInitial();
     await tick();
-    // Torna dove eri rimasto in questo canale (in fondo se eri in fondo o è la prima volta).
+    // Go back to where you were in this channel (the bottom if you were there or it's the first time).
     if (saved && !saved.bottom) scroller.scrollTop = saved.top;
     else scroller.scrollTop = scroller.scrollHeight;
     input?.focus();
   });
 
-  // Resta in fondo quando arrivano messaggi nuovi (se eri già in fondo).
+  // Stay at the bottom when new messages arrive (if you were already there).
   $effect.pre(() => {
     void log.messages.length;
     if (scroller) stick = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;

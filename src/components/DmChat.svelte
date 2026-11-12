@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Una conversazione privata. Stesso aspetto dei canali di testo, senza allegati.
+  // A private conversation. Same look as text channels, without attachments.
   import { onMount, tick } from 'svelte';
   import { app } from '../lib/state.svelte';
   import { dm, DM_MAX, DM_DAYS, type DmMessage } from '../lib/dm.svelte';
@@ -10,7 +10,7 @@
 
   let { peer }: { peer: string } = $props();
   // svelte-ignore state_referenced_locally
-  const log = dm.log(peer); // il componente è ricreato a ogni cambio chat
+  const log = dm.log(peer); // the component is recreated on every chat change
 
   let scroller: HTMLDivElement;
   let input: HTMLTextAreaElement;

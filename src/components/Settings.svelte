@@ -12,7 +12,7 @@
 
   type Tab = 'profile' | 'appearance' | 'notifications' | 'media' | 'admin' | 'about';
   let tab = $state<Tab>(app.settingsTab as Tab);
-  app.settingsTab = 'profile'; // la prossima apertura normale riparte dal profilo
+  app.settingsTab = 'profile'; // the next normal opening starts from the profile again
   let msg = $state<{ ok: boolean; text: string } | null>(null);
 
   // profilo
@@ -340,7 +340,7 @@
   nav button.active { background: var(--bg-active); color: var(--text); }
   .grow { flex: 1; min-width: 0; }
 
-  /* "Esci" come il footer della sidebar: linea intera in alto. */
+  /* "Esci" like the sidebar footer: full-width line on top. */
   .logout {
     width: calc(100% + 20px);
     height: 48px;

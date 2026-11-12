@@ -1,4 +1,4 @@
-// Schermo + webcam insieme, spegni/riaccendi: chi guarda deve sempre ricevere immagini (mai nero).
+// Screen + webcam together, off/on: viewers must always receive frames (never black).
 const { chromium } = require('playwright');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1); } console.log('ok -', m); };
@@ -19,7 +19,7 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
       const bt = document.createElement('button'); bt.id = id; bt.textContent = id; bt.onclick = fn; document.body.appendChild(bt);
     }
   });
-  // b "guarda": conta i fotogrammi realmente disegnati in un <video> per la vista indicata
+  // b "watches": counts the frames really drawn in a <video> for the given view
   const watch = (which) => pages.b.evaluate(async (which) => {
     const p = window.voice.peers.a;
     const view = which === 'screen' ? p.screenView : p.camView;
@@ -39,7 +39,7 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
 
   await pages.a.click('#scr');
   assert(await until(async () => (await st()).screen), 'b riceve lo schermo');
-  // b non ha cliccato: a non deve mandargli la stream (niente codifica/banda sprecate)
+  // b hasn't clicked: a must not send them the stream (no wasted encoding/bandwidth)
   const active = () => pages.a.evaluate(() => window.voice.peers.b.screenSender?.getParameters().encodings?.[0]?.active);
   const setWatch = (on) => pages.b.evaluate((on) => { if (on) window.voice.watching.a = true; else delete window.voice.watching.a; }, on);
   assert(await until(async () => (await active()) === false), 'b non guarda: stream verso b in pausa');
@@ -48,7 +48,7 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
   let w = await watch('screen'); console.log('   ', JSON.stringify(w));
   assert(w.ok && !w.cam, 'lo schermo si vede (riquadro schermo, non webcam)');
 
-  // volume separato: zittire la stream non zittisce la voce
+  // separate volume: muting the stream doesn't mute the voice
   const vols = () => pages.b.evaluate(() => {
     const p = window.voice.peers.a;
     return [...document.querySelectorAll('audio')].filter((el) => el.srcObject).map((el) => {
@@ -70,13 +70,13 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
   w = await watch('screen'); assert(w.ok, `lo schermo continua mentre la webcam è accesa (${w.frames} fotogrammi)`);
   w = await watch('cam'); assert(w.ok, `la webcam si vede nel suo riquadro (${w.frames} fotogrammi)`);
 
-  await pages.a.click('#cam'); // spegne la webcam
+  await pages.a.click('#cam'); // turns the webcam off
   assert(await until(async () => !(await st()).cam), 'webcam spenta');
   w = await watch('screen'); assert(w.ok, 'lo schermo continua dopo aver spento la webcam');
 
-  await pages.a.click('#scr'); // ferma lo schermo
+  await pages.a.click('#scr'); // stops the screen
   assert(await until(async () => !(await st()).screen), 'condivisione fermata');
-  await pages.a.click('#scr'); // e la riavvia
+  await pages.a.click('#scr'); // and restarts it
   assert(await until(async () => (await st()).screen), 'condivisione riavviata');
   await setWatch(true);
   assert(await until(async () => (await active()) === true && (await st()).screen), 'b riapre lo schermo riavviato');
