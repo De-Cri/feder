@@ -35,6 +35,17 @@ The build starts from the public `cerchio-releases` repo, where only he has writ
 
 On every Pull Request GitHub checks by itself that the code compiles (the **Controlli** workflow, job `check`).
 
+## Translations (Italian + English)
+
+Every piece of text shown in the app exists in both languages:
+
+- strings live in `src/locales/it.ts` and `src/locales/en.ts`, with the same keys;
+- in code use `t('key')`, or `t('key', { name })` for placeholders like `{name}` (from `src/lib/i18n.svelte.ts`);
+- `en.ts` is typed from `it.ts`: if a key is missing in either, `npm run check` fails;
+- release notes (`src/lib/releases.ts`) have an `it` and an `en` block for every version.
+
+The language follows the system and can be changed in Settings → Appearance.
+
 ## Where things are
 
 | Folder / file | What it contains |

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   // Profile photo cropper.
   // The image is centered in the frame, moved by (ox, oy) from the center.
   // Zoom scales around the center. The VIEW frame is exactly what gets saved.
@@ -100,7 +101,7 @@
 </script>
 
 <div class="cropper">
-  <h3>Ritaglia la foto</h3>
+  <h3>{t('crop.title')}</h3>
   <div
     class="frame"
     style="width:{VIEW}px;height:{VIEW}px"
@@ -132,9 +133,9 @@
     />
   </label>
   <div class="actions">
-    <button type="button" class="btn" onclick={oncancel}>Annulla</button>
+    <button type="button" class="btn" onclick={oncancel}>{t('common.cancel')}</button>
     <button type="button" class="btn primary" disabled={!img || busy} onclick={confirm}>
-      Usa questa foto
+      {t('crop.use')}
     </button>
   </div>
 </div>

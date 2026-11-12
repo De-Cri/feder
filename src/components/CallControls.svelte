@@ -4,6 +4,7 @@
   import { voice, screenShareSupported } from '../lib/voice.svelte';
   import Icon from './Icon.svelte';
   import MicMenu from './MicMenu.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   const size = 17;
 
@@ -19,7 +20,7 @@
   class="icon-btn"
   class:bad={!voice.micOn || voice.adminMuted}
   class:open={micMenu !== null}
-  title={voice.adminMuted ? 'Silenziato dall’admin' : voice.micOn ? 'Disattiva microfono' : 'Attiva microfono'}
+  title={voice.adminMuted ? t('call.adminMuted') : voice.micOn ? t('call.micOff') : t('call.micOn')}
   onclick={() => voice.toggleMic()}
   oncontextmenu={openMicMenu}
 >
@@ -28,7 +29,7 @@
 <button
   class="icon-btn"
   class:bad={voice.deaf}
-  title={voice.deaf ? 'Riattiva audio' : 'Disattiva audio'}
+  title={voice.deaf ? t('call.undeafen') : t('call.deafen')}
   onclick={() => voice.toggleDeaf()}
 >
   <Icon name={voice.deaf ? 'headphones-off' : 'headphones'} {size} />
@@ -37,7 +38,7 @@
   <button
     class="icon-btn"
     class:on={voice.camOn}
-    title={voice.camOn ? 'Spegni webcam' : 'Accendi webcam'}
+    title={voice.camOn ? t('call.camOff') : t('call.camOn')}
     onclick={() => voice.toggleCam()}
   >
     <Icon name={voice.camOn ? 'video' : 'video-off'} {size} />
@@ -46,13 +47,13 @@
     <button
       class="icon-btn"
       class:on={voice.screenOn}
-      title={voice.screenOn ? 'Interrompi condivisione' : 'Condividi schermo'}
+      title={voice.screenOn ? t('call.screenOff') : t('call.screenOn')}
       onclick={() => voice.toggleScreen()}
     >
       <Icon name="screen" {size} />
     </button>
   {/if}
-  <button class="icon-btn bad" title="Termina chiamata" onclick={() => voice.leave()}>
+  <button class="icon-btn bad" title={t('call.leave')} onclick={() => voice.leave()}>
     <Icon name="leave" {size} />
   </button>
 {/if}

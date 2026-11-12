@@ -1,20 +1,14 @@
 // Interface sounds, synthesized on the fly with Web Audio (no audio files).
 // Each one can be turned off in settings; there is a single volume.
 import { prefs } from './prefs.svelte';
+import { t, type Key } from './i18n.svelte';
 
 export type SoundKind = 'selfJoin' | 'selfLeave' | 'join' | 'leave' | 'call' | 'message' | 'mute' | 'unmute' | 'poke';
 
-export const SOUND_LABELS: Record<SoundKind, string> = {
-  selfJoin: 'Entri in un canale vocale',
-  selfLeave: 'Esci da un canale vocale',
-  join: 'Qualcuno entra nel tuo canale',
-  leave: 'Qualcuno esce dal tuo canale',
-  call: 'Qualcuno ti chiama (entra in un canale vuoto)',
-  message: 'Nuovo messaggio',
-  mute: 'Microfono / audio disattivato',
-  unmute: 'Microfono / audio riattivato',
-  poke: 'Qualcuno ti fa un poke',
-};
+export const SOUND_KINDS: SoundKind[] = ['selfJoin', 'selfLeave', 'join', 'leave', 'call', 'message', 'mute', 'unmute', 'poke'];
+
+/** Label shown in settings for each sound. */
+export const soundLabel = (k: SoundKind) => t(`sound.${k}` as Key);
 
 // Notes in Hz (A major scale, sounds "soft").
 const N = { E5: 659.25, Fs5: 739.99, A5: 880, B5: 987.77, Cs6: 1108.73, E6: 1318.51, A4: 440, E4: 329.63 };

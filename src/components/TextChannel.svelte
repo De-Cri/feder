@@ -12,6 +12,7 @@
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
   import Attachment from './Attachment.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   let { channel }: { channel: Channel } = $props();
   const log = $derived(app.log(channel.id));
@@ -101,7 +102,7 @@
   async function upload(files: FileList | File[]) {
     for (const file of Array.from(files)) {
       if (file.size > MAX) {
-        error = `${file.name} supera i 50 MB.`;
+        error = t('chat.tooBig', { name: file.name });
         continue;
       }
       uploading = file.name;
@@ -202,8 +203,8 @@
     {#if log.loaded && !log.hasMore}
       <div class="start">
         <div class="start-icon"><Icon name="hash" size={26} /></div>
-        <h3>Benvenuto in #{channel.name}</h3>
-        <p class="muted">È l’inizio del canale.</p>
+        <h3>{t('chat.welcome', { channel: channel.name })}</h3>
+        <p class="muted">{t('chat.start')}</p>
       </div>
     {/if}
     {#each rows as { m, head, dayLabel } (m.id)}
@@ -238,7 +239,7 @@
         </div>
         {#if m.author_id === app.me || app.isAdmin}
           <div class="actions">
-            <button class="icon-btn" title="Elimina" onclick={() => remove(m)}><Icon name="trash" size={15} /></button>
+            <button class="icon-btn" title={t('chat.delete')} onclick={() => remove(m)}><Icon name="trash" size={15} /></button>
           </div>
         {/if}
       </div>
@@ -247,9 +248,9 @@
 
   <div class="composer-wrap">
     {#if error}<div class="err bar">{error}</div>{/if}
-    {#if uploading}<div class="muted bar">Caricamento di {uploading}…</div>{/if}
+    {#if uploading}<div class="muted bar">{t('chat.uploading', { name: uploading })}</div>{/if}
     <div class="composer">
-      <button class="icon-btn" title="Allega file" onclick={() => fileInput.click()}>
+      <button class="icon-btn" title={t('chat.attach')} onclick={() => fileInput.click()}>
         <Icon name="clip" size={18} />
       </button>
       <input
@@ -267,19 +268,19 @@
         bind:this={input}
         bind:value={text}
         rows="1"
-        placeholder="Scrivi in #{channel.name}"
+        placeholder={t('chat.placeholder', { channel: channel.name })}
         onkeydown={onKey}
         oninput={resize}
         onpaste={onPaste}
       ></textarea>
-      <button class="icon-btn" class:on={!!text.trim()} title="Invia" onclick={send}>
+      <button class="icon-btn" class:on={!!text.trim()} title={t('poke.send')} onclick={send}>
         <Icon name="send" size={17} />
       </button>
     </div>
   </div>
 
   {#if dragging}
-    <div class="drop">Rilascia per caricare in #{channel.name}</div>
+    <div class="drop">{t('chat.drop', { channel: channel.name })}</div>
   {/if}
 </div>
 

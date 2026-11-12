@@ -3,6 +3,7 @@
   import { isHidden, onHiddenChange } from '../lib/platform';
   import Avatar from './Avatar.svelte';
   import Icon from './Icon.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   let {
     id,
@@ -93,12 +94,12 @@
 
 <div bind:this={tile} class="tile" class:speaking class:focused class:screen class:locked role="presentation" {onclick} {ondblclick} {oncontextmenu}>
   {#if locked}
-    <div class="waiting"><span class="watch"><Icon name="screen" size={16} /> Clicca per guardare</span></div>
+    <div class="waiting"><span class="watch"><Icon name="screen" size={16} /> {t('tile.clickToWatch')}</span></div>
   {:else if hasVideo && stream}
     <video bind:this={video} autoplay playsinline muted class:mirror={mirror && !screen}></video>
-    {#if noFrames}<div class="waiting">Nessuna immagine ricevuta…</div>{/if}
+    {#if noFrames}<div class="waiting">{t('tile.noFrames')}</div>{/if}
   {:else if screen}
-    <div class="waiting">In attesa dello schermo…</div>
+    <div class="waiting">{t('tile.waitingScreen')}</div>
   {:else}
     <Avatar {id} size={focused ? 96 : 64} {speaking} />
   {/if}
@@ -108,7 +109,7 @@
         <button
           class="tool"
           class:muted={audioMuted}
-          title={audioMuted ? 'Riattiva l’audio della stream' : 'Silenzia l’audio della stream (lui lo senti ancora)'}
+          title={audioMuted ? t('tile.unmuteStream') : t('tile.muteStream')}
           onclick={(e) => { e.stopPropagation(); ontoggleaudio(); }}
           ondblclick={(e) => e.stopPropagation()}
         >
@@ -118,7 +119,7 @@
       {#if onstopwatch}
         <button
           class="tool"
-          title="Smetti di guardare"
+          title={t('menu.stopWatching')}
           onclick={(e) => { e.stopPropagation(); onstopwatch(); }}
           ondblclick={(e) => e.stopPropagation()}
         >
@@ -130,14 +131,14 @@
   <div class="label">
     {#if screen}
       <Icon name="screen" size={13} />
-      <span>Schermo di {app.name(id)}{id === app.me ? ' (tu)' : ''}</span>
+      <span>{t('tile.screenOf', { name: app.name(id) })}{id === app.me ? ` ${t('tile.you')}` : ''}</span>
       <span class="live">LIVE</span>
     {:else}
       {#if p && (!p.mic || app.voiceMutes[id])}<Icon name="mic-off" size={13} />{/if}
       {#if p?.deaf}<Icon name="headphones-off" size={13} />{/if}
-      <span>{app.name(id)}{id === app.me ? ' (tu)' : ''}</span>
+      <span>{app.name(id)}{id === app.me ? ` ${t('tile.you')}` : ''}</span>
     {/if}
-    {#if connecting}<span class="conn">connessione…</span>{/if}
+    {#if connecting}<span class="conn">{t('tile.connecting')}</span>{/if}
   </div>
 </div>
 

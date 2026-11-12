@@ -6,6 +6,7 @@
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
   import DmChat from './DmChat.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   // --- Recovery code ---
   let busy = $state(false);
@@ -32,7 +33,7 @@
       copied = true;
       setTimeout(() => (copied = false), 2000);
     } catch {
-      error = 'Copia non riuscita: selezionalo e copialo a mano.';
+      error = t('dmv.copyFailed');
     }
   }
 
@@ -96,51 +97,44 @@
 
 <div class="dm">
   {#if dm.status === 'idle' || dm.status === 'loading'}
-    <div class="center muted">Caricamento…</div>
+    <div class="center muted">{t('common.loading')}</div>
   {:else if dm.status === 'off'}
-    <div class="center muted">I messaggi privati non sono ancora disponibili su questo server.</div>
+    <div class="center muted">{t('dmv.unavailable')}</div>
   {:else if dm.status === 'setup' || dm.status === 'locked'}
     <div class="center">
       <div class="card">
         <div class="badge-icon"><Icon name="lock" size={24} /></div>
         {#if creating && prepared}
-          <h2>Il tuo codice di recupero</h2>
-          <p class="muted">
-            Serve solo per leggere i messaggi su un altro dispositivo o dopo una reinstallazione. Salvalo ora
-            (gestore di password, foto, foglietto): non lo mostreremo più.
-          </p>
+          <h2>{t('dmv.codeTitle')}</h2>
+          <p class="muted">{t('dmv.codeHint')}</p>
           <div class="code selectable allow-native-menu">{prepared.code}</div>
           <button class="btn" onclick={copy}>
-            <Icon name={copied ? 'check' : 'copy'} size={15} />{copied ? 'Copiato' : 'Copia'}
+            <Icon name={copied ? 'check' : 'copy'} size={15} />{copied ? t('dmv.copied') : t('dmv.copy')}
           </button>
           <label class="check">
             <input type="checkbox" bind:checked={saved} />
-            <span>L’ho salvato in un posto sicuro</span>
+            <span>{t('dmv.saved')}</span>
           </label>
           {#if error}<p class="err">{error}</p>{/if}
           <button class="btn primary" disabled={!saved || busy} onclick={activate}>
-            {busy ? 'Un attimo…' : 'Continua'}
+            {busy ? t('common.wait') : t('dmv.continue')}
           </button>
         {:else if creating}
-          <h2>{resetting ? 'Nuovo codice di recupero' : 'Messaggi privati cifrati'}</h2>
+          <h2>{resetting ? t('dmv.newCodeTitle') : t('dmv.introTitle')}</h2>
           {#if resetting}
-            <p class="muted">
-              Con un codice nuovo i messaggi che hai già non potrai più leggerli tu; chi ti ha scritto
-              continuerà a vederli.
-            </p>
+            <p class="muted">{t('dmv.newCodeHint')}</p>
           {:else}
             <p class="why">
-              <strong>Perché?</strong> Su Discord e app simili i messaggi privati non sono cifrati end-to-end:
-              chi gestisce il servizio può leggerli. Qui no, per proteggere la tua privacy.
+              <strong>{t('dmv.why')}</strong> {t('dmv.whyText')}
             </p>
           {/if}
           {#if error}<p class="err">{error}</p>{/if}
           <button class="btn primary" disabled={busy} onclick={generate}>
-            {busy ? 'Un attimo…' : resetting ? 'Genera un nuovo codice' : 'Attiva'}
+            {busy ? t('common.wait') : resetting ? t('dmv.generate') : t('dmv.activate')}
           </button>
         {:else}
-          <h2>Sblocca i messaggi</h2>
-          <p class="muted">Inserisci il codice di recupero. Su questo dispositivo non te lo chiederemo più.</p>
+          <h2>{t('dmv.unlockTitle')}</h2>
+          <p class="muted">{t('dmv.unlockHint')}</p>
           <form class="unlock" onsubmit={unlock}>
             <!-- svelte-ignore a11y_autofocus -->
             <input
@@ -154,24 +148,24 @@
             />
             {#if error}<p class="err">{error}</p>{/if}
             <button class="btn primary" type="submit" disabled={busy || !isFullCode(code)}>
-              {busy ? 'Un attimo…' : 'Sblocca'}
+              {busy ? t('common.wait') : t('dmv.unlock')}
             </button>
           </form>
         {/if}
         {#if dm.status === 'locked'}
           <button class="link" type="button" onclick={toggleReset}>
-            {resetting ? 'Ho ritrovato il codice' : 'Ho perso il codice'}
+            {resetting ? t('dmv.foundCode') : t('dmv.lostCode')}
           </button>
         {/if}
       </div>
     </div>
   {:else if dm.current === null}
-    <header><Icon name="plus" size={18} /><h2>Nuova chat</h2></header>
+    <header><Icon name="plus" size={18} /><h2>{t('dm.newChat')}</h2></header>
     <div class="picker">
       <label class="search">
         <Icon name="search" size={16} />
         <!-- svelte-ignore a11y_autofocus -->
-        <input placeholder="Cerca un membro" bind:value={query} onkeydown={searchKey} autofocus />
+        <input placeholder={t('dmv.search')} bind:value={query} onkeydown={searchKey} autofocus />
       </label>
       <div class="list">
         {#each candidates as c (c.id)}
@@ -179,11 +173,11 @@
             <Avatar id={c.id} size={32} status={app.presence[c.id] ? 'online' : 'offline'} />
             <span class="who">
               <span class="pname">{c.name}</span>
-              {#if !c.ready}<span class="sub">non ha ancora attivato i messaggi</span>{/if}
+              {#if !c.ready}<span class="sub">{t('dmv.notActivated')}</span>{/if}
             </span>
           </button>
         {:else}
-          <p class="muted none">Nessun membro trovato.</p>
+          <p class="muted none">{t('dmv.noMembers')}</p>
         {/each}
       </div>
     </div>

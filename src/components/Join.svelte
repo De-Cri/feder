@@ -2,18 +2,19 @@
   import { supabase } from '../lib/supabase';
   import { app } from '../lib/state.svelte';
   import Icon from './Icon.svelte';
+  import { t, type Key } from '../lib/i18n.svelte';
 
   let password = $state('');
   let busy = $state(false);
   let error = $state<string | null>(null);
 
-  const messages: Record<string, string> = {
-    wrong_password: 'Password del server errata.',
-    too_many_attempts: 'Troppi tentativi. Riprova tra 15 minuti.',
-    banned: 'Sei stato bannato da questo server.',
-    server_full: 'Il server è pieno.',
-    not_configured: 'Il server non è ancora configurato.',
-    not_authenticated: 'Sessione scaduta, accedi di nuovo.',
+  const messages: Record<string, Key> = {
+    wrong_password: 'join.wrongPassword',
+    too_many_attempts: 'join.tooManyAttempts',
+    banned: 'join.banned',
+    server_full: 'join.full',
+    not_configured: 'join.notConfigured',
+    not_authenticated: 'join.sessionExpired',
   };
 
   async function join(e: Event) {
@@ -32,7 +33,8 @@
     } else if (data === 'banned') {
       app.membership = 'banned';
     } else {
-      error = messages[data as string] ?? String(data);
+      const key = messages[data as string];
+      error = key ? t(key) : String(data);
     }
   }
 </script>
@@ -40,19 +42,19 @@
 <div class="wrap">
   {#if app.membership === 'banned'}
     <div class="card">
-      <h1>Accesso negato</h1>
-      <p class="muted">Sei stato bannato dal server{app.banReason ? `: ${app.banReason}` : '.'}</p>
-      <button class="btn" onclick={() => app.signOut()}>Esci</button>
+      <h1>{t('join.deniedTitle')}</h1>
+      <p class="muted">{app.banReason ? t('join.bannedReason', { reason: app.banReason }) : t('join.banned')}</p>
+      <button class="btn" onclick={() => app.signOut()}>{t('join.logout')}</button>
     </div>
   {:else}
     <form class="card" onsubmit={join}>
       <div class="lock"><Icon name="lock" size={22} /></div>
-      <h1>Entra nel server</h1>
-      <p class="muted">Ciao <b>{app.myProfile?.username ?? ''}</b>, inserisci la password che ti ha dato l’admin.</p>
-      <input class="field" type="password" placeholder="Password del server" bind:value={password} required />
+      <h1>{t('join.title')}</h1>
+      <p class="muted">{t('join.hello')} <b>{app.myProfile?.username ?? ''}</b>, {t('join.hint')}</p>
+      <input class="field" type="password" placeholder={t('join.passwordPlaceholder')} bind:value={password} required />
       {#if error}<p class="err">{error}</p>{/if}
-      <button class="btn primary" disabled={busy || !password}>{busy ? '…' : 'Entra'}</button>
-      <button type="button" class="link" onclick={() => app.signOut()}>Esci dall’account</button>
+      <button class="btn primary" disabled={busy || !password}>{busy ? '…' : t('join.enter')}</button>
+      <button type="button" class="link" onclick={() => app.signOut()}>{t('join.signOut')}</button>
     </form>
   {/if}
 </div>

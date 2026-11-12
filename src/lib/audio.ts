@@ -139,7 +139,7 @@ export class MicPipeline {
         last = rn;
         nodes.push(rn);
       } catch (e) {
-        console.warn('RNNoise non disponibile', e);
+        console.warn('RNNoise not available', e);
         rnnoiseWasm = null;
         aiFallback = true;
       }
@@ -158,7 +158,7 @@ export class MicPipeline {
         last = gate;
         nodes.push(gate);
       } catch (e) {
-        console.warn('Noise gate non disponibile', e);
+        console.warn('Noise gate not available', e);
       }
     }
 

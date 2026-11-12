@@ -1,6 +1,7 @@
 // Screen sharing quality: resolution and fps, with a load estimate and
 // warnings when it's too much.
 import { prefs, clampScreen } from './prefs.svelte';
+import { t } from './i18n.svelte';
 
 /** The only allowed combinations: beyond these, PC and network can't keep up in a group call. */
 export const SCREEN_OPTIONS = [
@@ -44,15 +45,8 @@ export function screenWarning(viewers = 4): ScreenWarning {
   const base = 1280 * 720 * 30;
   const mbps = s.bitrate / 1_000_000;
   const total = (mbps * viewers).toFixed(0);
-  const upload = `circa ${mbps.toFixed(1)} Mbps in upload per ogni spettatore (${total} Mbps con ${viewers})`;
-  if (load <= base * 1.05) return { level: 'ok', text: `Leggera: va bene quasi ovunque. Serve ${upload}.` };
-  if (load <= base * 2.3)
-    return {
-      level: 'warn',
-      text: `Impegnativa: serve un PC discreto e ${upload}. Se a chi guarda scatta, abbassa fps o risoluzione.`,
-    };
-  return {
-    level: 'danger',
-    text: `Molto pesante: il tuo PC codifica una copia per ogni spettatore e serve ${upload}. Con connessioni normali o PC poco potenti la stream scatterà.`,
-  };
+  const upload = t('screen.upload', { mbps: mbps.toFixed(1), total, viewers });
+  if (load <= base * 1.05) return { level: 'ok', text: t('screen.light', { upload }) };
+  if (load <= base * 2.3) return { level: 'warn', text: t('screen.medium', { upload }) };
+  return { level: 'danger', text: t('screen.heavy', { upload }) };
 }

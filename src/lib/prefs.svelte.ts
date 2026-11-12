@@ -8,9 +8,11 @@ import type { NoiseMode } from './audio';
 import type { SoundKind } from './sounds';
 
 export type Theme = 'system' | 'light' | 'dark' | 'black' | 'oled';
+export type Language = 'system' | 'it' | 'en';
 
 export type Prefs = {
   theme: Theme;
+  language: Language; // interface language; 'system' follows the OS
   notifications: boolean;
   // this device only
   micId: string;
@@ -42,6 +44,7 @@ const OLD_THEME_KEY = 'paper.theme';
 
 const defaults: Prefs = {
   theme: 'system',
+  language: 'system',
   notifications: true,
   micId: '',
   camId: '',
@@ -92,6 +95,7 @@ function normalize(raw: any): Prefs {
 
   if (raw.theme === 'black-blue') raw.theme = 'black'; // "Nero blu" removed: same palette as "Nero"
   if (!THEMES.includes(raw.theme)) raw.theme = 'system';
+  if (!['system', 'it', 'en'].includes(raw.language)) raw.language = 'system';
 
   return { ...defaults, ...raw, sounds: { ...defaults.sounds, ...(raw.sounds ?? {}) } };
 }
@@ -178,7 +182,7 @@ async function pushNow() {
     },
     { onConflict: 'user_id' },
   );
-  if (error) console.warn('[prefs] salvataggio remoto non riuscito:', error.message);
+  if (error) console.warn('[prefs] remote save failed:', error.message);
 }
 
 function schedulePush() {
