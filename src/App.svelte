@@ -16,7 +16,7 @@
       app.booted = true;
       return;
     }
-    let lastUser: string | null | undefined = undefined; // undefined = primo evento
+    let lastUser: string | null | undefined = undefined; // undefined = first event
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       app.session = session;
       const uid = session?.user.id ?? null;

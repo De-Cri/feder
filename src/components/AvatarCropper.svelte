@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Ritaglio foto profilo.
+  // Profile photo cropper.
   // The image is centered in the frame, moved by (ox, oy) from the center.
   // Zoom scales around the center. The VIEW frame is exactly what gets saved.
   let { file, onconfirm, oncancel }: {
@@ -14,8 +14,8 @@
   let img = $state.raw<HTMLImageElement | null>(null);
   let url = $state('');
   let zoom = $state(1);
-  let ox = $state(0); // spostamento orizzontale rispetto al centro (px)
-  let oy = $state(0); // spostamento verticale rispetto al centro (px)
+  let ox = $state(0); // horizontal offset from the center (px)
+  let oy = $state(0); // vertical offset from the center (px)
   let busy = $state(false);
   let drag: { x: number; y: number; ox: number; oy: number } | null = null;
 

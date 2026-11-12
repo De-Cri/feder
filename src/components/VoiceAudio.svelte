@@ -25,7 +25,7 @@
     for (const p of peers) if (sharing(p.id)) voice.send(p.id, { watch: !!voice.watching[p.id] });
   });
 
-  // Mute imposto dall'admin: applicato appena cambia, ovunque tu sia nell'app.
+  // Admin-imposed mute: applied as soon as it changes, wherever you are in the app.
   $effect(() => {
     void app.voiceMutes[app.me ?? ''];
     voice.applyMic();
