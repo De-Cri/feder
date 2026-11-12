@@ -1,6 +1,6 @@
 name: Release
 
-# This workflow lives in the PUBLIC releases repo (e.g. cerchio-releases), not in
+# This workflow lives in the PUBLIC releases repo (e.g. feder-releases), not in
 # the code repo. This way only whoever can write to this repo (you) can publish:
 # collaborators on the code repo can push as many tags as they want, but they
 # can't start a release and can't see the keys.
@@ -10,7 +10,7 @@ name: Release
 #
 # Secrets of this repo:    CODE_TOKEN (read access to the code repo),
 #   TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD
-# Variable:                CODE_REPO (e.g. De-Cri/cerchio)
+# Variable:                CODE_REPO (e.g. De-Cri/feder)
 # Set by `node scripts/secure-releases.mjs`.
 on:
   workflow_dispatch:
