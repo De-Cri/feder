@@ -76,6 +76,10 @@ Su Windows il numero è lo stesso della colonna *Memoria* del Task Manager; su L
 Salva un CSV (`mem-….csv`) per confrontare due prove. Per cercare una perdita: ripeti la stessa azione
 (es. avvia/ferma lo schermo 10 volte) e guarda se il totale continua a salire o si stabilizza.
 
+## Licenza dei contributi
+
+Feder è distribuito con licenza GPL-3.0 o successiva (vedi `LICENSE`). Aprendo una Pull Request accetti che il tuo contributo sia distribuito con la stessa licenza.
+
 ## Da non fare
 
 - Non committare `.cerchio-secrets/` (è già in `.gitignore`): contiene le chiavi per firmare gli aggiornamenti.

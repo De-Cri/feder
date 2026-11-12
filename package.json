@@ -1,6 +1,7 @@
 {
   "name": "cerchio",
   "private": true,
+  "license": "GPL-3.0-or-later",
   "version": "0.4.7",
   "type": "module",
   "scripts": {

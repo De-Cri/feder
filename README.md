@@ -123,12 +123,14 @@ scripts/setup.mjs                   setup automatico
 - Tutte le tabelle hanno RLS: chi non è membro vede solo il proprio profilo.
 - I canali Realtime (presenza e signaling WebRTC) sono **privati**, con policy su `realtime.messages`: solo i membri possono iscriversi.
 - Gli allegati stanno in un bucket privato, si leggono con URL firmati e ognuno può caricare solo nella propria cartella.
+- I messaggi privati sono cifrati end-to-end nell'app (ECDH P-256 + AES-GCM, solo WebCrypto): il server vede chi scrive a chi e quando, mai il testo. La chiave privata sta sul server solo cifrata con un codice di recupero casuale che conosce soltanto l'utente. Dettagli in `src/lib/dmcrypto.ts` e `supabase/migrations/0004_dm.sql`.
 
 ### Test
 
 ```bash
 # SQL + RLS su Postgres locale (stub dell'ambiente Supabase)
-psql -d test -f supabase/tests/00_stubs.sql -f supabase/migrations/0001_init.sql -f supabase/tests/01_test.sql
+psql -d test -f supabase/tests/00_stubs.sql $(printf -- '-f %s ' supabase/migrations/*.sql) \
+  -f supabase/tests/01_test.sql -f supabase/tests/02_dm_test.sql
 
 # Mesh WebRTC a 3 peer in Chromium (signaling simulato): connessione, audio,
 # RNNoise, gain, rebuild del microfono in chiamata, webcam, uscita/rientro
@@ -137,3 +139,11 @@ npx vite --config tests/voice/vite.config.ts &  node tests/voice/run.cjs
 # UI con dati finti
 npx vite --config tests/ui/vite.config.ts
 ```
+
+## Licenza
+
+Feder è software libero, distribuito con licenza [GNU GPL v3 o successiva](LICENSE): puoi usarlo, studiarlo,
+modificarlo e ridistribuirlo, a patto che anche le versioni modificate che distribuisci restino libere con la
+stessa licenza e con il loro codice sorgente.
+
+Scritto da Samuele De Cristofaro, con i contributi di Giovanni Intrieri e Daniele Filice.
