@@ -44,7 +44,7 @@ export const en: Record<keyof typeof it, string> = {
   "auth.login": "Log in",
   "auth.needsConfirm": "Account created, but email confirmation is required: ask the admin to turn it off.",
   "auth.register": "Sign up",
-  "auth.tagline": "Feder — just for a few.",
+  "auth.tagline": "Feder",
   "auth.toLogin": "Already have an account? Log in",
   "auth.toRegister": "No account? Sign up",
   "auth.usernamePlaceholder": "e.g. samu",

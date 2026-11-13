@@ -16,7 +16,8 @@
     "wizard": "node scripts/wizard.mjs",
     "mem": "node scripts/mem.mjs",
     "test:voice": "node tests/voice/all.cjs",
-    "test:memory": "node tests/voice/memory.cjs"
+    "test:memory": "node tests/voice/memory.cjs",
+    "deploy:web": "npm run build && npx -y firebase-tools@latest deploy --only hosting"
   },
   "dependencies": {
     "electron-updater": "^6.8.11"

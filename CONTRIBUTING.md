@@ -105,6 +105,12 @@ It saves a CSV (`mem-….csv`) to compare two runs. To look for a leak: repeat t
 
 Only the repo administrator (Samuele) can push directly.
 
+## Web version (Firebase Hosting)
+
+The same frontend is also published as a website at https://feder-chat.web.app (Firebase project `feder-chat`). In the browser there are no automatic updates (every deploy is live right away), screen sharing uses the browser's own picker and notifications only arrive while the tab is open.
+
+Only Samuele deploys it: `npm run deploy:web` builds `dist/` and uploads it. The first time, log in with `npx firebase-tools login`. Headers (CSP, camera/microphone permissions, caching) are in `firebase.json`: if you add a new domain to the Electron/Tauri CSP, add it there too.
+
 ## License of contributions
 
 Feder is released under the GPL-3.0-or-later license (see `LICENSE`). By opening a Pull Request you agree that your contribution is released under the same license.
