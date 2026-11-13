@@ -43,7 +43,7 @@ export const it = {
   "auth.login": "Accedi",
   "auth.needsConfirm": "Account creato, ma serve la conferma email: chiedi all’admin di disattivarla.",
   "auth.register": "Registrati",
-  "auth.tagline": "Feder — solo per pochi.",
+  "auth.tagline": "Feder",
   "auth.toLogin": "Hai già un account? Accedi",
   "auth.toRegister": "Non hai un account? Registrati",
   "auth.usernamePlaceholder": "es. samu",
