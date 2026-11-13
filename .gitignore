@@ -8,3 +8,5 @@ src-tauri/target/
 release/
 installer/
 mem-*.csv
+.firebase/
+firebase-debug.log
