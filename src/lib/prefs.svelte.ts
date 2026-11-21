@@ -34,6 +34,7 @@ export type Prefs = {
   screenAudio: boolean;
   sounds: Record<SoundKind, boolean>;
   soundVolume: number; // 0..1
+  rightBar: boolean; // right column (chats, friends, members) shown
 };
 
 const DEVICE_KEYS = ['micId', 'camId', 'speakerId'] as const;
@@ -64,6 +65,7 @@ const defaults: Prefs = {
   screenAudio: true,
   sounds: { selfJoin: true, selfLeave: true, join: true, leave: true, call: true, message: true, mute: true, unmute: true, poke: true },
   soundVolume: 0.6,
+  rightBar: true,
 };
 
 /** Only 720p30, 720p60 or 1080p30: maps old or invalid values to the closest combination. */

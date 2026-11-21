@@ -200,6 +200,8 @@ export const en: Record<keyof typeof it, string> = {
   "releases.added": "What's new",
   "releases.latest": "latest",
   "releases.test": "How to try it",
+  "rightBar.hide": "Hide sidebar",
+  "rightBar.show": "Show chats, friends and members",
   "screen.heavy": "Very heavy: your PC encodes one copy per viewer and needs {upload}. With ordinary connections or weaker PCs the stream will stutter.",
   "screen.light": "Light: works almost anywhere. Needs {upload}.",
   "screen.medium": "Demanding: needs a decent PC and {upload}. If it stutters for viewers, lower fps or resolution.",
