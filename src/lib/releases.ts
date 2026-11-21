@@ -15,6 +15,36 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.5.1',
+    date: '2026-11-21',
+    it: {
+      added: [
+        'Se la connessione salta per qualche secondo durante una chiamata, vedi "riconnessione…" invece dell\'errore rosso, e niente suono di ingresso ripetuto.',
+        'Le webcam si dispongono in base alla forma della finestra: in una finestra stretta e alta vanno in colonna.',
+        'Chi parla non si sente più nella stream di chi condivide lo schermo con l\'audio.',
+        'Il tasto Esci è in fondo alla pagina Account delle impostazioni.',
+      ],
+      test: [
+        'In chiamata, stacca il Wi-Fi per 5 secondi e riattaccalo: niente errore rosso, la chiamata riprende.',
+        'Con 2–3 webcam accese, stringi la finestra in verticale.',
+        'Condividi lo schermo con l\'audio mentre un amico parla: non deve sentirsi nella tua stream.',
+      ],
+    },
+    en: {
+      added: [
+        'If the connection drops for a few seconds during a call you see "reconnecting…" instead of a red error, and no repeated join sound.',
+        'Webcams are laid out for the window\'s shape: in a tall, narrow window they stack in a column.',
+        'Whoever talks no longer hears themselves in the stream of someone sharing their screen with audio.',
+        'Log out is at the bottom of the Account page in settings.',
+      ],
+      test: [
+        'In a call, turn Wi-Fi off for 5 seconds and back on: no red error, the call resumes.',
+        'With 2–3 webcams on, make the window tall and narrow.',
+        'Share your screen with audio while a friend talks: they shouldn\'t hear themselves in your stream.',
+      ],
+    },
+  },
+  {
     version: '0.5.0',
     date: '2026-11-12',
     it: {
@@ -81,42 +111,6 @@ export const RELEASES: Release[] = [
         'Messages → Activate, save the code and write to a friend who has activated them.',
         'Mute yourself before joining a voice channel: you should join already muted.',
         'When someone shares their screen, click the tile to watch it and the X to close it.',
-      ],
-    },
-  },
-  {
-    version: '0.4.6',
-    date: '2026-11-10',
-    it: {
-      added: [
-        'Paper ora si chiama Feder, con la piuma come icona.',
-        'La RAM non cresce più a ogni condivisione schermo o webcam: prima ogni avvio lasciava in memoria un canale in più per ogni persona.',
-        'Poke: tasto destro su chi ha l\'audio disattivato → Poke, con un messaggio facoltativo. Gli arriva un avviso con un suono.',
-        'Le chat si ricordano dove eri rimasto: tornando in un canale non ti ritrovi sempre in fondo.',
-        'In vocale, con la finestra larga, le webcam non vengono più tagliate sopra e sotto.',
-        'Le immagini aperte si ridimensionano insieme alla finestra.',
-        'Il badge dei contributor ora è una spada.',
-      ],
-      test: [
-        'Avvia e ferma la condivisione schermo più volte: la RAM non deve salire a ogni giro.',
-        'Chiedi a un amico di disattivare l\'audio, poi tasto destro sul suo nome → Poke.',
-        'Scorri in alto in una chat, passa a un altro canale e torna: devi essere dove eri.',
-      ],
-    },
-    en: {
-      added: [
-        'Paper is now called Feder, with the feather as its icon.',
-        'RAM no longer grows with every screen or webcam share: before, every start left one extra channel per person in memory.',
-        'Poke: right-click on someone with their audio off → Poke, with an optional message. They get a notice with a sound.',
-        'Chats remember where you were: going back to a channel no longer always lands you at the bottom.',
-        'In voice, with a wide window, webcams are no longer cut off at the top and bottom.',
-        'Opened images resize together with the window.',
-        'The contributor badge is now a sword.',
-      ],
-      test: [
-        'Start and stop screen sharing several times: RAM shouldn\'t go up every round.',
-        'Ask a friend to turn their audio off, then right-click their name → Poke.',
-        'Scroll up in a chat, switch to another channel and come back: you should be where you were.',
       ],
     },
   },
