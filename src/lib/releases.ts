@@ -15,6 +15,40 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.6.0',
+    date: '2026-11-21',
+    it: {
+      added: [
+        'Amici: tutti i membri originali del server ora sono amici tra loro. Aggiungi altre persone dal loro nome o dalla lista membri.',
+        'Chat private: crea chat di testo o vocali e invita solo chi vuoi. Le trovi nella barra a destra e le vedono solo i membri.',
+        'Pagina Amici e inviti: richieste di amicizia, inviti alle chat, blocco.',
+        'I messaggi privati e i poke funzionano solo tra amici.',
+        'Chi è in quale chiamata, la webcam e lo schermo li vede solo chi può vedere quel canale.',
+        'Presto Feder si aprirà a nuove persone (fino a 100): vedranno solo #generale e #random, Lounge e Gaming restano nostri.',
+      ],
+      test: [
+        'Barra a destra → + : crea una chat vocale e invita un amico. Lui la trova in Amici e inviti.',
+        'Entrate nella chat vocale: chi non è invitato non deve vederla.',
+        'Dal menu di una chat (…) prova a rinominarla, rimuovere qualcuno e uscire.',
+      ],
+    },
+    en: {
+      added: [
+        'Friends: all the original members of the server are now friends with each other. Add more people by username or from the member list.',
+        'Private chats: create text or voice chats and invite only who you want. They are in the right sidebar and only members can see them.',
+        'Friends & invites page: friend requests, chat invites, blocking.',
+        'Private messages and pokes only work between friends.',
+        'Who is in which call, webcams and screens are only visible to people who can see that channel.',
+        'Feder will soon open to new people (up to 100): they will see only #generale and #random, Lounge and Gaming stay ours.',
+      ],
+      test: [
+        'Right sidebar → + : create a voice chat and invite a friend. They find it in Friends & invites.',
+        'Join the voice chat together: people who aren\'t invited must not see it.',
+        'From a chat\'s menu (…) try renaming it, removing someone and leaving.',
+      ],
+    },
+  },
+  {
     version: '0.5.1',
     date: '2026-11-21',
     it: {
@@ -75,42 +109,6 @@ export const RELEASES: Release[] = [
         'Settings → Appearance → Language: switch to Italiano and back to English, without restarting.',
         'Join a call with a friend who already has 0.5.0: voice, webcam and screen work as before.',
         'Poke someone who has their audio off: it should reach them with your name.',
-      ],
-    },
-  },
-  {
-    version: '0.4.7',
-    date: '2026-11-11',
-    it: {
-      added: [
-        'Messaggi privati: "Messaggi" in basso a sinistra apre una schermata a parte, con le tue chat e "Nuova chat" per cercare un membro.',
-        'I messaggi privati sono cifrati end-to-end: nemmeno il server li può leggere. All\'attivazione ricevi un codice di recupero da conservare, serve solo su un altro dispositivo.',
-        'I messaggi privati spariscono dopo 30 giorni, tranne quelli a cui metti la stellina.',
-        'Lo schermo condiviso non va più in primo piano da solo: clicca per guardarlo, doppio click per ingrandirlo. Chi non guarda non lo scarica.',
-        'Microfono e cuffie sempre visibili in basso a sinistra: puoi mutarti prima di entrare in chiamata.',
-        'Tasto destro sul microfono: volume di ingresso con il livello in tempo reale e volume di uscita.',
-        'Cursori del volume ridisegnati, senza il riquadro bianco sulla percentuale.',
-      ],
-      test: [
-        'Messaggi → Attiva, salva il codice e scrivi a un amico che li ha attivati.',
-        'Mutati prima di entrare in un canale vocale: devi entrare già mutato.',
-        'Quando qualcuno condivide lo schermo, clicca il riquadro per guardarlo e la X per chiuderlo.',
-      ],
-    },
-    en: {
-      added: [
-        'Private messages: "Messages" at the bottom left opens a separate screen with your chats and "New chat" to look up a member.',
-        'Private messages are end-to-end encrypted: not even the server can read them. When you activate them you get a recovery code to keep, only needed on another device.',
-        'Private messages disappear after 30 days, except the ones you star.',
-        'A shared screen no longer jumps to the front by itself: click to watch it, double-click to enlarge it. Whoever isn\'t watching doesn\'t download it.',
-        'Microphone and headphones always visible at the bottom left: you can mute yourself before joining a call.',
-        'Right-click on the microphone: input volume with a live level, and output volume.',
-        'Redesigned volume sliders, without the white box around the percentage.',
-      ],
-      test: [
-        'Messages → Activate, save the code and write to a friend who has activated them.',
-        'Mute yourself before joining a voice channel: you should join already muted.',
-        'When someone shares their screen, click the tile to watch it and the X to close it.',
       ],
     },
   },
