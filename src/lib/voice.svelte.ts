@@ -499,9 +499,12 @@ class VoiceRoom {
   }
 
   private registerRoom(channelId: number | null) {
-    const op = this.roomOp.then(() =>
-      channelId === null ? supabase.rpc('voice_leave') : supabase.rpc('voice_join', { p_channel: channelId }),
-    );
+    const op = this.roomOp.then(async () => {
+      if (channelId === null) return supabase.rpc('voice_leave');
+      const res = await supabase.rpc('voice_join', { p_channel: channelId });
+      if (!res.error) app.publishRoomState(); // mic/cam/screen as they are now
+      return res;
+    });
     this.roomOp = op.catch(() => {});
     return op;
   }
@@ -1016,6 +1019,7 @@ class VoiceRoom {
     app.myPresence.cam = this.camOn;
     app.myPresence.screen = this.screenOn;
     app.publishPresence();
+    app.publishRoomState();
   }
 }
 

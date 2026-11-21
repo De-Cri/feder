@@ -50,6 +50,10 @@ export type Presence = {
   screen: boolean;
 };
 
+/** Call state of someone in a voice room, from the server's registry (voice_rooms, 0009). */
+export type RoomState = { mic: boolean; deaf: boolean; cam: boolean; screen: boolean };
+type RoomRow = RoomState & { user_id: string; channel_id: number };
+
 const PAGE = 50;
 
 /** `app.view` of the "novità" channel (release notes, not a server channel). */
@@ -144,6 +148,8 @@ class AppState {
   private lastPoke: Record<string, number> = {};
   /** Who is in which voice channel according to the server (voice_rooms): presence alone can be forged. */
   voiceRooms = $state<Record<string, number>>({});
+  /** Mic/cam/screen of whoever is in a room you can see (same source as voiceRooms). */
+  roomStates = $state<Record<string, RoomState>>({});
   logs: Record<number, ChannelLog> = {};
   unread = $state<Record<number, number>>({});
 
@@ -207,8 +213,12 @@ class AppState {
    */
   get presence(): Record<string, Presence> {
     const me = this.me;
-    if (!me || !this.online[me]) return this.online;
-    return { ...this.online, [me]: { ...this.online[me], ...this.myPresence, user_id: me } };
+    const out = { ...this.online };
+    // the lobby only says who is online: call state comes from the rooms you can see
+    for (const [id, st] of Object.entries(this.roomStates))
+      if (out[id] && id !== me) out[id] = { ...out[id], ...st, voice: this.voiceRooms[id] ?? null };
+    if (me && out[me]) out[me] = { ...out[me], ...this.myPresence, user_id: me };
+    return out;
   }
   /**
    * Who is in your voice room according to the room itself (more reliable than
@@ -222,17 +232,25 @@ class AppState {
     if (room && channelId === room.channel) {
       // your room: who is really there, even if the general list lags behind
       return room.ids.map(
-        (id) => ({ ...(all[id] ?? { mic: true, deaf: false, cam: false, screen: false }), user_id: id, voice: channelId }) as Presence,
+        (id) =>
+          ({
+            ...(all[id] ?? { mic: true, deaf: false, cam: false, screen: false }),
+            ...(id === this.me ? {} : this.roomStates[id]),
+            user_id: id,
+            voice: channelId,
+          }) as Presence,
       );
     }
-    // other channels: whoever the room says is with you can't be elsewhere, and others
-    // count only if the server agrees they're in that channel (presence can be forged)
-    return Object.values(all).filter(
-      (p) =>
-        p.voice === channelId &&
-        !(room && room.ids.includes(p.user_id)) &&
-        (p.user_id === this.me || this.voiceRooms[p.user_id] === channelId),
-    );
+    // other channels: the server's registry (RLS shows only rooms you can see), for people
+    // online; whoever the room says is with you can't be elsewhere
+    return Object.entries(this.voiceRooms)
+      .filter(([id, ch]) => ch === channelId && id !== this.me && all[id] && !(room && room.ids.includes(id)))
+      .map(([id]) => ({ ...all[id], ...this.roomStates[id], user_id: id, voice: channelId }) as Presence);
+  }
+  /** Is this person in a call you can see? */
+  inCall(id: string): boolean {
+    if (id === this.me) return this.myPresence.voice !== null;
+    return this.voiceRooms[id] !== undefined && !!this.online[id];
   }
 
   async checkMembership() {
@@ -263,7 +281,7 @@ class AppState {
       supabase.from('members').select('*'),
       supabase.from('profiles').select('*'),
       supabase.from('voice_mutes').select('user_id'),
-      supabase.from('voice_rooms').select('user_id, channel_id'),
+      supabase.from('voice_rooms').select('user_id, channel_id, mic, deaf, cam, screen'),
     ]);
     this.channels = (ch.data ?? []) as Channel[];
     this.members = (mem.data ?? []) as Member[];
@@ -274,8 +292,13 @@ class AppState {
     for (const row of mutes.data ?? []) m[row.user_id] = true;
     this.voiceMutes = m;
     const r: Record<string, number> = {};
-    for (const row of (rooms.data ?? []) as { user_id: string; channel_id: number }[]) r[row.user_id] = row.channel_id;
+    const st: Record<string, RoomState> = {};
+    for (const row of (rooms.data ?? []) as RoomRow[]) {
+      r[row.user_id] = row.channel_id;
+      st[row.user_id] = { mic: row.mic, deaf: row.deaf, cam: row.cam, screen: row.screen };
+    }
     this.voiceRooms = r;
+    this.roomStates = st;
     this.onRoomsChange?.();
     if (!this.channels.some((c) => c.id === this.view)) this.view = this.textChannels[0]?.id ?? 1;
     await this.subscribe();
@@ -338,10 +361,15 @@ class AppState {
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'voice_rooms' }, (ev) => {
-        if (ev.eventType === 'DELETE') delete this.voiceRooms[(ev.old as { user_id: string }).user_id];
-        else {
-          const row = ev.new as { user_id: string; channel_id: number };
+        if (ev.eventType === 'DELETE') {
+          const id = (ev.old as { user_id: string }).user_id;
+          delete this.voiceRooms[id];
+          delete this.roomStates[id];
+        } else {
+          const row = ev.new as RoomRow;
+          if (this.voiceRooms[row.user_id] !== row.channel_id) this.detectCall(row);
           this.voiceRooms[row.user_id] = row.channel_id;
+          this.roomStates[row.user_id] = { mic: row.mic, deaf: row.deaf, cam: row.cam, screen: row.screen };
         }
         this.onRoomsChange?.();
       })
@@ -386,7 +414,6 @@ class AppState {
         if (!this.serverHasMine(state[this.me])) this.healPresence();
         next[this.me] = { ...(next[this.me] ?? {}), ...$state.snapshot(this.myPresence), user_id: this.me };
       }
-      this.detectCalls(next);
       this.online = next;
     }).subscribe(async (status) => {
       if (this.lobby !== ch) return; // old channel, already replaced or closed by us
@@ -467,8 +494,16 @@ class AppState {
     return !!mine && this.samePresence(mine);
   }
 
+  /**
+   * What goes in the lobby presence, which every member reads (public members too):
+   * online and mic/deaf only. Which call you're in, webcam and screen go only in the
+   * room registry (publishRoomState), visible to whoever can see that room.
+   */
+  private lobbyPresence(): Omit<Presence, 'user_id'> {
+    return { ...$state.snapshot(this.myPresence), voice: null, cam: false, screen: false };
+  }
   private samePresence(p: Presence) {
-    const m = this.myPresence;
+    const m = this.lobbyPresence();
     return p.voice === m.voice && p.mic === m.mic && p.deaf === m.deaf && p.cam === m.cam && p.screen === m.screen;
   }
 
@@ -500,6 +535,7 @@ class AppState {
   // succession (e.g. switching voice channel) leave no ghost states.
   // Past Supabase's limit the send is postponed (still with the latest state).
   private publishing = false;
+  private lastAt = 0;
   private publishAgain = false;
   private publishTimer: ReturnType<typeof setTimeout> | undefined;
   async publishPresence() {
@@ -524,7 +560,9 @@ class AppState {
           break;
         }
         presenceBudget.take();
-        await this.lobby?.track({ user_id: this.me, ...$state.snapshot(this.myPresence), at: Date.now(), dev: DEVICE });
+        // strictly increasing: two updates in the same millisecond must not tie (the stale one could win)
+        this.lastAt = Math.max(Date.now(), this.lastAt + 1);
+        await this.lobby?.track({ user_id: this.me, ...this.lobbyPresence(), at: this.lastAt, dev: DEVICE });
       } while (this.publishAgain && this.lobby);
     } finally {
       this.publishing = false;
@@ -533,24 +571,28 @@ class AppState {
     if (!deferred) this.healPresence();
   }
 
-  /** "Call" sound: someone joins an empty voice channel while you're not in voice. */
-  private presenceReady = false;
-  private detectCalls(next: Record<string, Presence>) {
-    const prev = this.online;
-    if (!this.presenceReady) {
-      this.presenceReady = true;
-      return;
-    }
-    if (this.myPresence.voice !== null) return;
-    for (const p of Object.values(next)) {
-      if (p.user_id === this.me || p.voice === null) continue;
-      if (prev[p.user_id]?.voice === p.voice) continue; // was already there
-      const alreadyBusy = Object.values(prev).some((o) => o.voice === p.voice && o.user_id !== p.user_id);
-      if (alreadyBusy) continue;
-      const ch = this.channels.find((c) => c.id === p.voice);
-      playSound('call');
-      notify(t('notify.call', { name: this.name(p.user_id), channel: ch?.name ?? t('notify.voice') }), t('notify.callBody'));
-    }
+  /** "Call" sound: someone joins an empty voice channel you can see while you're not in voice. */
+  private detectCall(row: RoomRow) {
+    if (row.user_id === this.me || this.myPresence.voice !== null) return;
+    const busy = Object.entries(this.voiceRooms).some(([id, ch]) => ch === row.channel_id && id !== row.user_id);
+    if (busy) return;
+    const ch = this.channels.find((c) => c.id === row.channel_id);
+    playSound('call');
+    notify(t('notify.call', { name: this.name(row.user_id), channel: ch?.name ?? t('notify.voice') }), t('notify.callBody'));
+  }
+
+  /**
+   * Your call state for the others: in the room registry, which only people who can
+   * see the room read (0009). Sent shortly after the last change.
+   */
+  private roomStateTimer: ReturnType<typeof setTimeout> | undefined;
+  publishRoomState() {
+    clearTimeout(this.roomStateTimer);
+    this.roomStateTimer = setTimeout(() => {
+      const m = this.myPresence;
+      if (m.voice === null) return;
+      void supabase.rpc('voice_state', { p_mic: m.mic, p_deaf: m.deaf, p_cam: m.cam, p_screen: m.screen });
+    }, 250);
   }
 
   private async refreshProfile(id: string) {
@@ -566,6 +608,8 @@ class AppState {
     this.logs = {};
     this.online = {};
     this.voiceRooms = {};
+    this.roomStates = {};
+    clearTimeout(this.roomStateTimer);
   }
 
   private async kicked() {
@@ -574,7 +618,6 @@ class AppState {
   }
 
   async unsubscribe() {
-    this.presenceReady = false;
     this.lobbyJoined = false;
     clearInterval(this.presenceTimer);
     clearTimeout(this.healTimer);
