@@ -9,6 +9,7 @@
   import VolumeSlider from './VolumeSlider.svelte';
   import PokeItem from './PokeItem.svelte';
   import { dm } from '../lib/dm.svelte';
+  import { social } from '../lib/social.svelte';
   import { t } from '../lib/i18n.svelte';
 
   // Right-click menu on a person. Used by the member list, voice sidebar and chat.
@@ -33,6 +34,7 @@
   const isMe = $derived(id === app.me);
   const member = $derived(app.members.find((m) => m.user_id === id));
   const vol = $derived(userVolume(id));
+  const relation = $derived(social.relation(id));
   const left = $derived(Math.max(8, Math.min(x, window.innerWidth - 272)));
   const top = $derived(Math.max(8, Math.min(y, window.innerHeight - 360)));
 
@@ -89,8 +91,19 @@
       <Icon name={vol > 0 ? 'volume' : 'mic-off'} size={15} />
       {vol > 0 ? t('menu.muteForMe') : t('call.undeafen')}
     </button>
-    {#if app.presence[id]?.deaf}<PokeItem {id} onsent={onclose} />{/if}
-    {#if dm.status !== 'off'}
+    {#if relation === 'friend' && app.presence[id]?.deaf}<PokeItem {id} onsent={onclose} />{/if}
+    {#if relation === 'none'}
+      <button class="item" onclick={async () => { error = await social.request(id); if (!error) onclose(); }}>
+        <Icon name="plus" size={15} /> {t('social.addFriend')}
+      </button>
+    {:else if relation === 'incoming'}
+      <button class="item" onclick={async () => { error = await social.respond(id, true); if (!error) onclose(); }}>
+        <Icon name="check" size={15} /> {t('social.acceptRequest')}
+      </button>
+    {:else if relation === 'outgoing'}
+      <button class="item" disabled><Icon name="check" size={15} /> {t('social.pendingRequest')}</button>
+    {/if}
+    {#if relation === 'friend' && dm.status !== 'off'}
       <button class="item" onclick={() => { dm.enter(id); onclose(); }}>
         <Icon name="chat" size={15} /> {t('menu.privateMessage')}
       </button>

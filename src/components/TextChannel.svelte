@@ -28,7 +28,8 @@
   const saved = untrack(() => scrollMemory.get(channel.id)); // the component is recreated on every channel change
   let stick = !saved || saved.bottom;
 
-  const MAX = 50 * 1024 * 1024;
+  // founders 50 MB, public members 10 MB (0009; the server enforces it too)
+  const MAX = $derived((app.isFounder ? 50 : 10) * 1024 * 1024);
 
   type Row = { m: Message; head: boolean; dayLabel: string | null };
   const rows = $derived.by(() => {
@@ -102,7 +103,7 @@
   async function upload(files: FileList | File[]) {
     for (const file of Array.from(files)) {
       if (file.size > MAX) {
-        error = t('chat.tooBig', { name: file.name });
+        error = t('chat.tooBig', { name: file.name, max: app.isFounder ? 50 : 10 });
         continue;
       }
       uploading = file.name;
@@ -196,14 +197,14 @@
 >
   <header>
     <Icon name="hash" size={18} />
-    <h2>{channel.name}</h2>
+    <h2>{app.channelName(channel)}</h2>
   </header>
 
   <div class="scroller" bind:this={scroller} onscroll={onScroll}>
     {#if log.loaded && !log.hasMore}
       <div class="start">
         <div class="start-icon"><Icon name="hash" size={26} /></div>
-        <h3>{t('chat.welcome', { channel: channel.name })}</h3>
+        <h3>{t('chat.welcome', { channel: app.channelName(channel) })}</h3>
         <p class="muted">{t('chat.start')}</p>
       </div>
     {/if}
@@ -268,7 +269,7 @@
         bind:this={input}
         bind:value={text}
         rows="1"
-        placeholder={t('chat.placeholder', { channel: channel.name })}
+        placeholder={t('chat.placeholder', { channel: app.channelName(channel) })}
         onkeydown={onKey}
         oninput={resize}
         onpaste={onPaste}
@@ -280,7 +281,7 @@
   </div>
 
   {#if dragging}
-    <div class="drop">{t('chat.drop', { channel: channel.name })}</div>
+    <div class="drop">{t('chat.drop', { channel: app.channelName(channel) })}</div>
   {/if}
 </div>
 

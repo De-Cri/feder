@@ -35,7 +35,7 @@
       {#if role === 'admin'}<span class="badge admin" data-tip="Admin" aria-label="Admin"><Icon name="shield" size={13} /></span>{/if}
       {#if contributor}<span class="badge contrib" data-tip="Contributor" aria-label="Contributor"><Icon name="sword" size={13} /></span>{/if}
       {#if app.voiceMutes[id]}<span class="muted-ic" title={t('call.adminMuted')}><Icon name="mic-off" size={13} /></span>{/if}
-      {#if app.presence[id]?.voice}<span class="in-voice" title={t('members.inVoice')}><Icon name="volume" size={13} /></span>{/if}
+      {#if app.inCall(id)}<span class="in-voice" title={t('members.inVoice')}><Icon name="volume" size={13} /></span>{/if}
     </button>
   {/snippet}
 
@@ -65,11 +65,12 @@
 {/if}
 
 <style>
+  /* Inside the right column (RightBar), below the chats. */
   aside {
+    flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    border-left: 1px solid var(--border);
     overflow-y: auto;
     padding: 4px 10px 12px;
   }

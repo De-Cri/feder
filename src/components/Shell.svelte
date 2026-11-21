@@ -8,7 +8,9 @@
   import Sidebar from './Sidebar.svelte';
   import TextChannel from './TextChannel.svelte';
   import VoiceChannel from './VoiceChannel.svelte';
-  import MemberList from './MemberList.svelte';
+  import RightBar from './RightBar.svelte';
+  import FriendsView from './FriendsView.svelte';
+  import { social, FRIENDS_VIEW } from '../lib/social.svelte';
   import Settings from './Settings.svelte';
   import ScreenPicker from './ScreenPicker.svelte';
   import VoiceAudio from './VoiceAudio.svelte';
@@ -34,6 +36,7 @@
 
   onMount(() => {
     dm.init();
+    social.init();
     const offHidden = onHiddenChange((h) => (hidden = h));
     checkUpdate().then((u) => (update = u));
     const t = setInterval(() => checkUpdate().then((u) => u && (update = u)), 6 * 3600_000);
@@ -41,8 +44,26 @@
       clearInterval(t);
       offHidden();
       dm.stop();
+      social.stop();
     };
   });
+
+  // Removed from a voice chat (or it was deleted) while in it: leave the call.
+  $effect(() => {
+    const id = voice.channelId;
+    if (id !== null && app.channels.length && !app.channels.some((c) => c.id === id)) voice.leave();
+  });
+
+  // One-time notice for the original members: they are now all friends (0.6.0).
+  const NOTICE_KEY = 'feder.friendsNotice';
+  let founderNotice = $state(false);
+  $effect(() => {
+    founderNotice = app.isFounder && !localStorage.getItem(NOTICE_KEY);
+  });
+  function closeNotice() {
+    localStorage.setItem(NOTICE_KEY, '1');
+    founderNotice = false;
+  }
 
   $effect(() => {
     // mark the open channel as read when the window is focused
@@ -50,7 +71,7 @@
   });
 </script>
 
-<div class="shell" class:members={!!textChannel}>
+<div class="shell" class:members={app.view !== DM_VIEW}>
   <Sidebar />
   <main>
     {#if update}
@@ -67,8 +88,17 @@
       </div>
     {/if}
 
+    {#if founderNotice}
+      <div class="banner">
+        <span>{t('social.founderNotice')}</span>
+        <button class="btn primary small" onclick={closeNotice}>{t('social.ok')}</button>
+      </div>
+    {/if}
+
     {#if app.view === RELEASES_VIEW}
       <Releases />
+    {:else if app.view === FRIENDS_VIEW}
+      <FriendsView />
     {:else if app.view === DM_VIEW}
       <DmView />
     {:else if textChannel}
@@ -80,9 +110,9 @@
     {/if}
   </main>
 
-  <!-- The member list is shown only in text channels. -->
-  {#if textChannel}
-    <MemberList />
+  <!-- Right column: friends, private chats and members (not in private messages). -->
+  {#if app.view !== DM_VIEW}
+    <RightBar />
   {/if}
 </div>
 
@@ -121,4 +151,5 @@
     font-size: 13px;
   }
   .small { height: 26px; padding: 0 10px; font-size: 12px; }
+  .banner .btn { flex: none; white-space: nowrap; }
 </style>

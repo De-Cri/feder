@@ -127,17 +127,21 @@ class MockChannel {
 const rooms: Record<string, number> = {};
 const roomListeners: ((user: string, channel: number | null) => void)[] = [];
 const roomsBc = new BroadcastChannel('mock-voice-rooms');
-function applyRoom(user: string, channel: number | null) {
+// call state per person (0009: mic/deaf/cam/screen live in the registry, not in the lobby)
+const roomState: Record<string, any> = {};
+function applyRoom(user: string, channel: number | null, state?: any) {
   if (channel === null) delete rooms[user];
   else rooms[user] = channel;
-  const ev = channel === null ? { eventType: 'DELETE', old: { user_id: user } } : { eventType: 'INSERT', new: { user_id: user, channel_id: channel } };
+  if (state) roomState[user] = state;
+  const st = roomState[user] ?? { mic: true, deaf: false, cam: false, screen: false };
+  const ev = channel === null ? { eventType: 'DELETE', old: { user_id: user } } : { eventType: 'INSERT', new: { user_id: user, channel_id: channel, ...st } };
   for (const ch of live) ch.firePg('voice_rooms', ev);
   for (const cb of roomListeners) cb(user, channel);
 }
 roomsBc.onmessage = ({ data }) => {
   if (data.hello) {
     if (rooms[ME] !== undefined) roomsBc.postMessage({ user: ME, channel: rooms[ME] });
-  } else applyRoom(data.user, data.channel);
+  } else applyRoom(data.user, data.channel, data.state);
 };
 roomsBc.postMessage({ hello: true }); // pages opened earlier tell us their room
 /** Room registry changes (the test page mirrors them into app.voiceRooms). */
@@ -154,6 +158,13 @@ async function rpc(fn: string, args: any = {}) {
     const channel = fn === 'voice_join' ? args.p_channel : null;
     applyRoom(ME, channel);
     roomsBc.postMessage({ user: ME, channel });
+    return ok;
+  }
+  if (fn === 'voice_state') {
+    if (rooms[ME] === undefined) return ok;
+    const state = { mic: args.p_mic, deaf: args.p_deaf, cam: args.p_cam, screen: args.p_screen };
+    applyRoom(ME, rooms[ME], state);
+    roomsBc.postMessage({ user: ME, channel: rooms[ME], state });
     return ok;
   }
   if (fn === 'voice_signal') {

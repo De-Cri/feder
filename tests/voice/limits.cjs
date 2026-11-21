@@ -18,11 +18,15 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
   const a = await open('a');
   const b2 = await open('b');
   await sleep(500);
-  const seen = (p, who) => p.evaluate((w) => { const x = window.app.online[w]; return x ? `${x.voice}/${x.mic}` : 'assente'; }, who);
+  // call from the room registry (0009: not in the lobby anymore), mic from the lobby
+  const seen = (p, who) => p.evaluate((w) => {
+    const x = window.app.online[w];
+    return x ? `${window.app.inCall(w) ? window.app.voiceRooms[w] : null}/${x.mic}` : 'assente';
+  }, who);
   const lobby = (p) => p.evaluate(() => { const l = window.app['lobby']; return { closed: !!l?.closedByServer, tracks: l?.trackCount ?? -1, joined: window.app['lobbyJoined'] }; });
 
   // 1. Join voice and toggle the microphone 10 times in 5 s (like someone fiddling).
-  await a.evaluate(() => { window.app.myPresence.voice = 3; window.app.publishPresence(); });
+  await a.evaluate(async () => { window.app.myPresence.voice = 3; window.app.publishPresence(); await window.supabase.rpc('voice_join', { p_channel: 3 }); });
   for (let i = 0; i < 10; i++) {
     await a.evaluate((on) => { window.app.myPresence.mic = on; window.app.publishPresence(); }, i % 2 === 1);
     await sleep(500);
@@ -51,11 +55,14 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
   await a.evaluate(() => window.app['lobby'].serverClose());
   await sleep(300);
   // (the closed a2 page doesn't send "leave" in the mock: b may still see its out-of-call state)
-  assert(!(await seen(b2, 'a')).startsWith('3/'), 'canale chiuso: per b, a non è più in chiamata');
-  await a.evaluate(() => { window.app.myPresence.voice = 4; window.app.publishPresence(); });
+  // (since 0009 "in a call" comes from the server's room registry, not the lobby: a is still
+  // registered in room 3, which is right, so there's nothing to check on b here)
+  await a.evaluate(async () => { window.app.myPresence.voice = 4; window.app.publishPresence(); await window.supabase.rpc('voice_join', { p_channel: 4 }); });
   let back = '';
   for (let i = 0; i < 80 && !back.startsWith('4/'); i++) { await sleep(500); back = await seen(b2, 'a'); }
   assert(back.startsWith('4/'), `dopo la chiusura a si ricollega e b lo vede nel canale 4 (${back})`);
+  // the lobby reconnects after ~3 s (the registry above may answer sooner)
+  for (let i = 0; i < 40 && !(await lobby(a)).joined; i++) await sleep(500);
   st = await lobby(a);
   assert(!st.closed && st.joined, 'a ha di nuovo un canale lobby attivo');
 
