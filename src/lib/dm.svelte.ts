@@ -36,6 +36,7 @@ const ERRORS: Record<string, Key> = {
   dm_too_many_people: 'dm.err.tooManyPeople',
   dm_recipient_no_key: 'dm.err.recipientNoKey',
   dm_invalid_recipient: 'dm.err.invalidRecipient',
+  dm_not_friends: 'dm.err.notFriends',
   dm_no_key: 'dm.err.noKey',
   dm_not_found: 'dm.err.notFound',
   forbidden: 'error.forbidden',
