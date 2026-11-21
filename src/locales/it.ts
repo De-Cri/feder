@@ -265,6 +265,8 @@ export const it = {
   "voice.camError": "Impossibile accedere alla webcam.",
   "voice.deviceFallback": "Il microfono scelto non è disponibile: uso quello predefinito.",
   "voice.joinFailed": "Connessione al canale vocale non riuscita.",
+  "voice.reconnecting": "Connessione persa, riconnessione…",
+  "voice.screenEcho": "L'audio dello schermo include anche Feder: chi parla potrebbe sentirsi nella stream. Aggiorna WebView2/Edge o disattiva l'audio dello schermo.",
   "voice.micError": "Impossibile accedere al microfono: {reason}",
   "voice.noWebrtc": "WebRTC non disponibile in questa installazione.",
   "voice.rebuildFailed": "Cambio impostazioni microfono non riuscito.",

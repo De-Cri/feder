@@ -149,10 +149,6 @@
       <div class="group spaced">App</div>
       <button class:active={tab === 'about'} onclick={() => (tab = 'about')}>{t('settings.about')}</button>
 
-      <span class="grow"></span>
-      <button class="logout" onclick={() => { app.settingsOpen = false; app.signOut(); }}>
-        <Icon name="logout" size={15} /> {t('join.logout')}
-      </button>
     </nav>
 
     <section>
@@ -189,6 +185,12 @@
           <div class="inline">
             <input class="field" bind:value={username} />
             <button class="btn primary" onclick={saveUsername}>{t('settings.save')}</button>
+          </div>
+
+          <div class="logout-row">
+            <button class="btn logout" onclick={() => { app.settingsOpen = false; app.signOut(); }}>
+              <Icon name="logout" size={15} /> {t('join.logout')}
+            </button>
           </div>
 
         {:else if tab === 'appearance'}
@@ -364,16 +366,13 @@
   nav button.active { background: var(--bg-active); color: var(--text); }
   .grow { flex: 1; min-width: 0; }
 
-  /* "Esci" like the sidebar footer: full-width line on top. */
-  .logout {
-    width: calc(100% + 20px);
-    height: 48px;
-    margin: 8px -10px -12px;
-    padding: 0 18px;
-    border-radius: 0;
+  /* "Esci" at the bottom of the Account page. */
+  .logout-row {
+    margin-top: 28px;
+    padding-top: 16px;
     border-top: 1px solid var(--border);
-    color: var(--red) !important;
   }
+  .logout { color: var(--red) !important; gap: 8px; }
 
   section {
     position: relative;
