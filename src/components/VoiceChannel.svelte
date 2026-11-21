@@ -90,7 +90,28 @@
   }
 
   const count = $derived(tiles.length);
-  const cols = $derived(count <= 1 ? 1 : count <= 4 ? 2 : 3);
+  // Columns that give the biggest 16:9 tiles for the stage's real size:
+  // a tall, narrow window stacks them vertically, a wide one puts them side by side.
+  let stageW = $state(0);
+  let stageH = $state(0);
+  const GAP = 10;
+  const PAD = 32; // .stage padding, both sides
+  const cols = $derived.by(() => {
+    const w = stageW - PAD;
+    const h = stageH - PAD;
+    if (count <= 1 || w <= 0 || h <= 0) return count <= 1 ? 1 : count <= 4 ? 2 : 3;
+    let best = 1;
+    let bestW = 0;
+    for (let c = 1; c <= count; c++) {
+      const r = Math.ceil(count / c);
+      const tileW = Math.min((w - (c - 1) * GAP) / c, ((h - (r - 1) * GAP) / r) * (16 / 9));
+      if (tileW > bestW + 0.5) {
+        bestW = tileW;
+        best = c;
+      }
+    }
+    return best;
+  });
   const rows = $derived(Math.max(1, Math.ceil(count / cols)));
 </script>
 
@@ -136,7 +157,7 @@
       </button>
     </div>
   {:else}
-    <div class="stage" class:focus={!!focused}>
+    <div class="stage" class:focus={!!focused} bind:clientWidth={stageW} bind:clientHeight={stageH}>
       {#if focused}
         <div class="main">
           {@render tileView(focused, true)}
@@ -167,7 +188,8 @@
       />
     {/if}
 
-    {#if voice.error}<p class="err center">{voice.error}</p>{/if}
+    {#if voice.error}<p class="err center">{voice.error}</p>
+    {:else if voice.reconnecting}<p class="muted center">{tr('voice.reconnecting')}</p>{/if}
     {#if voice.notice}<p class="muted center">{voice.notice}</p>{/if}
   {/if}
 </div>

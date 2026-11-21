@@ -266,6 +266,8 @@ export const en: Record<keyof typeof it, string> = {
   "voice.camError": "Can't access the webcam.",
   "voice.deviceFallback": "The chosen microphone isn't available: using the default one.",
   "voice.joinFailed": "Couldn't connect to the voice channel.",
+  "voice.reconnecting": "Connection lost, reconnecting…",
+  "voice.screenEcho": "Screen audio also includes Feder: whoever talks may hear themselves in the stream. Update WebView2/Edge or turn off screen audio.",
   "voice.micError": "Can't access the microphone: {reason}",
   "voice.noWebrtc": "WebRTC isn't available in this installation.",
   "voice.rebuildFailed": "Couldn't apply the microphone settings.",

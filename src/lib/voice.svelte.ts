@@ -468,6 +468,9 @@ class VoiceRoom {
   localSpeaking = $state(false);
   localRev = $state(0);
   error = $state<string | null>(null);
+  /** The realtime channel dropped after joining: supabase-js is retrying on its own. */
+  reconnecting = $state(false);
+  private dropTimer: ReturnType<typeof setTimeout> | undefined;
   notice = $state<string | null>(null);
   joining = $state(false);
   /** Screen shares you chose to watch (key = sharer's id). */
@@ -590,15 +593,28 @@ class VoiceRoom {
     this.resyncRoom = () => this.rt === rt && sync();
     rt.on('presence', { event: 'sync' }, sync)
       .subscribe(async (status) => {
+        if (this.rt !== rt) return; // old channel, already replaced or closed by us
         if (status === 'SUBSCRIBED') {
+          clearTimeout(this.dropTimer);
+          this.reconnecting = false;
+          if (this.error === t('voice.joinFailed')) this.error = null;
           budget.take();
           await rt.track({ at: Date.now() });
+          if (subscribed) return; // back after a short drop: no join sound again
           subscribed = true;
           this.joining = false;
           settledAt = Date.now() + 1500;
           playSound('selfJoin');
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          this.error = t('voice.joinFailed');
+          // A few seconds without network shouldn't show a red error: supabase-js rejoins
+          // by itself. Only if it's still down after a while is it a real failure.
+          if (subscribed) this.reconnecting = true;
+          clearTimeout(this.dropTimer);
+          this.dropTimer = setTimeout(() => {
+            if (this.rt !== rt) return;
+            this.reconnecting = false;
+            this.error = t('voice.joinFailed');
+          }, subscribed ? 15_000 : 8_000);
         }
       });
 
@@ -609,6 +625,8 @@ class VoiceRoom {
   /** @param switching true when moving to another channel (no leave sound). */
   async leave(switching = false) {
     this.joinSeq++; // cancels joins in progress
+    clearTimeout(this.dropTimer);
+    this.reconnecting = false;
     if (this.channelId !== null && !switching) playSound('selfLeave');
     const rt = this.rt;
     const wasInRoom = this.channelId !== null;
@@ -887,7 +905,15 @@ class VoiceRoom {
       s = await navigator.mediaDevices.getDisplayMedia({
         video: screenVideo(q),
         audio: prefs.screenAudio
-          ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+          ? ({
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false,
+              // System audio also contains Feder's own output (the others' voices):
+              // without this whoever talks hears themselves in the stream (#32).
+              // Chromium leaves out the app's own process from the capture; ignored where unsupported.
+              restrictOwnAudio: true,
+            } as MediaTrackConstraints)
           : false,
       });
     } catch {
@@ -906,6 +932,9 @@ class VoiceRoom {
     this.screenOn = true;
     // System/tab audio (Windows: "Share audio" checkbox in the picker).
     if (audio) {
+      // If the browser couldn't leave out our own audio, say so instead of a silent echo.
+      const settings = audio.getSettings() as MediaTrackSettings & { restrictOwnAudio?: boolean };
+      if (settings.restrictOwnAudio !== true) this.notice = t('voice.screenEcho');
       this.screenAudioTrack = audio;
       this.screenStream.addTrack(audio);
     }
@@ -920,6 +949,7 @@ class VoiceRoom {
   }
 
   stopScreen(sync = true) {
+    if (this.notice === t('voice.screenEcho')) this.notice = null;
     for (const p of Object.values(this.peers)) {
       this.removeSender(p, 'screenSender');
       this.removeSender(p, 'screenAudioSender');
