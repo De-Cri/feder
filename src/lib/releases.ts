@@ -15,22 +15,46 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
-    version: '0.6.1',
+    version: '0.6.2',
     date: '2026-11-21',
     it: {
       added: [
-        'Windows: l\'aggiornamento automatico ora si installa davvero. Prima, su alcuni PC, la finestra si chiudeva ma Feder restava aperto in background e l\'installazione non partiva.',
+        'La barra di destra (chat, amici, membri) si può nascondere: pulsante con le persone in alto a destra, anche nei canali vocali. La scelta resta salvata.',
+        'Con la barra nascosta, un pallino sul pulsante ti avvisa di inviti, richieste di amicizia e messaggi nelle chat private.',
       ],
       test: [
-        'Al prossimo aggiornamento premi "Aggiorna e riavvia": Feder si chiude e si riapre aggiornato in pochi secondi.',
+        'Entra in Lounge e premi il pulsante in alto a destra: la barra sparisce e le webcam hanno più spazio.',
       ],
     },
     en: {
       added: [
-        'Windows: automatic updates now actually install. Before, on some PCs, the window closed but Feder kept running in the background and the update never started.',
+        'The right column (chats, friends, members) can be hidden: people button at the top right, in voice channels too. Your choice is saved.',
+        'While it\'s hidden, a dot on the button tells you about invites, friend requests and messages in private chats.',
       ],
       test: [
-        'On the next update press "Update and restart": Feder closes and reopens updated within a few seconds.',
+        'Open Lounge and press the button at the top right: the column disappears and webcams get more room.',
+      ],
+    },
+  },
+  {
+    version: '0.6.1',
+    date: '2026-11-21',
+    it: {
+      added: [
+        'Windows: se un aggiornamento lascia Feder aperto in background, il nuovo installer lo chiude prima di installare.',
+        'Se l\'aggiornamento non parte proprio, probabilmente è Smart App Control di Windows 11: blocca i programmi non firmati. Stiamo lavorando per firmare Feder.',
+      ],
+      test: [
+        'Premi "Aggiorna e riavvia" e controlla in Impostazioni → Info che la versione sia cambiata.',
+      ],
+    },
+    en: {
+      added: [
+        'Windows: if an update leaves Feder running in the background, the new installer closes it before installing.',
+        'If the update doesn\'t start at all, it\'s probably Windows 11 Smart App Control: it blocks unsigned programs. We\'re working on signing Feder.',
+      ],
+      test: [
+        'Press "Update and restart" and check in Settings → About that the version changed.',
       ],
     },
   },
@@ -65,36 +89,6 @@ export const RELEASES: Release[] = [
         'Right sidebar → + : create a voice chat and invite a friend. They find it in Friends & invites.',
         'Join the voice chat together: people who aren\'t invited must not see it.',
         'From a chat\'s menu (…) try renaming it, removing someone and leaving.',
-      ],
-    },
-  },
-  {
-    version: '0.5.1',
-    date: '2026-11-21',
-    it: {
-      added: [
-        'Se la connessione salta per qualche secondo durante una chiamata, vedi "riconnessione…" invece dell\'errore rosso, e niente suono di ingresso ripetuto.',
-        'Le webcam si dispongono in base alla forma della finestra: in una finestra stretta e alta vanno in colonna.',
-        'Chi parla non si sente più nella stream di chi condivide lo schermo con l\'audio.',
-        'Il tasto Esci è in fondo alla pagina Account delle impostazioni.',
-      ],
-      test: [
-        'In chiamata, stacca il Wi-Fi per 5 secondi e riattaccalo: niente errore rosso, la chiamata riprende.',
-        'Con 2–3 webcam accese, stringi la finestra in verticale.',
-        'Condividi lo schermo con l\'audio mentre un amico parla: non deve sentirsi nella tua stream.',
-      ],
-    },
-    en: {
-      added: [
-        'If the connection drops for a few seconds during a call you see "reconnecting…" instead of a red error, and no repeated join sound.',
-        'Webcams are laid out for the window\'s shape: in a tall, narrow window they stack in a column.',
-        'Whoever talks no longer hears themselves in the stream of someone sharing their screen with audio.',
-        'Log out is at the bottom of the Account page in settings.',
-      ],
-      test: [
-        'In a call, turn Wi-Fi off for 5 seconds and back on: no red error, the call resumes.',
-        'With 2–3 webcams on, make the window tall and narrow.',
-        'Share your screen with audio while a friend talks: they shouldn\'t hear themselves in your stream.',
       ],
     },
   },
