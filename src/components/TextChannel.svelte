@@ -28,7 +28,8 @@
   const saved = untrack(() => scrollMemory.get(channel.id)); // the component is recreated on every channel change
   let stick = !saved || saved.bottom;
 
-  const MAX = 50 * 1024 * 1024;
+  // founders 50 MB, public members 10 MB (0009; the server enforces it too)
+  const MAX = $derived((app.isFounder ? 50 : 10) * 1024 * 1024);
 
   type Row = { m: Message; head: boolean; dayLabel: string | null };
   const rows = $derived.by(() => {
@@ -102,7 +103,7 @@
   async function upload(files: FileList | File[]) {
     for (const file of Array.from(files)) {
       if (file.size > MAX) {
-        error = t('chat.tooBig', { name: file.name });
+        error = t('chat.tooBig', { name: file.name, max: app.isFounder ? 50 : 10 });
         continue;
       }
       uploading = file.name;

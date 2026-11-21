@@ -29,7 +29,7 @@ The private keys live in `.cerchio-secrets/`, a folder ignored by git: **back it
 
 1. They open `https://github.com/<your-user>/feder-releases/releases/latest`
 2. Windows: they download `Feder_x.y.z_x64-setup.exe`. Linux: `.rpm` (Fedora), `.deb` (Ubuntu/Debian) or `.AppImage` (any distro).
-3. They sign up and enter the server password.
+3. They sign up and press Join. While sign-ups are closed (Settings → Server → Open sign-ups) only the founders' password lets people in.
 
 **Windows SmartScreen**: the installer isn't signed (a certificate costs money), so on first launch "Windows protected your PC" shows up. Just click *More info → Run anyway*. Later updates are still verified with the updater signing key.
 
@@ -97,7 +97,8 @@ scripts/setup.mjs                   automatic setup
 
 ### Security
 
-- The server password is stored as a bcrypt hash in a non-exposed `private` schema, and `join_server()` checks it inside the DB, with a limit of 5 attempts every 15 minutes.
+- Open sign-ups (`join_open()`): off by default, at most 100 members and 10 public joins an hour. Public members see only `#generale` and `#random` plus the private chats they're invited to.
+- The founders' password is stored as a bcrypt hash in a non-exposed `private` schema, and `join_server()` checks it inside the DB, with a limit of 5 attempts every 15 minutes.
 - Every table has RLS: non-members only see their own profile.
 - Realtime channels (presence and WebRTC signaling) are **private**, with policies on `realtime.messages`: only members can join, and only the channels the app uses.
 - Attachments live in a private bucket, are read through signed URLs, and everyone can upload only to their own folder.

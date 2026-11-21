@@ -9,7 +9,7 @@ Goal: anyone can join (cap 100), `#generale` and `#random` are public, the rest 
 | Private chats | Protected by RLS like `#generale` (no end-to-end encryption) |
 | Friend requests | Anyone can send them, rate-limited, with blocking |
 | DMs and pokes | Friends only |
-| Sign-up abuse | Cloudflare Turnstile captcha |
+| Sign-up abuse | 10 public joins an hour + admin switch. Turnstile dropped: the desktop apps don't run on a web domain, and Supabase would require it for logins too |
 | Founders | Everyone in the server today. All friends with each other automatically |
 
 ## Model
@@ -24,17 +24,18 @@ Goal: anyone can join (cap 100), `#generale` and `#random` are public, the rest 
 
 1. **Private chats and friends** (password still on, nothing changes for outsiders)
    - [x] `0008_private_chats.sql` + `05_private_chats_test.sql`
-   - [ ] Client: right sidebar with chats, new chat dialog, friends & invites page, chat menu (invite, members, leave, rename, delete), founder notice, DMs/pokes friends-only in the UI
+   - [x] Client: right sidebar with chats, new chat dialog, friends & invites page, chat menu (invite, members, leave, rename, delete), founder notice, DMs/pokes friends-only in the UI
    - [ ] Release 0.6.0, founders try it
 2. **Hardening before going public**
-   - [ ] Lobby presence: don't publish which voice channel you're in, read it from `voice_rooms` (RLS-filtered)
-   - [ ] Profiles/online status: decide what a public user sees
-   - [ ] Smaller attachment limit and per-user quota for public users (free tier: 1 GB storage)
+   - [x] Lobby presence: don't publish which voice channel you're in, read it from `voice_rooms` (RLS-filtered)
+   - [ ] Profiles/online status: decide what a public user sees (today: everyone's username, avatar, online)
+   - [x] 10 MB attachments for public users (founders 50 MB)
+   - [ ] Per-user storage quota (free tier: 1 GB storage)
    - [ ] Supabase Pro (~$25/month) or stay on Free, see the cost notes below
 3. **Open sign-ups**
-   - [ ] `join_open()` without password, `server_config.open` switch, `max_members = 100`, new members get `tier = 'public'`
-   - [ ] Turnstile on sign-up (check that it accepts `tauri.localhost`; otherwise sign up on the web version)
-   - [ ] Remove the password screen, announce
+   - [x] `join_open()` without password, `server_config.open` switch (Settings → Server), `max_members = 100`, 10 joins an hour, new members get `tier = 'public'`
+   - [x] Join screen: one button when open, founders' password when closed
+   - [ ] Apply 0008 + 0009, release 0.6.0, flip the switch, announce
 
 ## Costs (rough, check current prices)
 

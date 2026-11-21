@@ -4,6 +4,10 @@
 --   - join_open(): join without the password, as a 'public' member, up to
 --     max_members (100) and only while server_config.open is on. It starts OFF:
 --     the admin opens sign-ups from Settings → Server when ready.
+--   - At most joins_per_hour (10) public joins an hour: a script can't take all
+--     the places in a minute, and the admin has time to notice and close.
+--     (A captcha like Turnstile doesn't work inside the desktop apps: they don't
+--     run on a web domain, and Supabase would then require it for logins too.)
 --   - The password (join_server) stays as the founders' way in.
 --   - server_status(): open/closed and how many members, for the join screen.
 --   - voice_rooms gets mic/deaf/cam/screen: who is in which call is no longer
@@ -12,7 +16,9 @@
 --   - Public members can post files up to 10 MB (founders 50 MB).
 -- =============================================================================
 
-alter table private.server_config add column open boolean not null default false;
+alter table private.server_config
+  add column open boolean not null default false,
+  add column joins_per_hour int not null default 10 check (joins_per_hour > 0);
 alter table private.server_config alter column max_members set default 100;
 update private.server_config set max_members = 100;
 
@@ -34,16 +40,21 @@ declare
   v_uid  uuid := auth.uid();
   v_open boolean;
   v_max  int;
+  v_rate int;
 begin
   if v_uid is null then return 'not_authenticated'; end if;
   if exists (select 1 from public.members where user_id = v_uid) then return 'already_member'; end if;
   if exists (select 1 from public.bans where user_id = v_uid) then return 'banned'; end if;
-  select open, max_members into v_open, v_max from private.server_config where id;
+  select open, max_members, joins_per_hour into v_open, v_max, v_rate from private.server_config where id;
   if v_open is null then return 'not_configured'; end if;
   if not v_open then return 'closed'; end if;
   -- one join at a time, so two people can't both take the last place
   perform pg_advisory_xact_lock(hashtextextended('join_open', 0));
   if (select count(*) from public.members) >= v_max then return 'server_full'; end if;
+  if (select count(*) from public.members
+      where tier = 'public' and joined_at > now() - interval '1 hour') >= v_rate then
+    return 'busy';
+  end if;
   insert into public.members (user_id, role, tier) values (v_uid, 'member', 'public');
   return 'ok';
 end;

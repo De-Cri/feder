@@ -157,7 +157,9 @@ function builder(table: string) {
 
 const params = new URLSearchParams(location.search);
 let session: any = params.get('auth') === '0' ? null : { user: { id: ME } };
-let joined = params.get('auth') !== '0';
+// ?join=open / ?join=closed: signed in but not in the server yet (join screen)
+let joined = params.get('auth') !== '0' && !params.get('join');
+let signupsOpen = params.get('join') !== 'closed';
 const listeners: any[] = [];
 const setSession = (s: any) => { session = s; listeners.forEach((cb) => cb(s ? 'SIGNED_IN' : 'SIGNED_OUT', s)); };
 
@@ -196,6 +198,12 @@ export const supabase: any = {
       p.single = () => p.then((r: any) => ({ ...r, data: Array.isArray(r.data) ? r.data[0] ?? null : r.data }));
       p.maybeSingle = p.single;
       return p;
+    }
+    if (fn === 'server_status') return rpcResult([{ open: signupsOpen, members: 37, max_members: 100 }]);
+    if (fn === 'admin_set_open') signupsOpen = args.p_open;
+    if (fn === 'join_open') {
+      if (!signupsOpen) return rpcResult('closed');
+      joined = true;
     }
     if (fn === 'my_invites')
       return rpcResult([{ id: 7, channel_id: 102, channel_name: 'film night', kind: 'voice', inviter: 'u5', invitee: ME, created_at: iso(8) }]);

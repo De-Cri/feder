@@ -5,6 +5,8 @@ insert into auth.users (id, email, raw_user_meta_data) values
  ('00000000-0000-0000-0000-000000000061', 'n2@x', '{"username":"new2"}'),
  ('00000000-0000-0000-0000-000000000062', 'n3@x', '{"username":"new3"}');
 insert into public.bans (user_id) values ('00000000-0000-0000-0000-000000000062');
+-- 05 already added a dozen public members this hour: no hourly limit until it's tested below
+update private.server_config set joins_per_hour = 1000;
 
 set role authenticated;
 create function pg_temp.as_user(id text) returns void language sql as
@@ -40,6 +42,17 @@ select pg_temp.as_user('61');
 do $$ begin assert public.join_open() = 'server_full'; end $$;
 reset role;
 update private.server_config set max_members = 100;
+set role authenticated;
+
+-- joins per hour: with the limit at this hour's public joins, the next one waits
+reset role;
+update private.server_config
+   set joins_per_hour = (select count(*) from public.members where tier = 'public' and joined_at > now() - interval '1 hour');
+set role authenticated;
+select pg_temp.as_user('61');
+do $$ begin assert public.join_open() = 'busy', 'joins per hour'; end $$;
+reset role;
+update private.server_config set joins_per_hour = 10;
 set role authenticated;
 
 -- closing again

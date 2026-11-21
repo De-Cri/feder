@@ -23,6 +23,7 @@
 
   // admin
   let newPass = $state('');
+  let server = $state<{ open: boolean; members: number; max_members: number } | null>(null);
   let bans = $state<{ user_id: string; reason: string | null; banned_at: string }[]>([]);
 
   // info
@@ -49,7 +50,10 @@
   });
 
   $effect(() => {
-    if (tab === 'admin' && app.isAdmin) loadBans();
+    if (tab === 'admin' && app.isAdmin) {
+      loadBans();
+      loadServer();
+    }
   });
 
   function flash(ok: boolean, text: string) {
@@ -105,6 +109,17 @@
       newPass = '';
       flash(true, t('settings.passwordChanged'));
     }
+  }
+
+  async function loadServer() {
+    const { data } = await supabase.rpc('server_status');
+    server = ((data as (typeof server)[] | null) ?? [])[0] ?? null;
+  }
+
+  async function setOpen(open: boolean) {
+    const { error } = await supabase.rpc('admin_set_open', { p_open: open });
+    if (error) flash(false, errorText(error));
+    await loadServer();
   }
 
   async function loadBans() {
@@ -251,6 +266,24 @@
 
         {:else if tab === 'admin' && app.isAdmin}
           <h2>{t('settings.server')}</h2>
+          {#if server}
+            <div class="toggle-row">
+              <div>
+                <div class="row-title">{t('settings.openSignups')}</div>
+                <div class="muted small">{t('settings.openSignupsHint', { n: server.members, max: server.max_members })}</div>
+              </div>
+              <button
+                class="switch"
+                class:on={server.open}
+                role="switch"
+                aria-checked={server.open}
+                aria-label={t('settings.openSignups')}
+                onclick={() => setOpen(!server!.open)}
+              >
+                <span></span>
+              </button>
+            </div>
+          {/if}
           <h3>{t('settings.newServerPassword')}</h3>
           <div class="inline">
             <input class="field" type="password" bind:value={newPass} placeholder={t('settings.min6')} />
