@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { social } from '../lib/social.svelte';
   // Private messages screen: activation / unlock with the recovery code, new chat, conversation.
   import { app } from '../lib/state.svelte';
   import { dm, type Prepared } from '../lib/dm.svelte';
@@ -68,8 +69,9 @@
   let query = $state('');
   const candidates = $derived.by(() => {
     const q = query.trim().toLowerCase();
+    // DMs are between friends only (the server checks it too)
     const all = app.members
-      .filter((m) => m.user_id !== app.me)
+      .filter((m) => m.user_id !== app.me && social.isFriend(m.user_id))
       .map((m) => ({ id: m.user_id, name: app.name(m.user_id), ready: !!dm.keys[m.user_id] }))
       .sort((a, b) => a.name.localeCompare(b.name));
     if (!q) return all;

@@ -65,11 +65,12 @@
 {/if}
 
 <style>
+  /* Inside the right column (RightBar), below the chats. */
   aside {
+    flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    border-left: 1px solid var(--border);
     overflow-y: auto;
     padding: 4px 10px 12px;
   }

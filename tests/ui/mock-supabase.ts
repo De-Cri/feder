@@ -12,14 +12,33 @@ const db: Record<string, any[]> = {
     { id: 'u5', username: 'fede', avatar_path: null },
     { id: 'u6', username: 'ale', avatar_path: null },
   ],
-  members: ['u1', 'u2', 'u3', 'u4', 'u5', 'u6'].map((id) => ({ user_id: id, role: id === 'u1' ? 'admin' : 'member', joined_at: iso(9999) })),
+  members: ['u1', 'u2', 'u3', 'u4', 'u5', 'u6'].map((id) => ({
+    user_id: id, role: id === 'u1' ? 'admin' : 'member', joined_at: iso(9999), tier: id === 'u6' ? 'public' : 'founder',
+  })),
   bans: [],
   channels: [
-    { id: 1, name: 'generale', kind: 'text', position: 1 },
-    { id: 2, name: 'random', kind: 'text', position: 2 },
-    { id: 3, name: 'Lounge', kind: 'voice', position: 3 },
-    { id: 4, name: 'Gaming', kind: 'voice', position: 4 },
+    { id: 1, name: 'generale', kind: 'text', position: 1, visibility: 'public' },
+    { id: 2, name: 'random', kind: 'text', position: 2, visibility: 'public' },
+    { id: 3, name: 'Lounge', kind: 'voice', position: 3, visibility: 'founders' },
+    { id: 4, name: 'Gaming', kind: 'voice', position: 4, visibility: 'founders' },
+    // private chats (0008)
+    { id: 100, name: 'squad ranked', kind: 'voice', position: 0, visibility: 'private', owner_id: 'u1' },
+    { id: 101, name: 'progetto esame', kind: 'text', position: 0, visibility: 'private', owner_id: 'u3' },
   ],
+  channel_members: [
+    { channel_id: 100, user_id: 'u1', role: 'owner' },
+    { channel_id: 100, user_id: 'u2', role: 'member' },
+    { channel_id: 100, user_id: 'u4', role: 'member' },
+    { channel_id: 101, user_id: 'u3', role: 'owner' },
+    { channel_id: 101, user_id: 'u1', role: 'member' },
+  ],
+  // founders are all friends; ale (public) sent a request
+  friendships: [
+    ...['u2', 'u3', 'u4', 'u5'].map((id) => ({ user_lo: 'u1', user_hi: id, status: 'accepted', requested_by: 'u1', created_at: iso(9999) })),
+    { user_lo: 'u1', user_hi: 'u6', status: 'pending', requested_by: 'u6', created_at: iso(30) },
+  ],
+  blocks: [],
+  voice_rooms: [{ user_id: 'u2', channel_id: 100 }],
   voice_mutes: [],
   messages: [
     { id: 1, channel_id: 1, author_id: 'u2', content: 'stasera ranked?', created_at: iso(1500) },
@@ -30,6 +49,7 @@ const db: Record<string, any[]> = {
     { id: 6, channel_id: 1, author_id: 'u4', content: 'grande, già installata su fedora', created_at: iso(12) },
     { id: 7, channel_id: 1, author_id: 'u5', content: '', attachment_path: 'u5/x-setup.png', attachment_name: 'classifica.pdf', attachment_mime: 'application/pdf', attachment_size: 482113, created_at: iso(3) },
     { id: 8, channel_id: 1, author_id: 'u2', content: 'entro in Lounge', created_at: iso(1) },
+    { id: 9, channel_id: 101, author_id: 'u3', content: 'qui solo noi due, ho caricato le slide', created_at: iso(15) },
   ].map((m) => ({ attachment_path: null, attachment_name: null, attachment_mime: null, attachment_size: null, ...m })),
 };
 
@@ -177,6 +197,8 @@ export const supabase: any = {
       p.maybeSingle = p.single;
       return p;
     }
+    if (fn === 'my_invites')
+      return rpcResult([{ id: 7, channel_id: 102, channel_name: 'film night', kind: 'voice', inviter: 'u5', invitee: ME, created_at: iso(8) }]);
     return rpcResult('ok');
   },
   realtime: { setAuth: async () => {} },

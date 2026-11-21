@@ -6,8 +6,23 @@ import { hasUnseenRelease } from './releases';
 import { t } from './i18n.svelte';
 
 export type Profile = { id: string; username: string; avatar_path: string | null };
-export type Member = { user_id: string; role: 'admin' | 'member'; joined_at: string; contributor?: boolean };
-export type Channel = { id: number; name: string; kind: 'text' | 'voice'; position: number };
+export type Member = {
+  user_id: string;
+  role: 'admin' | 'member';
+  joined_at: string;
+  contributor?: boolean;
+  /** founder = in the server from the start; public = joined after opening (0008). */
+  tier?: 'founder' | 'public';
+};
+export type Channel = {
+  id: number;
+  name: string;
+  kind: 'text' | 'voice';
+  position: number;
+  /** public, founders only, or a private chat created by a user (0008). */
+  visibility?: 'public' | 'founders' | 'private';
+  owner_id?: string | null;
+};
 export type Message = {
   id: number;
   channel_id: number;
@@ -152,6 +167,8 @@ class AppState {
   onRoomsChange: (() => void) | null = null;
   onKicked: (() => void) | null = null;
   onMemberLeft: ((id: string) => void) | null = null;
+  /** Friends, invites or chat members changed (handled by social.svelte.ts). */
+  onSocialChange: (() => void) | null = null;
   /** Called before signing out (private messages delete the local key). */
   onSignOut: (() => Promise<void>) | null = null;
 
@@ -164,11 +181,19 @@ class AppState {
   get isAdmin(): boolean {
     return this.members.some((m) => m.user_id === this.me && m.role === 'admin');
   }
+  get isFounder(): boolean {
+    return this.members.some((m) => m.user_id === this.me && (m.tier ?? 'founder') === 'founder');
+  }
+  /** The server's channels (left sidebar). */
   get textChannels() {
-    return this.channels.filter((c) => c.kind === 'text');
+    return this.channels.filter((c) => c.kind === 'text' && c.visibility !== 'private');
   }
   get voiceChannels() {
-    return this.channels.filter((c) => c.kind === 'voice');
+    return this.channels.filter((c) => c.kind === 'voice' && c.visibility !== 'private');
+  }
+  /** Private chats you're in (right sidebar), newest first. */
+  get chats() {
+    return this.channels.filter((c) => c.visibility === 'private').sort((a, b) => b.id - a.id);
   }
   log(id: number): ChannelLog {
     return (this.logs[id] ??= new ChannelLog(id));
@@ -256,6 +281,20 @@ class AppState {
     await this.subscribe();
   }
 
+  /** Reloads the channels you can see (a chat created, joined, left, renamed or deleted). */
+  async reloadChannels() {
+    const { data, error } = await supabase.from('channels').select('*').order('position');
+    if (error) return;
+    this.channels = (data ?? []) as Channel[];
+    // you were looking at a chat you're no longer in
+    if (this.view > 0 && !this.channels.some((c) => c.id === this.view)) this.view = this.textChannels[0]?.id ?? 1;
+  }
+  private channelsTimer: ReturnType<typeof setTimeout> | undefined;
+  private reloadChannelsSoon() {
+    clearTimeout(this.channelsTimer);
+    this.channelsTimer = setTimeout(() => void this.reloadChannels(), 150);
+  }
+
   private async subscribe() {
     await this.unsubscribe();
     await supabase.realtime.setAuth();
@@ -306,6 +345,15 @@ class AppState {
         }
         this.onRoomsChange?.();
       })
+      // Private chats and friends: the rows say little (and DELETE events carry only the key),
+      // so on any change we reload what RLS lets us see.
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'channels' }, () => this.reloadChannelsSoon())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'channel_members' }, () => {
+        this.reloadChannelsSoon();
+        this.onSocialChange?.();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'channel_invites' }, () => this.onSocialChange?.())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, () => this.onSocialChange?.())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'voice_mutes' }, (ev) => {
         if (ev.eventType === 'DELETE') delete this.voiceMutes[(ev.old as { user_id: string }).user_id];
         else this.voiceMutes[(ev.new as { user_id: string }).user_id] = true;
