@@ -66,6 +66,7 @@ export const en: Record<keyof typeof it, string> = {
   "chat.drop": "Drop to upload to #{channel}",
   "chat.placeholder": "Message #{channel}",
   "chat.start": "This is the beginning of the channel.",
+  "channel.generale": "general",
   "chat.tooBig": "{name} is larger than {max} MB.",
   "chat.uploading": "Uploading {name}…",
   "chat.welcome": "Welcome to #{channel}",

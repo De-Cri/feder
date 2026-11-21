@@ -65,6 +65,7 @@ export const it = {
   "chat.drop": "Rilascia per caricare in #{channel}",
   "chat.placeholder": "Scrivi in #{channel}",
   "chat.start": "È l’inizio del canale.",
+  "channel.generale": "generale",
   "chat.tooBig": "{name} supera i {max} MB.",
   "chat.uploading": "Caricamento di {name}…",
   "chat.welcome": "Benvenuto in #{channel}",

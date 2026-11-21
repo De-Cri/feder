@@ -197,14 +197,14 @@
 >
   <header>
     <Icon name="hash" size={18} />
-    <h2>{channel.name}</h2>
+    <h2>{app.channelName(channel)}</h2>
   </header>
 
   <div class="scroller" bind:this={scroller} onscroll={onScroll}>
     {#if log.loaded && !log.hasMore}
       <div class="start">
         <div class="start-icon"><Icon name="hash" size={26} /></div>
-        <h3>{t('chat.welcome', { channel: channel.name })}</h3>
+        <h3>{t('chat.welcome', { channel: app.channelName(channel) })}</h3>
         <p class="muted">{t('chat.start')}</p>
       </div>
     {/if}
@@ -269,7 +269,7 @@
         bind:this={input}
         bind:value={text}
         rows="1"
-        placeholder={t('chat.placeholder', { channel: channel.name })}
+        placeholder={t('chat.placeholder', { channel: app.channelName(channel) })}
         onkeydown={onKey}
         oninput={resize}
         onpaste={onPaste}
@@ -281,7 +281,7 @@
   </div>
 
   {#if dragging}
-    <div class="drop">{t('chat.drop', { channel: channel.name })}</div>
+    <div class="drop">{t('chat.drop', { channel: app.channelName(channel) })}</div>
   {/if}
 </div>
 

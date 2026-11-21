@@ -37,7 +37,7 @@
       {#each app.textChannels as c (c.id)}
         <button class="nav-item" class:active={app.view === c.id} onclick={() => (app.view = c.id)}>
           <Icon name="hash" size={16} />
-          <span class="name">{c.name}</span>
+          <span class="name">{app.channelName(c)}</span>
           {#if app.unread[c.id]}<span class="badge">{app.unread[c.id]}</span>{/if}
         </button>
       {/each}

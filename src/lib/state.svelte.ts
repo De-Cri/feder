@@ -204,6 +204,14 @@ class AppState {
   log(id: number): ChannelLog {
     return (this.logs[id] ??= new ChannelLog(id));
   }
+  /**
+   * Name to show for a channel: the server's own channels follow the interface
+   * language (generale → general in English); user chats keep their name as typed.
+   */
+  channelName(c: Pick<Channel, 'id' | 'name'> | null | undefined): string {
+    if (!c) return '';
+    return c.id <= 4 && c.name === 'generale' ? t('channel.generale') : c.name;
+  }
   name(id: string | null): string {
     return (id && this.profiles[id]?.username) || 'utente';
   }
@@ -331,7 +339,7 @@ class AppState {
         if (!visible && m.author_id !== this.me) {
           this.unread[m.channel_id] = (this.unread[m.channel_id] ?? 0) + 1;
           const ch = this.channels.find((c) => c.id === m.channel_id);
-          notify(t('notify.channelMessage', { name: this.name(m.author_id), channel: ch?.name ?? '' }), m.content || m.attachment_name || t('notify.attachment'));
+          notify(t('notify.channelMessage', { name: this.name(m.author_id), channel: this.channelName(ch) }), m.content || m.attachment_name || t('notify.attachment'));
           playSound('message');
         }
       })
@@ -578,7 +586,7 @@ class AppState {
     if (busy) return;
     const ch = this.channels.find((c) => c.id === row.channel_id);
     playSound('call');
-    notify(t('notify.call', { name: this.name(row.user_id), channel: ch?.name ?? t('notify.voice') }), t('notify.callBody'));
+    notify(t('notify.call', { name: this.name(row.user_id), channel: ch ? this.channelName(ch) : t('notify.voice') }), t('notify.callBody'));
   }
 
   /**
