@@ -36,6 +36,8 @@ Goal: anyone can join (cap 100), `#generale` and `#random` are public, the rest 
    - [x] `join_open()` without password, `server_config.open` switch (Settings → Server), `max_members = 100`, 10 joins an hour, new members get `tier = 'public'`
    - [x] Join screen: one button when open, founders' password when closed
    - [ ] Apply 0008 + 0009, release 0.6.0, flip the switch, announce
+4. **Later, if public users ask**
+   - [ ] Translate #general / #random into English. Best option found: a "Translate" button through DeepL's free plan in a Supabase function, cached so each message is translated once. On-device (Firefox's engine) is private but adds ~30–40 MB; the browser's built-in translator isn't available in WebView2/Electron.
 
 ## Costs (rough, check current prices)
 
