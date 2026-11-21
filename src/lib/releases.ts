@@ -15,6 +15,26 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.6.1',
+    date: '2026-11-21',
+    it: {
+      added: [
+        'Windows: l\'aggiornamento automatico ora si installa davvero. Prima, su alcuni PC, la finestra si chiudeva ma Feder restava aperto in background e l\'installazione non partiva.',
+      ],
+      test: [
+        'Al prossimo aggiornamento premi "Aggiorna e riavvia": Feder si chiude e si riapre aggiornato in pochi secondi.',
+      ],
+    },
+    en: {
+      added: [
+        'Windows: automatic updates now actually install. Before, on some PCs, the window closed but Feder kept running in the background and the update never started.',
+      ],
+      test: [
+        'On the next update press "Update and restart": Feder closes and reopens updated within a few seconds.',
+      ],
+    },
+  },
+  {
     version: '0.6.0',
     date: '2026-11-21',
     it: {
@@ -75,40 +95,6 @@ export const RELEASES: Release[] = [
         'In a call, turn Wi-Fi off for 5 seconds and back on: no red error, the call resumes.',
         'With 2–3 webcams on, make the window tall and narrow.',
         'Share your screen with audio while a friend talks: they shouldn\'t hear themselves in your stream.',
-      ],
-    },
-  },
-  {
-    version: '0.5.0',
-    date: '2026-11-12',
-    it: {
-      added: [
-        'Feder è in italiano e in inglese: segue la lingua del sistema e si cambia in Impostazioni → Aspetto → Lingua.',
-        'Chiamate più sicure: i dati per collegarsi passano dal server e arrivano solo a chi è nella chiamata. Nessuno può spacciarsi per un altro né vedere da fuori gli indirizzi IP.',
-        'I poke passano dal server: il mittente è verificato e c\'è un limite contro lo spam.',
-        'Feder è open source (GPL-3.0): il codice è su github.com/De-Cri/feder.',
-        'Su Linux il processo si chiama feder.',
-        'Importante: chi è ancora sulla 0.4.7 non può più fare chiamate né mandare poke finché non aggiorna.',
-      ],
-      test: [
-        'Impostazioni → Aspetto → Lingua: passa a English e torna a Italiano, senza riavviare.',
-        'Entra in chiamata con un amico che ha già la 0.5.0: voce, webcam e schermo come prima.',
-        'Fai un poke a chi ha l\'audio disattivato: deve arrivargli con il tuo nome.',
-      ],
-    },
-    en: {
-      added: [
-        'Feder speaks Italian and English: it follows the system language and can be changed in Settings → Appearance → Language.',
-        'Safer calls: connection data goes through the server and reaches only the people in the call. Nobody can pose as someone else or see IP addresses from outside.',
-        'Pokes go through the server: the sender is verified and there\'s an anti-spam limit.',
-        'Feder is open source (GPL-3.0): the code is on github.com/De-Cri/feder.',
-        'On Linux the process is now called feder.',
-        'Important: anyone still on 0.4.7 can\'t make calls or send pokes until they update.',
-      ],
-      test: [
-        'Settings → Appearance → Language: switch to Italiano and back to English, without restarting.',
-        'Join a call with a friend who already has 0.5.0: voice, webcam and screen work as before.',
-        'Poke someone who has their audio off: it should reach them with your name.',
       ],
     },
   },
