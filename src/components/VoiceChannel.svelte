@@ -1,4 +1,5 @@
 <script lang="ts">
+  import RightBarToggle from './RightBarToggle.svelte';
   import { app, type Channel } from '../lib/state.svelte';
   import { voice, rtcSupported } from '../lib/voice.svelte';
   import { prefs, savePrefs, screenVolume } from '../lib/prefs.svelte';
@@ -140,6 +141,7 @@
 {/snippet}
 
 <div class="voice">
+  <div class="rb-toggle"><RightBarToggle /></div>
   {#if !rtcSupported}
     <div class="empty">
       <h3>{tr('voiceCh.unavailable')}</h3>
@@ -196,6 +198,7 @@
 
 <style>
   .voice {
+    position: relative;
     flex: 1;
     min-height: 0;
     display: flex;
@@ -238,4 +241,6 @@
   .strip { flex: none; display: flex; gap: 10px; justify-content: safe center; overflow-x: auto; }
   .mini { width: 176px; flex: none; }
   .center { text-align: center; font-size: 13px; margin: 0; padding-bottom: 8px; }
+  /* show/hide the right column, top right (the voice screen has no header) */
+  .rb-toggle { position: absolute; top: 10px; right: 12px; z-index: 5; }
 </style>

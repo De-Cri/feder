@@ -11,6 +11,7 @@
   import RightBar from './RightBar.svelte';
   import FriendsView from './FriendsView.svelte';
   import { social, FRIENDS_VIEW } from '../lib/social.svelte';
+  import { prefs } from '../lib/prefs.svelte';
   import Settings from './Settings.svelte';
   import ScreenPicker from './ScreenPicker.svelte';
   import VoiceAudio from './VoiceAudio.svelte';
@@ -48,6 +49,9 @@
     };
   });
 
+  // Right column: not in private messages, and hidden if you chose so (RightBarToggle).
+  const showRight = $derived(app.view !== DM_VIEW && prefs.rightBar);
+
   // Removed from a voice chat (or it was deleted) while in it: leave the call.
   $effect(() => {
     const id = voice.channelId;
@@ -71,7 +75,7 @@
   });
 </script>
 
-<div class="shell" class:members={app.view !== DM_VIEW}>
+<div class="shell" class:members={showRight}>
   <Sidebar />
   <main>
     {#if update}
@@ -111,7 +115,7 @@
   </main>
 
   <!-- Right column: friends, private chats and members (not in private messages). -->
-  {#if app.view !== DM_VIEW}
+  {#if showRight}
     <RightBar />
   {/if}
 </div>

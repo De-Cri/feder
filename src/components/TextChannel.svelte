@@ -4,6 +4,7 @@
 </script>
 
 <script lang="ts">
+  import RightBarToggle from './RightBarToggle.svelte';
   import { onMount, tick, untrack } from 'svelte';
   import { supabase } from '../lib/supabase';
   import { app, type Channel, type Message } from '../lib/state.svelte';
@@ -198,6 +199,8 @@
   <header>
     <Icon name="hash" size={18} />
     <h2>{app.channelName(channel)}</h2>
+    <span class="grow"></span>
+    <RightBarToggle />
   </header>
 
   <div class="scroller" bind:this={scroller} onscroll={onScroll}>
@@ -304,6 +307,7 @@
     color: var(--text-2);
   }
   h2 { font-size: 15px; font-weight: 600; margin: 0; color: var(--text); }
+  header .grow { flex: 1; }
   .scroller {
     flex: 1;
     overflow-y: auto;

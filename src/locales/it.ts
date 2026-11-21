@@ -199,6 +199,8 @@ export const it = {
   "releases.added": "Cosa c'è di nuovo",
   "releases.latest": "ultima",
   "releases.test": "Come provarlo",
+  "rightBar.hide": "Nascondi barra laterale",
+  "rightBar.show": "Mostra chat, amici e membri",
   "screen.heavy": "Molto pesante: il tuo PC codifica una copia per ogni spettatore e serve {upload}. Con connessioni normali o PC poco potenti la stream scatterà.",
   "screen.light": "Leggera: va bene quasi ovunque. Serve {upload}.",
   "screen.medium": "Impegnativa: serve un PC discreto e {upload}. Se a chi guarda scatta, abbassa fps o risoluzione.",
