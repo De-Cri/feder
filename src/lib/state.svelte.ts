@@ -358,7 +358,10 @@ class AppState {
           }
         } else {
           const row = ev.new as Member;
+          const before = this.members.find((m) => m.user_id === row.user_id);
           this.members = [...this.members.filter((m) => m.user_id !== row.user_id), row];
+          // made founder or back to public: the channels you can see change (Lounge, Gaming)
+          if (row.user_id === this.me && before && before.tier !== row.tier) this.reloadChannelsSoon();
           if (!this.profiles[row.user_id]) this.refreshProfile(row.user_id);
         }
       })

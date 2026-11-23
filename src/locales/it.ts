@@ -163,6 +163,8 @@ export const it = {
   "menu.muteVoice": "Muta in vocale",
   "menu.privateMessage": "Messaggio privato",
   "menu.removeContributor": "Togli badge Contributor",
+  "menu.makeFounder": "Rendi fondatore",
+  "menu.removeFounder": "Togli fondatore",
   "menu.stopWatching": "Smetti di guardare",
   "menu.streamAudio": "Audio stream",
   "menu.streamOf": "Stream di {name}",

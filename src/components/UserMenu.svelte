@@ -33,6 +33,7 @@
 
   const isMe = $derived(id === app.me);
   const member = $derived(app.members.find((m) => m.user_id === id));
+  const isFounder = $derived((member?.tier ?? 'founder') === 'founder');
   const vol = $derived(userVolume(id));
   const relation = $derived(social.relation(id));
   const left = $derived(Math.max(8, Math.min(x, window.innerWidth - 272)));
@@ -115,6 +116,14 @@
     <button class="item" onclick={() => run('admin_set_contributor', { p_user: id, p_on: !member?.contributor })}>
       <Icon name="sword" size={15} />
       {member?.contributor ? t('menu.removeContributor') : t('menu.giveContributor')}
+    </button>
+  {/if}
+
+  {#if app.isAdmin && !isMe && member?.role !== 'admin'}
+    <!-- founder: Lounge and Gaming, friends with every founder -->
+    <button class="item" onclick={() => run('admin_set_founder', { p_user: id, p_on: !isFounder })}>
+      <Icon name="star" size={15} />
+      {isFounder ? t('menu.removeFounder') : t('menu.makeFounder')}
     </button>
   {/if}
 

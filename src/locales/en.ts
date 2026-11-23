@@ -164,6 +164,8 @@ export const en: Record<keyof typeof it, string> = {
   "menu.muteVoice": "Mute in voice",
   "menu.privateMessage": "Private message",
   "menu.removeContributor": "Remove Contributor badge",
+  "menu.makeFounder": "Make founder",
+  "menu.removeFounder": "Remove founder",
   "menu.stopWatching": "Stop watching",
   "menu.streamAudio": "Stream audio",
   "menu.streamOf": "{name}'s stream",
