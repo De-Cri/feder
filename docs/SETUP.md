@@ -97,7 +97,7 @@ scripts/setup.mjs                   automatic setup
 
 ### Security
 
-- Open sign-ups (`join_open()`): off by default, at most 100 members and 10 public joins an hour. Public members see only `#generale` and `#random` plus the private chats they're invited to.
+- Open sign-ups (`join_open()`): off by default, at most 100 members and 10 public joins an hour. Public members see `#generale`, `#random` and the `Public Channel` voice room (max 8 people in the app, 10 on the server), plus the private chats they're invited to.
 - The founders' password is stored as a bcrypt hash in a non-exposed `private` schema, and `join_server()` checks it inside the DB, with a limit of 5 attempts every 15 minutes.
 - Every table has RLS: non-members only see their own profile.
 - Realtime channels (presence and WebRTC signaling) are **private**, with policies on `realtime.messages`: only members can join, and only the channels the app uses.
@@ -109,8 +109,9 @@ scripts/setup.mjs                   automatic setup
 
 ```bash
 # SQL + RLS on a local Postgres (stubs of the Supabase environment)
-psql -d test -f supabase/tests/00_stubs.sql $(printf -- '-f %s ' supabase/migrations/*.sql) \
-  -f supabase/tests/01_test.sql -f supabase/tests/02_dm_test.sql -f supabase/tests/03_realtime_test.sql
+# (one session per test file; English server messages, the tests check them)
+psql -d test -f supabase/tests/00_stubs.sql $(printf -- '-f %s ' supabase/migrations/*.sql)
+for f in supabase/tests/0[1-9]_*.sql; do PGOPTIONS='-c lc_messages=C' psql -d test -f "$f"; done
 
 # 3-peer WebRTC mesh in Chromium (simulated signaling): connection, audio,
 # RNNoise, gain, microphone rebuild during a call, webcam, leave/rejoin

@@ -15,6 +15,30 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.6.3',
+    date: '2026-11-23',
+    it: {
+      added: [
+        'Nuovo canale vocale "Public Channel", aperto a tutti i membri del server (fino a 8 persone).',
+        'Le tue chat private ora sono a sinistra, sotto i canali, con il + per crearne una. A destra restano solo le persone: amici, inviti e membri.',
+      ],
+      test: [
+        'Entra in Public Channel dalla colonna di sinistra.',
+        'Crea una chat con il + accanto a "Le tue chat".',
+      ],
+    },
+    en: {
+      added: [
+        'New voice channel "Public Channel", open to every member of the server (up to 8 people).',
+        'Your private chats are now on the left, under the channels, with the + to create one. The right column is just people: friends, invites and members.',
+      ],
+      test: [
+        'Join Public Channel from the left column.',
+        'Create a chat with the + next to "Your chats".',
+      ],
+    },
+  },
+  {
     version: '0.6.2',
     date: '2026-11-21',
     it: {
@@ -55,40 +79,6 @@ export const RELEASES: Release[] = [
       ],
       test: [
         'Press "Update and restart" and check in Settings → About that the version changed.',
-      ],
-    },
-  },
-  {
-    version: '0.6.0',
-    date: '2026-11-21',
-    it: {
-      added: [
-        'Amici: tutti i membri originali del server ora sono amici tra loro. Aggiungi altre persone dal loro nome o dalla lista membri.',
-        'Chat private: crea chat di testo o vocali e invita solo chi vuoi. Le trovi nella barra a destra e le vedono solo i membri.',
-        'Pagina Amici e inviti: richieste di amicizia, inviti alle chat, blocco.',
-        'I messaggi privati e i poke funzionano solo tra amici.',
-        'Chi è in quale chiamata, la webcam e lo schermo li vede solo chi può vedere quel canale.',
-        'Presto Feder si aprirà a nuove persone (fino a 100): vedranno solo #generale e #random, Lounge e Gaming restano nostri.',
-      ],
-      test: [
-        'Barra a destra → + : crea una chat vocale e invita un amico. Lui la trova in Amici e inviti.',
-        'Entrate nella chat vocale: chi non è invitato non deve vederla.',
-        'Dal menu di una chat (…) prova a rinominarla, rimuovere qualcuno e uscire.',
-      ],
-    },
-    en: {
-      added: [
-        'Friends: all the original members of the server are now friends with each other. Add more people by username or from the member list.',
-        'Private chats: create text or voice chats and invite only who you want. They are in the right sidebar and only members can see them.',
-        'Friends & invites page: friend requests, chat invites, blocking.',
-        'Private messages and pokes only work between friends.',
-        'Who is in which call, webcams and screens are only visible to people who can see that channel.',
-        'Feder will soon open to new people (up to 100): they will see only #generale and #random, Lounge and Gaming stay ours.',
-      ],
-      test: [
-        'Right sidebar → + : create a voice chat and invite a friend. They find it in Friends & invites.',
-        'Join the voice chat together: people who aren\'t invited must not see it.',
-        'From a chat\'s menu (…) try renaming it, removing someone and leaving.',
       ],
     },
   },

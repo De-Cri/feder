@@ -1,13 +1,12 @@
 <script lang="ts">
-  import { app } from '../lib/state.svelte';
   import { prefs, savePrefs } from '../lib/prefs.svelte';
   import { social } from '../lib/social.svelte';
   import Icon from './Icon.svelte';
   import { t } from '../lib/i18n.svelte';
 
   // Shows/hides the right column (chats, friends, members). Remembered in the preferences.
-  // While hidden, a dot says something is waiting there (invites, requests, unread chats).
-  const waiting = $derived(!prefs.rightBar && (social.pending > 0 || app.chats.some((c) => app.unread[c.id])));
+  // While hidden, a dot says something is waiting there (friend requests, chat invites).
+  const waiting = $derived(!prefs.rightBar && social.pending > 0);
 
   function toggle() {
     prefs.rightBar = !prefs.rightBar;

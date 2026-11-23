@@ -30,7 +30,7 @@ select pg_temp.as_user('60');
 do $$ begin assert public.join_open() = 'ok'; end $$;
 do $$ begin assert public.join_open() = 'already_member'; end $$;
 do $$ begin assert (select tier from public.members where user_id = auth.uid()) = 'public', 'tier'; end $$;
-do $$ begin assert (select array_agg(id order by id) from public.channels) = '{1,2}', 'public sees founders channels'; end $$;
+do $$ begin assert (select array_agg(id order by id) from public.channels) = '{1,2,5}', 'public sees founders channels'; end $$;
 select pg_temp.as_user('62');
 do $$ begin assert public.join_open() = 'banned'; end $$;
 
