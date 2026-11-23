@@ -109,8 +109,9 @@ scripts/setup.mjs                   automatic setup
 
 ```bash
 # SQL + RLS on a local Postgres (stubs of the Supabase environment)
-psql -d test -f supabase/tests/00_stubs.sql $(printf -- '-f %s ' supabase/migrations/*.sql) \
-  -f supabase/tests/01_test.sql -f supabase/tests/02_dm_test.sql -f supabase/tests/03_realtime_test.sql
+# (one session per test file; English server messages, the tests check them)
+psql -d test -f supabase/tests/00_stubs.sql $(printf -- '-f %s ' supabase/migrations/*.sql)
+for f in supabase/tests/0[1-9]_*.sql; do PGOPTIONS='-c lc_messages=C' psql -d test -f "$f"; done
 
 # 3-peer WebRTC mesh in Chromium (simulated signaling): connection, audio,
 # RNNoise, gain, microphone rebuild during a call, webcam, leave/rejoin
