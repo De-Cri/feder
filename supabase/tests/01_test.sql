@@ -24,7 +24,7 @@ do $$ begin
 end $$;
 do $$ begin assert public.join_server('segreta123') = 'ok'; end $$;
 do $$ begin assert public.join_server('segreta123') = 'already_member'; end $$;
-do $$ begin assert (select count(*) from public.channels) = 4; end $$;
+do $$ begin assert (select count(*) from public.channels) = 5; end $$;
 insert into public.messages (channel_id, author_id, content) values (1, auth.uid(), 'ciao');
 do $$ begin
   begin insert into public.messages (channel_id, author_id, content) values (3, auth.uid(), 'in vocale');

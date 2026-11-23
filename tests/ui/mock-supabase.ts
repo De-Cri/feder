@@ -21,6 +21,7 @@ const db: Record<string, any[]> = {
     { id: 2, name: 'random', kind: 'text', position: 2, visibility: 'public' },
     { id: 3, name: 'Lounge', kind: 'voice', position: 3, visibility: 'founders' },
     { id: 4, name: 'Gaming', kind: 'voice', position: 4, visibility: 'founders' },
+    { id: 5, name: 'Public Channel', kind: 'voice', position: 5, visibility: 'public' },
     // private chats (0008)
     { id: 100, name: 'squad ranked', kind: 'voice', position: 0, visibility: 'private', owner_id: 'u1' },
     { id: 101, name: 'progetto esame', kind: 'text', position: 0, visibility: 'private', owner_id: 'u3' },
@@ -66,6 +67,12 @@ const peersReady = (async () => {
 })();
 let myKey: any = null;
 // ?dm=locked: key already on the server but not on this device (unlock screen)
+// ?tier=public: see the app as a public member (no founders' voice channels)
+if (new URLSearchParams(location.search).get('tier') === 'public') {
+  db.members.find((m) => m.user_id === ME)!.tier = 'public';
+  db.channels = db.channels.filter((c) => c.visibility !== 'founders');
+}
+
 if (new URLSearchParams(location.search).get('dm') === 'locked') {
   myKey = { public_key: 'x'.repeat(88), wrapped_key: 'x'.repeat(208), salt: 'x'.repeat(24), iv: 'x'.repeat(16), iterations: 600000 };
 }

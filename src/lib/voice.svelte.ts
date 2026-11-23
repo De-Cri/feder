@@ -36,6 +36,8 @@ type Signal = {
 const STUN: RTCIceServer[] = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }];
 const CAM_BITRATE = 900_000; // 5-person mesh: ~0.9 Mbps upload per peer
 const SPEAKING_DB = -50;
+/** People in a public voice channel (P2P mesh: everyone sends to everyone). */
+export const PUBLIC_VOICE_MAX = 8;
 
 async function loadIceServers(): Promise<RTCIceServer[]> {
   if (!config.turn) return STUN;
@@ -523,6 +525,13 @@ class VoiceRoom {
       this.error = t('voice.noWebrtc');
       return;
     }
+    // Public voice channels stop at PUBLIC_VOICE_MAX people (the server allows a few more,
+    // in case a crashed client left its place taken).
+    const ch = app.channels.find((c) => c.id === channelId);
+    if (ch?.visibility === 'public' && app.inVoice(channelId).filter((p) => p.user_id !== app.me).length >= PUBLIC_VOICE_MAX) {
+      this.error = t('voice.full', { n: PUBLIC_VOICE_MAX });
+      return;
+    }
     // A click on another channel also cancels a join still in progress.
     if (this.channelId !== null || this.joining) await this.leave(true);
     const seq = ++this.joinSeq;
@@ -547,7 +556,7 @@ class VoiceRoom {
     if (seq !== this.joinSeq) return;
     if (joinError) {
       await this.leave(true);
-      this.error = t('voice.joinFailed');
+      this.error = joinError.message.includes('voice_full') ? t('voice.full', { n: PUBLIC_VOICE_MAX }) : t('voice.joinFailed');
       return;
     }
     await supabase.realtime.setAuth();

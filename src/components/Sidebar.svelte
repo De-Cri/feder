@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { app, RELEASES_VIEW, DM_VIEW } from '../lib/state.svelte';
+  import { app, RELEASES_VIEW, DM_VIEW, type Channel } from '../lib/state.svelte';
   import { dm } from '../lib/dm.svelte';
   import DmList from './DmList.svelte';
   import { voice } from '../lib/voice.svelte';
@@ -8,8 +8,10 @@
   import CallControls from './CallControls.svelte';
   import Avatar from './Avatar.svelte';
   import VoiceMenu from './VoiceMenu.svelte';
+  import ChatDialog from './ChatDialog.svelte';
 
   let menu = $state<{ id: string; x: number; y: number } | null>(null);
+  let dialog = $state<{ chat: Channel | null } | null>(null);
 
   function openVoice(id: number) {
     app.view = id;
@@ -47,22 +49,34 @@
         {#if app.releasesUnseen}<span class="badge">{t('nav.new')}</span>{/if}
       </button>
 
-      <div class="nav-label">{t('nav.voice')}</div>
-      {#each app.voiceChannels as c (c.id)}
-        <button class="nav-item" class:active={app.view === c.id} onclick={() => openVoice(c.id)}>
-          <Icon name="volume" size={16} />
-          <span class="name">{c.name}</span>
-        </button>
-        {#each app.inVoice(c.id) as p (p.user_id)}
-          <div class="participant" role="presentation" oncontextmenu={(e) => openMenu(e, p.user_id)}>
-            <Avatar id={p.user_id} size={20} speaking={speaking(p.user_id)} />
-            <span class="pname">{app.name(p.user_id)}</span>
-            {#if p.screen}<span class="live">LIVE</span>{/if}
-            {#if p.cam}<Icon name="video" size={13} />{/if}
-            {#if p.deaf}<Icon name="headphones-off" size={13} />
-            {:else if !p.mic || app.voiceMutes[p.user_id]}<Icon name="mic-off" size={13} />{/if}
-          </div>
+      {#if app.voiceChannels.length}
+        <div class="nav-label">{t('nav.voice')}</div>
+        {#each app.voiceChannels as c (c.id)}
+          <button class="nav-item" class:active={app.view === c.id} onclick={() => openVoice(c.id)}>
+            <Icon name="volume" size={16} />
+            <span class="name">{c.name}</span>
+          </button>
+          {@render participants(c.id)}
         {/each}
+      {/if}
+
+      <!-- Private chats you're in: only the friends invited can see them. -->
+      <div class="nav-label chats-head">
+        <span>{t('chats.title')}</span>
+        <button class="icon-btn" title={t('chats.new')} onclick={() => (dialog = { chat: null })}><Icon name="plus" size={15} /></button>
+      </div>
+      {#each app.chats as c (c.id)}
+        <div class="chat" class:active={app.view === c.id}>
+          <button class="nav-item" class:active={app.view === c.id} onclick={() => (c.kind === 'voice' ? openVoice(c.id) : (app.view = c.id))}>
+            <Icon name={c.kind === 'voice' ? 'volume' : 'hash'} size={16} />
+            <span class="name">{c.name}</span>
+            {#if app.unread[c.id]}<span class="badge">{app.unread[c.id]}</span>{/if}
+          </button>
+          <button class="icon-btn more" title={t('chats.manage')} onclick={() => (dialog = { chat: c })}><Icon name="more" size={15} /></button>
+        </div>
+        {#if c.kind === 'voice'}{@render participants(c.id)}{/if}
+      {:else}
+        <p class="empty">{t('chats.empty')}</p>
       {/each}
     {/if}
   </nav>
@@ -90,6 +104,24 @@
     </div>
   </footer>
 </aside>
+
+{#snippet participants(id: number)}
+  {#each app.inVoice(id) as p (p.user_id)}
+    <div class="participant" role="presentation" oncontextmenu={(e) => openMenu(e, p.user_id)}>
+      <Avatar id={p.user_id} size={20} speaking={speaking(p.user_id)} />
+      <span class="pname">{app.name(p.user_id)}</span>
+      {#if p.screen}<span class="live">LIVE</span>{/if}
+      {#if p.cam}<Icon name="video" size={13} />{/if}
+      {#if p.deaf}<Icon name="headphones-off" size={13} />
+      {:else if !p.mic || app.voiceMutes[p.user_id]}<Icon name="mic-off" size={13} />{/if}
+    </div>
+  {/each}
+{/snippet}
+
+{#if dialog}
+  <!-- the chat may have been renamed or deleted meanwhile: use the current one -->
+  <ChatDialog chat={dialog.chat ? app.chats.find((c) => c.id === dialog!.chat!.id) ?? null : null} onclose={() => (dialog = null)} />
+{/if}
 
 {#if menu}
   <VoiceMenu id={menu.id} x={menu.x} y={menu.y} onclose={() => (menu = null)} />
@@ -151,4 +183,10 @@
   }
   .actions { display: flex; flex-wrap: wrap; gap: 6px; }
   .dm-entry { font-size: 14px; }
+  .chats-head { display: flex; align-items: center; justify-content: space-between; padding-right: 2px; }
+  .chat { position: relative; display: flex; align-items: center; }
+  .chat .nav-item { flex: 1; min-width: 0; padding-right: 30px; }
+  .more { position: absolute; right: 4px; opacity: 0; }
+  .chat:hover .more, .chat.active .more { opacity: 1; }
+  .empty { margin: 4px 8px; font-size: 12px; color: var(--text-3); }
 </style>

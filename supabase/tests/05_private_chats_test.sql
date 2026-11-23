@@ -33,14 +33,14 @@ select pg_temp.as_user('0a');
 do $$ begin assert public.are_friends(pg_temp.uid('0a'), pg_temp.uid('24')), 'new founder befriended'; end $$;
 do $$ begin assert public.are_friends(pg_temp.uid('0a'), pg_temp.uid('0b')), 'old founders friends'; end $$;
 do $$ begin assert not public.are_friends(pg_temp.uid('0a'), pg_temp.uid('21')), 'public user befriended'; end $$;
-do $$ begin assert (select count(*) from public.channels) = 4, 'founder channels'; end $$;
+do $$ begin assert (select count(*) from public.channels) = 5, 'founder channels'; end $$;
 
 -- ---------------------------------------------------------------------------
 -- Public tier: only #generale and #random
 -- ---------------------------------------------------------------------------
 select public.voice_join(3::smallint); -- a founder in Lounge
 select pg_temp.as_user('21');
-do $$ begin assert (select array_agg(id order by id) from public.channels) = '{1,2}', 'public channels'; end $$;
+do $$ begin assert (select array_agg(id order by id) from public.channels) = '{1,2,5}', 'public channels'; end $$;
 do $$ begin assert pg_temp.err($q$select public.voice_join(3::smallint)$q$) = 'forbidden', 'public in founders voice'; end $$;
 do $$ begin assert not pg_temp.topic_ok('cerchio:voice:3'), 'public on founders voice topic'; end $$;
 do $$ begin assert pg_temp.topic_ok('cerchio:lobby'), 'public on lobby'; end $$;
@@ -84,23 +84,23 @@ do $$ begin assert pg_temp.err($q$select public.chat_create('', 'voice')$q$) = '
 do $$ begin assert pg_temp.err($q$select public.chat_create('x', 'video')$q$) = 'chat_invalid_kind'; end $$;
 select set_config('test.voice', public.chat_create('squad', 'voice', array[pg_temp.uid('22')])::text, false);
 do $$ begin assert current_setting('test.voice')::int >= 100, 'chat ids start at 100'; end $$;
-do $$ begin assert (select count(*) from public.channels) = 3, 'owner sees the new chat'; end $$;
+do $$ begin assert (select count(*) from public.channels) = 4, 'owner sees the new chat'; end $$;
 
 -- the invitee sees the invite with the chat's name, not the chat itself
 select pg_temp.as_user('22');
 do $$ begin assert (select channel_name from public.my_invites()) = 'squad'; end $$;
-do $$ begin assert (select count(*) from public.channels) = 2, 'chat visible before accepting'; end $$;
+do $$ begin assert (select count(*) from public.channels) = 3, 'chat visible before accepting'; end $$;
 do $$ begin assert pg_temp.err(format('select public.voice_join(%s::smallint)', current_setting('test.voice'))) = 'forbidden', 'voice before accepting'; end $$;
 -- others don't see it at all
 select pg_temp.as_user('23');
 do $$ begin assert (select count(*) from public.my_invites()) = 0; end $$;
 select pg_temp.as_user('0a');
-do $$ begin assert (select count(*) from public.channels) = 4, 'founder sees a private chat'; end $$;
+do $$ begin assert (select count(*) from public.channels) = 5, 'founder sees a private chat'; end $$;
 do $$ begin assert not pg_temp.topic_ok('cerchio:voice:' || current_setting('test.voice')), 'outsider on chat topic'; end $$;
 
 select pg_temp.as_user('22');
 select public.invite_respond((select id from public.my_invites()), true);
-do $$ begin assert (select count(*) from public.channels) = 3, 'chat after accepting'; end $$;
+do $$ begin assert (select count(*) from public.channels) = 4, 'chat after accepting'; end $$;
 do $$ begin assert pg_temp.topic_ok('cerchio:voice:' || current_setting('test.voice')), 'member on chat topic'; end $$;
 select public.voice_join(current_setting('test.voice')::smallint);
 do $$ begin assert (select count(*) from public.channel_members where channel_id = current_setting('test.voice')::smallint) = 2; end $$;
@@ -114,7 +114,7 @@ select pg_temp.as_user('21');
 select public.chat_rename(current_setting('test.voice')::smallint, 'squad 2');
 select public.chat_remove(current_setting('test.voice')::smallint, pg_temp.uid('22'));
 select pg_temp.as_user('22');
-do $$ begin assert (select count(*) from public.channels) = 2, 'removed member still sees the chat'; end $$;
+do $$ begin assert (select count(*) from public.channels) = 3, 'removed member still sees the chat'; end $$;
 reset role;
 do $$ begin assert not exists (select 1 from public.voice_rooms where user_id = '00000000-0000-0000-0000-000000000022'), 'removed member still in the room'; end $$;
 set role authenticated;
