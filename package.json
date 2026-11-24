@@ -20,6 +20,7 @@
     "deploy:web": "npm run build && npx -y firebase-tools@latest deploy --only hosting"
   },
   "dependencies": {
+    "@tauri-apps/plugin-autostart": "^2.7.0",
     "electron-updater": "^6.8.11"
   },
   "devDependencies": {

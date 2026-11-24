@@ -4,6 +4,8 @@
 const {
   app,
   BrowserWindow,
+  Menu,
+  Tray,
   desktopCapturer,
   ipcMain,
   nativeTheme,
@@ -12,6 +14,7 @@ const {
   session,
   shell,
 } = require('electron');
+const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
@@ -56,6 +59,22 @@ if (!app.requestSingleInstanceLock()) {
 /** @type {BrowserWindow | null} */
 let win = null;
 
+// Passed by the "start with the PC" entry: no window until the page says otherwise.
+const HIDDEN_ARG = '--hidden';
+const startedHidden = process.argv.includes(HIDDEN_ARG);
+// Closing the window leaves Feder in the tray (setting, off by default; the page tells us).
+let keepRunning = false;
+let quitting = false;
+/** @type {Tray | null} */
+let tray = null;
+
+function showWindow() {
+  if (!win) return createWindow();
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1180,
@@ -77,7 +96,14 @@ function createWindow() {
     },
   });
   win.removeMenu();
-  win.once('ready-to-show', () => win?.show());
+  win.once('ready-to-show', () => {
+    if (!startedHidden) win?.show();
+  });
+  win.on('close', (e) => {
+    if (!keepRunning || quitting) return;
+    e.preventDefault();
+    win?.hide();
+  });
 
   // External links → system browser; no navigation outside the app.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -145,11 +171,9 @@ function askScreenSource(sources) {
   });
 }
 
-app.on('second-instance', () => {
-  if (!win) return;
-  if (win.isMinimized()) win.restore();
-  win.show();
-  win.focus();
+app.on('second-instance', () => showWindow());
+app.on('before-quit', () => {
+  quitting = true;
 });
 
 app.whenReady().then(() => {
@@ -207,6 +231,69 @@ ipcMain.on('app:version', (e) => (e.returnValue = app.getVersion()));
 // In the background with no call, the page's timers are throttled (less CPU).
 ipcMain.on('background', (_e, background) => {
   win?.webContents.setBackgroundThrottling(!!background);
+});
+
+// ---- Keep running in the tray, start with the PC ------------------------------
+ipcMain.on('desktop:keep-running', (_e, on, labels) => {
+  keepRunning = !!on;
+  if (!keepRunning) {
+    tray?.destroy();
+    tray = null;
+    if (win && !win.isVisible()) win.show(); // started with the PC: show it after all
+    return;
+  }
+  const open = String(labels?.open ?? 'Open Feder');
+  const quit = String(labels?.quit ?? 'Quit Feder');
+  const menu = Menu.buildFromTemplate([
+    { label: open, click: () => showWindow() },
+    { label: quit, click: () => app.quit() },
+  ]);
+  if (!tray) {
+    tray = new Tray(path.join(__dirname, 'icon.png'));
+    tray.setToolTip('Feder');
+    tray.on('click', () => showWindow());
+  }
+  tray.setContextMenu(menu);
+});
+
+// Linux: a .desktop file in ~/.config/autostart (freedesktop standard, GNOME and KDE).
+// Elsewhere (Electron on Windows is only for development): the system's login items.
+const autostartFile = path.join(app.getPath('home'), '.config', 'autostart', 'feder.desktop');
+function autostartEnabled() {
+  if (process.platform === 'linux') return fs.existsSync(autostartFile);
+  return app.getLoginItemSettings({ args: [HIDDEN_ARG] }).openAtLogin;
+}
+ipcMain.handle('autostart:get', () => autostartEnabled());
+ipcMain.handle('autostart:set', (_e, on) => {
+  try {
+    if (process.platform === 'linux') {
+      if (on) {
+        // AppImage: the path of the .AppImage file, not the temporary mount
+        const exe = process.env.APPIMAGE || process.execPath;
+        // inside quotes the .desktop format wants \ " ` $ escaped with a backslash
+        const quoted = '"' + exe.replace(/["`$\\]/g, (c) => '\\' + c) + '"';
+        fs.mkdirSync(path.dirname(autostartFile), { recursive: true });
+        fs.writeFileSync(
+          autostartFile,
+          [
+            '[Desktop Entry]',
+            'Type=Application',
+            'Name=Feder',
+            `Exec=${quoted} ${HIDDEN_ARG}`,
+            'X-GNOME-Autostart-enabled=true',
+            '',
+          ].join('\n'),
+        );
+      } else {
+        fs.rmSync(autostartFile, { force: true });
+      }
+    } else {
+      app.setLoginItemSettings({ openAtLogin: !!on, args: [HIDDEN_ARG] });
+    }
+  } catch (e) {
+    console.error('autostart', e);
+  }
+  return autostartEnabled();
 });
 
 ipcMain.handle('open', (_e, url) => {

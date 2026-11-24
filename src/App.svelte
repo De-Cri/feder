@@ -5,6 +5,7 @@
   import { app } from './lib/state.svelte';
   import { applyTheme } from './lib/theme';
   import { t, lang } from './lib/i18n.svelte';
+  import { isDesktop, keepRunning, setKeepRunning } from './lib/platform';
   import Auth from './components/Auth.svelte';
   import Join from './components/Join.svelte';
   import Shell from './components/Shell.svelte';
@@ -15,6 +16,14 @@
   // <html lang> follows the interface language (screen readers, hyphenation).
   $effect(() => {
     document.documentElement.lang = lang();
+  });
+
+  // Desktop app: tells the shell whether closing leaves Feder in the tray (and the tray
+  // menu's texts, again when the language changes). If Feder started hidden with the PC
+  // and this is off, the shell shows the window now.
+  $effect(() => {
+    if (!isDesktop) return;
+    void setKeepRunning(keepRunning(), { open: t('desktop.trayOpen'), quit: t('desktop.trayQuit') });
   });
 
   onMount(() => {

@@ -8,7 +8,7 @@
   import VolumeSlider from './VolumeSlider.svelte';
   import { t } from '../lib/i18n.svelte';
 
-  // Right-click on the microphone icon: input volume with live level,
+  // Right-click on the microphone icon: which microphone, input volume with live level,
   // output volume, shortcuts. Opens above the button (which sits at the bottom of the sidebar).
   let { anchor, onclose }: { anchor: DOMRect; onclose: () => void } = $props();
 
@@ -26,6 +26,27 @@
     prefs.inputGain = v;
     savePrefs();
     voice.setInputGain(v);
+  }
+
+  // Microphones (names show up once the permission was granted, e.g. after a first call).
+  let mics = $state<MediaDeviceInfo[]>([]);
+  async function refreshMics() {
+    try {
+      // "default"/"communications" are Chromium's duplicates of the system default
+      mics = (await navigator.mediaDevices.enumerateDevices()).filter(
+        (d) => d.kind === 'audioinput' && d.deviceId !== 'default' && d.deviceId !== 'communications',
+      );
+    } catch {
+      mics = [];
+    }
+  }
+
+  // Same as Settings → Audio: saved for this PC, and in a call the new microphone takes over right away.
+  function pickMic(id: string) {
+    if (prefs.micId === id) return;
+    prefs.micId = id;
+    savePrefs();
+    void voice.rebuildMic();
   }
 
   function setOutput(v: number) {
@@ -52,10 +73,13 @@
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
+    refreshMics();
+    navigator.mediaDevices?.addEventListener?.('devicechange', refreshMics);
     window.addEventListener('pointerdown', outside, true);
     window.addEventListener('contextmenu', outside, true);
     return () => {
       cancelAnimationFrame(raf);
+      navigator.mediaDevices?.removeEventListener?.('devicechange', refreshMics);
       window.removeEventListener('pointerdown', outside, true);
       window.removeEventListener('contextmenu', outside, true);
     };
@@ -76,6 +100,19 @@
     <div class="title">{t('mic.title')}</div>
     {#if device}<div class="device" title={device}>{device}</div>{/if}
   </div>
+
+  {#if mics.length > 1}
+    <div class="devices" role="radiogroup" aria-label={t('mic.device')}>
+      {#each [{ deviceId: '', label: t('audio.defaultMic') }, ...mics] as d (d.deviceId)}
+        <button class="item dev" role="radio" aria-checked={prefs.micId === d.deviceId}
+          title={d.label || t('mic.title')} onclick={() => pickMic(d.deviceId)}>
+          <span class="dot" class:on={prefs.micId === d.deviceId}></span>
+          <span class="dev-name">{d.label || t('mic.title')}</span>
+        </button>
+      {/each}
+    </div>
+    <div class="sep"></div>
+  {/if}
 
   <VolumeSlider label={t('mic.input')} value={prefs.inputGain} onchange={setGain} />
   <div
@@ -138,6 +175,13 @@
   .gate { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--orange); }
 
   .sep { height: 1px; background: var(--border); margin: 4px 0; }
+  .devices { max-height: 180px; overflow-y: auto; }
+  .dev { font-size: 12.5px; padding: 5px 8px; }
+  .dev-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--text-3); }
+  .dot.on { border-color: var(--accent); background: radial-gradient(var(--accent) 45%, transparent 50%); }
+  .item:hover:not(:disabled) .dot { border-color: #fff; }
+  .item:hover:not(:disabled) .dot.on { background: radial-gradient(#fff 45%, transparent 50%); }
   .item {
     width: 100%;
     display: flex;

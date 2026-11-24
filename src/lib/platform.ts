@@ -13,7 +13,13 @@ type ElectronBridge = {
   pickSource(id: string | null): void;
   setBackground?(background: boolean): void;
   onWindowHidden?(cb: (hidden: boolean) => void): void;
+  setKeepRunning?(on: boolean, labels: TrayLabels): void;
+  getAutostart?(): Promise<boolean>;
+  setAutostart?(on: boolean): Promise<boolean>;
 };
+
+/** Tray menu texts, in the interface language. */
+export type TrayLabels = { open: string; quit: string };
 
 const electron = (globalThis as { cerchio?: ElectronBridge }).cerchio;
 export const isElectron = !!electron;
@@ -137,4 +143,72 @@ export function onHiddenChange(cb: (hidden: boolean) => void): () => void {
   return () => {
     hiddenListeners.delete(cb);
   };
+}
+
+// ---- Desktop app: keep running in the background, start with the PC ------------
+// Both off by default. They belong to this PC, not to the account: they live in
+// localStorage (keep running) and in the system (start with the PC), never on the server.
+const KEEP_KEY = 'feder-keep-running';
+
+/** The installed app (Windows or Linux), not the browser. */
+export const isDesktop = isTauri || isElectron;
+
+export function keepRunning(): boolean {
+  try {
+    return localStorage.getItem(KEEP_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Closing the window leaves Feder running next to the clock (tray), for notifications and calls.
+ * Also called at startup: the app passes the choice to the shell. If Feder started with the PC
+ * (hidden) and this is off, the shell shows the window.
+ */
+export async function setKeepRunning(on: boolean, labels: TrayLabels) {
+  try {
+    localStorage.setItem(KEEP_KEY, on ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (electron) return electron.setKeepRunning?.(on, labels);
+    if (isTauri) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('set_keep_running', { on, open: labels.open, quit: labels.quit });
+    }
+  } catch {
+    /* older shell: closing quits, as before */
+  }
+}
+
+/** Feder starts by itself when you log in to the PC. */
+export async function getAutostart(): Promise<boolean> {
+  try {
+    if (electron) return (await electron.getAutostart?.()) ?? false;
+    if (isTauri) {
+      const { isEnabled } = await import('@tauri-apps/plugin-autostart');
+      return await isEnabled();
+    }
+  } catch {
+    /* not supported */
+  }
+  return false;
+}
+
+/** Returns the state actually set in the system. */
+export async function setAutostart(on: boolean): Promise<boolean> {
+  try {
+    if (electron) return (await electron.setAutostart?.(on)) ?? false;
+    if (isTauri) {
+      const a = await import('@tauri-apps/plugin-autostart');
+      if (on) await a.enable();
+      else await a.disable();
+      return await a.isEnabled();
+    }
+  } catch {
+    /* not supported */
+  }
+  return getAutostart();
 }
