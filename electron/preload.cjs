@@ -17,4 +17,9 @@ contextBridge.exposeInMainWorld('cerchio', {
     ipcRenderer.removeAllListeners('window:hidden');
     ipcRenderer.on('window:hidden', (_e, hidden) => cb(!!hidden));
   },
+  // Closing leaves Feder in the tray; start with the PC.
+  setKeepRunning: (on, labels) =>
+    ipcRenderer.send('desktop:keep-running', !!on, { open: String(labels?.open ?? ''), quit: String(labels?.quit ?? '') }),
+  getAutostart: () => ipcRenderer.invoke('autostart:get'),
+  setAutostart: (on) => ipcRenderer.invoke('autostart:set', !!on),
 });

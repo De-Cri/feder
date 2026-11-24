@@ -15,6 +15,34 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.6.4',
+    date: '2026-11-24',
+    it: {
+      added: [
+        'Tasto destro sull\'icona del microfono in basso a sinistra: scegli quale microfono usare, anche durante una chiamata.',
+        'Impostazioni → Notifiche: "Tieni Feder aperto quando lo chiudi". Chiudendo la finestra Feder resta vicino all\'orologio, ricevi le notifiche e le chiamate continuano. Spento di default.',
+        'Impostazioni → Notifiche: "Avvia Feder con il PC". Spento di default.',
+        'L\'admin può rendere fondatore un membro (tasto destro sul nome → Rendi fondatore): vede Lounge e Gaming e diventa amico degli altri fondatori.',
+      ],
+      test: [
+        'Tasto destro sul microfono in basso a sinistra e cambia microfono mentre sei in Public Channel.',
+        'Attiva "Tieni Feder aperto", chiudi la finestra con la X e riaprila dall\'icona vicino all\'orologio.',
+      ],
+    },
+    en: {
+      added: [
+        'Right-click the microphone icon at the bottom left: pick which microphone to use, during a call too.',
+        'Settings → Notifications: "Keep Feder running when you close it". Closing the window leaves Feder next to the clock, you still get notifications and calls keep going. Off by default.',
+        'Settings → Notifications: "Start Feder with your PC". Off by default.',
+        'The admin can make a member a founder (right-click their name → Make founder): they see Lounge and Gaming and become friends with the other founders.',
+      ],
+      test: [
+        'Right-click the microphone at the bottom left and switch microphone while you\'re in Public Channel.',
+        'Turn on "Keep Feder running", close the window with the X and reopen it from the icon next to the clock.',
+      ],
+    },
+  },
+  {
     version: '0.6.3',
     date: '2026-11-23',
     it: {
@@ -57,28 +85,6 @@ export const RELEASES: Release[] = [
       ],
       test: [
         'Open Lounge and press the button at the top right: the column disappears and webcams get more room.',
-      ],
-    },
-  },
-  {
-    version: '0.6.1',
-    date: '2026-11-21',
-    it: {
-      added: [
-        'Windows: se un aggiornamento lascia Feder aperto in background, il nuovo installer lo chiude prima di installare.',
-        'Se l\'aggiornamento non parte proprio, probabilmente è Smart App Control di Windows 11: blocca i programmi non firmati. Stiamo lavorando per firmare Feder.',
-      ],
-      test: [
-        'Premi "Aggiorna e riavvia" e controlla in Impostazioni → Info che la versione sia cambiata.',
-      ],
-    },
-    en: {
-      added: [
-        'Windows: if an update leaves Feder running in the background, the new installer closes it before installing.',
-        'If the update doesn\'t start at all, it\'s probably Windows 11 Smart App Control: it blocks unsigned programs. We\'re working on signing Feder.',
-      ],
-      test: [
-        'Press "Update and restart" and check in Settings → About that the version changed.',
       ],
     },
   },

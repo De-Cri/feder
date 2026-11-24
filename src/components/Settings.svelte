@@ -4,7 +4,7 @@
   import { app } from '../lib/state.svelte';
   import { prefs, savePrefs, setTheme, type Theme, type Language } from '../lib/prefs.svelte';
   import { t, type Key } from '../lib/i18n.svelte';
-  import { appVersion, checkUpdate } from '../lib/platform';
+  import { appVersion, checkUpdate, isDesktop, keepRunning, setKeepRunning, getAutostart, setAutostart } from '../lib/platform';
   import { errorText } from '../lib/util';
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
@@ -13,6 +13,19 @@
 
   type Tab = 'profile' | 'appearance' | 'notifications' | 'media' | 'admin' | 'about';
   let tab = $state<Tab>(app.settingsTab as Tab);
+
+  // Desktop app only: per PC, both off until you turn them on.
+  let keep = $state(keepRunning());
+  let autostart = $state(false);
+  if (isDesktop) getAutostart().then((on) => (autostart = on));
+
+  function toggleKeep() {
+    keep = !keep;
+    void setKeepRunning(keep, { open: t('desktop.trayOpen'), quit: t('desktop.trayQuit') });
+  }
+  async function toggleAutostart() {
+    autostart = await setAutostart(!autostart);
+  }
   app.settingsTab = 'profile'; // the next normal opening starts from the profile again
   let msg = $state<{ ok: boolean; text: string } | null>(null);
 
@@ -260,6 +273,29 @@
               <span></span>
             </button>
           </div>
+
+          {#if isDesktop}
+            <div class="toggle-row">
+              <div>
+                <div class="row-title">{t('desktop.keepRunning')}</div>
+                <div class="muted small">{t('desktop.keepRunningHint')}</div>
+              </div>
+              <button class="switch" class:on={keep} role="switch" aria-checked={keep}
+                aria-label={t('desktop.keepRunning')} onclick={toggleKeep}>
+                <span></span>
+              </button>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="row-title">{t('desktop.autostart')}</div>
+                <div class="muted small">{keep ? t('desktop.autostartHintTray') : t('desktop.autostartHint')}</div>
+              </div>
+              <button class="switch" class:on={autostart} role="switch" aria-checked={autostart}
+                aria-label={t('desktop.autostart')} onclick={toggleAutostart}>
+                <span></span>
+              </button>
+            </div>
+          {/if}
 
         {:else if tab === 'media'}
           <AudioSettings />
