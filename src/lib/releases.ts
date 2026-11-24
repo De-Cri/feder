@@ -15,6 +15,26 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.6.5',
+    date: '2026-11-25',
+    it: {
+      added: [
+        'Risolto l\'errore "JWT expired": con Feder nascosto o in chiamata per più di un\'ora il login non si rinnovava e chiamate e messaggi smettevano di funzionare. Ora si rinnova sempre, e se scade lo stesso Feder lo rinnova da solo.',
+      ],
+      test: [
+        'Lascia Feder ridotto a icona (o nascosto vicino all\'orologio) per più di un\'ora, poi scrivi un messaggio o entra in un canale vocale.',
+      ],
+    },
+    en: {
+      added: [
+        'Fixed the "JWT expired" error: with Feder hidden or in a call for over an hour the login wasn\'t renewed and calls and messages stopped working. Now it\'s always renewed, and if it expires anyway Feder renews it by itself.',
+      ],
+      test: [
+        'Leave Feder minimized (or hidden next to the clock) for over an hour, then send a message or join a voice channel.',
+      ],
+    },
+  },
+  {
     version: '0.6.4',
     date: '2026-11-24',
     it: {
@@ -63,28 +83,6 @@ export const RELEASES: Release[] = [
       test: [
         'Join Public Channel from the left column.',
         'Create a chat with the + next to "Your chats".',
-      ],
-    },
-  },
-  {
-    version: '0.6.2',
-    date: '2026-11-21',
-    it: {
-      added: [
-        'La barra di destra (chat, amici, membri) si può nascondere: pulsante con le persone in alto a destra, anche nei canali vocali. La scelta resta salvata.',
-        'Con la barra nascosta, un pallino sul pulsante ti avvisa di inviti, richieste di amicizia e messaggi nelle chat private.',
-      ],
-      test: [
-        'Entra in Lounge e premi il pulsante in alto a destra: la barra sparisce e le webcam hanno più spazio.',
-      ],
-    },
-    en: {
-      added: [
-        'The right column (chats, friends, members) can be hidden: people button at the top right, in voice channels too. Your choice is saved.',
-        'While it\'s hidden, a dot on the button tells you about invites, friend requests and messages in private chats.',
-      ],
-      test: [
-        'Open Lounge and press the button at the top right: the column disappears and webcams get more room.',
       ],
     },
   },
