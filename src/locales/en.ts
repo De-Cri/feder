@@ -391,7 +391,7 @@ export const en: Record<keyof typeof it, string> = {
   "chess.lostLong": "Lost",
   "chess.points": "Pts",
   "chess.pointsLong": "Points",
-  "chess.pointsHint": "Like football: a win is 3 points, a draw 1, a loss 0.",
+  "chess.pointsHint": "Win +3, draw +1, loss −3. Points never go below 0.",
   "chess.empty": "No game open.",
   "chess.waiting": "Waiting for {name}",
   "chess.challengedYou": "{name} challenged you",

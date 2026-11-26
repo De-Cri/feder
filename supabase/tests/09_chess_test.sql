@@ -86,9 +86,10 @@ select set_config('test.game', public.chess_challenge(pg_temp.uid('0b'))::text, 
 select public.chess_cancel(current_setting('test.game')::bigint);
 do $$ begin assert (select string_agg(status, ',' order by id) from public.chess_games) = 'over,over,over,declined,cancelled', 'statuses'; end $$;
 
--- standings: a drew 1, lost 1 (the aborted game doesn't count); b won 1, drew 1; strangers aren't there
-do $$ begin assert (select string_agg(format('%s:%s/%s/%s=%s', right(user_id::text, 2), won, drawn, lost, points), ' ')
-  from public.chess_standings() where user_id in (pg_temp.uid('0a'), pg_temp.uid('0b'))) = '0b:1/1/0=4 0a:0/1/1=1', 'standings'; end $$;
+-- standings (with 0013's rules): a drew (+1) then lost (-3, not below 0) = 0; b drew then won = 4.
+-- The aborted game doesn't count; strangers aren't there.
+do $$ begin assert (select string_agg(format('%s:%s/%s/%s=%s', right(user_id::text, 2), won, drawn, lost, points), ' ' order by points desc)
+  from public.chess_standings() where user_id in (pg_temp.uid('0a'), pg_temp.uid('0b'))) = '0b:1/1/0=4 0a:0/1/1=0', 'standings'; end $$;
 do $$ begin assert not exists (select 1 from public.chess_standings() where user_id = pg_temp.uid('71')), 'stranger in standings'; end $$;
 
 reset role;

@@ -390,7 +390,7 @@ export const it = {
   "chess.lostLong": "Perse",
   "chess.points": "Pt",
   "chess.pointsLong": "Punti",
-  "chess.pointsHint": "Come nel calcio: vittoria 3 punti, pareggio 1, sconfitta 0.",
+  "chess.pointsHint": "Vittoria +3, pareggio +1, sconfitta −3. Il punteggio non scende mai sotto 0.",
   "chess.empty": "Nessuna partita aperta.",
   "chess.waiting": "In attesa di {name}",
   "chess.challengedYou": "{name} ti ha sfidato",

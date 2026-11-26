@@ -20,6 +20,7 @@ export const RELEASES: Release[] = [
     it: {
       added: [
         'Scacchi col timer: quando sfidi scegli il tempo (1, 3, 3+2, 5, 10, 15+10, 30 minuti o senza tempo). Il tempo lo conta il server: chi lo finisce perde.',
+        'Classifica: la sconfitta ora toglie 3 punti (vittoria +3, pareggio +1), ma il punteggio non scende mai sotto 0.',
         'Suoni delle mosse (mossa, cattura, scacco) al posto delle notifiche: nessuna notifica a ogni mossa. Si possono spegnere in Impostazioni → Voce e video → Suoni.',
       ],
       test: [
@@ -29,6 +30,7 @@ export const RELEASES: Release[] = [
     en: {
       added: [
         'Chess with a clock: when you challenge, pick the time (1, 3, 3+2, 5, 10, 15+10, 30 minutes or no clock). The server keeps time: whoever runs out loses.',
+        'Standings: a loss now takes 3 points away (win +3, draw +1), but points never go below 0.',
         'Move sounds (move, capture, check) instead of notifications: no notification on every move. They can be turned off in Settings → Voice and video → Sounds.',
       ],
       test: [

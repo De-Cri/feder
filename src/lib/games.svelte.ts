@@ -26,6 +26,7 @@ export type ChessGame = {
   created_at: string;
   updated_at: string;
 };
+/** Win +3, draw +1, loss -3, never below 0 (computed by the server, game by game). */
 export type Standing = { user_id: string; won: number; drawn: number; lost: number; points: number };
 
 /** `app.view` of the chess page. */
@@ -112,7 +113,7 @@ class Games {
   }
   async loadStandings() {
     const { data } = await supabase.rpc('chess_standings');
-    this.standings = (data ?? []) as Standing[];
+    this.standings = ((data ?? []) as Standing[]).sort((a, b) => b.points - a.points || b.won - a.won);
   }
 
   /** A change from the server (realtime): notify what's new for you, then play queued premoves. */

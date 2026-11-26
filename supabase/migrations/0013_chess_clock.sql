@@ -194,3 +194,43 @@ begin
     execute format('grant execute on function %s to authenticated', f);
   end loop;
 end $$;
+
+-- Standings: win +3, draw +1, loss -3, never below 0. Games count in the order they ended,
+-- so a loss at 0 points leaves you at 0. Only the totals of you and your friends.
+drop function public.chess_standings();
+create or replace function public.chess_standings()
+returns table (user_id uuid, won int, drawn int, lost int, points int)
+language plpgsql stable security definer
+set search_path = ''
+as $$
+declare
+  v_p uuid;
+  v_r text;
+begin
+  if auth.uid() is null or not public.is_member() then return; end if;
+  for v_p in
+    select auth.uid()
+    union
+    select case when f.user_lo = auth.uid() then f.user_hi else f.user_lo end
+    from public.friendships f
+    where f.status = 'accepted' and auth.uid() in (f.user_lo, f.user_hi)
+  loop
+    user_id := v_p; won := 0; drawn := 0; lost := 0; points := 0;
+    for v_r in
+      select case when g.result = '1/2-1/2' then 'd'
+                  when (g.result = '1-0') = (g.white = v_p) then 'w' else 'l' end
+      from public.chess_games g
+      where g.status = 'over' and g.result is not null and v_p in (g.white, g.black)
+      order by g.updated_at, g.id
+    loop
+      if v_r = 'w' then won := won + 1; points := points + 3;
+      elsif v_r = 'd' then drawn := drawn + 1; points := points + 1;
+      else lost := lost + 1; points := greatest(0, points - 3);
+      end if;
+    end loop;
+    return next;
+  end loop;
+end;
+$$;
+revoke execute on function public.chess_standings() from public, anon;
+grant execute on function public.chess_standings() to authenticated;

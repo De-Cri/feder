@@ -60,6 +60,10 @@ select set_config('test.game', public.chess_challenge(pg_temp.uid('0a'))::text, 
 do $$ begin assert (pg_temp.g()).time_base is null, 'untimed'; end $$;
 select public.chess_cancel(current_setting('test.game')::bigint);
 
+-- a won twice on time (+6), b lost twice and stays at 0
+do $$ begin assert (select string_agg(format('%s:%s/%s/%s=%s', right(user_id::text, 2), won, drawn, lost, points), ' ' order by points desc)
+  from public.chess_standings() where user_id in (pg_temp.uid('0a'), pg_temp.uid('0b'))) = '0a:2/0/0=6 0b:0/0/2=0', 'standings floor'; end $$;
+
 reset role;
 delete from public.chess_games;
 select 'chess clock ok' as result;
