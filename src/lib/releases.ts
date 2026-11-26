@@ -15,6 +15,30 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.6.7',
+    date: '2026-11-26',
+    it: {
+      added: [
+        'Scacchi col timer: quando sfidi scegli il tempo (1, 3, 3+2, 5, 10, 15+10, 30 minuti o senza tempo). Il tempo lo conta il server: chi lo finisce perde.',
+        'Classifica: la sconfitta ora toglie 3 punti (vittoria +3, pareggio +1), ma il punteggio non scende mai sotto 0.',
+        'Suoni delle mosse (mossa, cattura, scacco) al posto delle notifiche: nessuna notifica a ogni mossa. Si possono spegnere in Impostazioni → Voce e video → Suoni.',
+      ],
+      test: [
+        'Sfida un amico a 3+2 e guarda gli orologi sopra e sotto la scacchiera.',
+      ],
+    },
+    en: {
+      added: [
+        'Chess with a clock: when you challenge, pick the time (1, 3, 3+2, 5, 10, 15+10, 30 minutes or no clock). The server keeps time: whoever runs out loses.',
+        'Standings: a loss now takes 3 points away (win +3, draw +1), but points never go below 0.',
+        'Move sounds (move, capture, check) instead of notifications: no notification on every move. They can be turned off in Settings → Voice and video → Sounds.',
+      ],
+      test: [
+        'Challenge a friend at 3+2 and watch the clocks above and below the board.',
+      ],
+    },
+  },
+  {
     version: '0.6.6',
     date: '2026-11-26',
     it: {
@@ -55,34 +79,6 @@ export const RELEASES: Release[] = [
       ],
       test: [
         'Leave Feder minimized (or hidden next to the clock) for over an hour, then send a message or join a voice channel.',
-      ],
-    },
-  },
-  {
-    version: '0.6.4',
-    date: '2026-11-24',
-    it: {
-      added: [
-        'Tasto destro sull\'icona del microfono in basso a sinistra: scegli quale microfono usare, anche durante una chiamata.',
-        'Impostazioni → Notifiche: "Tieni Feder aperto quando lo chiudi". Chiudendo la finestra Feder resta vicino all\'orologio, ricevi le notifiche e le chiamate continuano. Spento di default.',
-        'Impostazioni → Notifiche: "Avvia Feder con il PC". Spento di default.',
-        'L\'admin può rendere fondatore un membro (tasto destro sul nome → Rendi fondatore): vede Lounge e Gaming e diventa amico degli altri fondatori.',
-      ],
-      test: [
-        'Tasto destro sul microfono in basso a sinistra e cambia microfono mentre sei in Public Channel.',
-        'Attiva "Tieni Feder aperto", chiudi la finestra con la X e riaprila dall\'icona vicino all\'orologio.',
-      ],
-    },
-    en: {
-      added: [
-        'Right-click the microphone icon at the bottom left: pick which microphone to use, during a call too.',
-        'Settings → Notifications: "Keep Feder running when you close it". Closing the window leaves Feder next to the clock, you still get notifications and calls keep going. Off by default.',
-        'Settings → Notifications: "Start Feder with your PC". Off by default.',
-        'The admin can make a member a founder (right-click their name → Make founder): they see Lounge and Gaming and become friends with the other founders.',
-      ],
-      test: [
-        'Right-click the microphone at the bottom left and switch microphone while you\'re in Public Channel.',
-        'Turn on "Keep Feder running", close the window with the X and reopen it from the icon next to the clock.',
       ],
     },
   },

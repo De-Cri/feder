@@ -3,9 +3,9 @@
 import { prefs } from './prefs.svelte';
 import { t, type Key } from './i18n.svelte';
 
-export type SoundKind = 'selfJoin' | 'selfLeave' | 'join' | 'leave' | 'call' | 'message' | 'mute' | 'unmute' | 'poke';
+export type SoundKind = 'selfJoin' | 'selfLeave' | 'join' | 'leave' | 'call' | 'message' | 'mute' | 'unmute' | 'poke' | 'chess';
 
-export const SOUND_KINDS: SoundKind[] = ['selfJoin', 'selfLeave', 'join', 'leave', 'call', 'message', 'mute', 'unmute', 'poke'];
+export const SOUND_KINDS: SoundKind[] = ['selfJoin', 'selfLeave', 'join', 'leave', 'call', 'message', 'mute', 'unmute', 'poke', 'chess'];
 
 /** Label shown in settings for each sound. */
 export const soundLabel = (k: SoundKind) => t(`sound.${k}` as Key);
@@ -14,7 +14,7 @@ export const soundLabel = (k: SoundKind) => t(`sound.${k}` as Key);
 const N = { E5: 659.25, Fs5: 739.99, A5: 880, B5: 987.77, Cs6: 1108.73, E6: 1318.51, A4: 440, E4: 329.63 };
 
 type Note = { f: number; t: number; d: number; g?: number; type?: OscillatorType };
-const PATTERNS: Record<SoundKind, Note[]> = {
+const PATTERNS: Record<Exclude<SoundKind, 'chess'>, Note[]> = {
   selfJoin: [
     { f: N.E5, t: 0, d: 0.16 },
     { f: N.A5, t: 0.09, d: 0.16 },
@@ -79,6 +79,7 @@ export const soundLog: SoundKind[] = [];
 
 /** Plays an event if it's enabled in settings. `force` plays it anyway ("test" button). */
 export function playSound(kind: SoundKind, force = false) {
+  if (kind === 'chess') return playChess('move', force);
   if (!force && !prefs.sounds[kind]) return;
   const vol = prefs.soundVolume;
   if (vol <= 0) return;
@@ -121,6 +122,80 @@ export function playSound(kind: SoundKind, force = false) {
     setTimeout(() => master.disconnect(), end * 1000);
     clearTimeout(idle);
     idle = setTimeout(() => ctx?.state === 'running' && ctx.suspend().catch(() => {}), end * 1000 + 2000);
+  } catch {
+    /* audio not available */
+  }
+}
+
+export type ChessSound = 'move' | 'capture' | 'check' | 'end';
+
+/**
+ * Chess sounds: a short dry "wooden" click (filtered noise + a low knock), louder and
+ * double for a capture, with a short high note for check; two soft notes when it ends.
+ */
+export function playChess(kind: ChessSound, force = false) {
+  if (!force && !prefs.sounds.chess) return;
+  const vol = prefs.soundVolume;
+  if (vol <= 0) return;
+  try {
+    const c = context();
+    const master = c.createGain();
+    master.gain.value = vol * 0.5;
+    master.connect(c.destination);
+    const t0 = c.currentTime + 0.01;
+    // one knock: noise through a band-pass (the wood) + a short low sine (the board)
+    const knock = (at: number, freq: number, gain: number) => {
+      const len = Math.floor(c.sampleRate * 0.06);
+      const buf = c.createBuffer(1, len, c.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 4);
+      const noise = c.createBufferSource();
+      noise.buffer = buf;
+      const bp = c.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = freq;
+      bp.Q.value = 3.5;
+      const ng = c.createGain();
+      ng.gain.value = gain;
+      noise.connect(bp).connect(ng).connect(master);
+      noise.start(at);
+      const low = c.createOscillator();
+      const lg = c.createGain();
+      low.frequency.setValueAtTime(freq / 8, at);
+      low.frequency.exponentialRampToValueAtTime(freq / 14, at + 0.07);
+      lg.gain.setValueAtTime(0.0001, at);
+      lg.gain.exponentialRampToValueAtTime(gain * 0.9, at + 0.003);
+      lg.gain.exponentialRampToValueAtTime(0.0001, at + 0.08);
+      low.connect(lg).connect(master);
+      low.start(at);
+      low.stop(at + 0.1);
+    };
+    const tone = (at: number, f: number, d: number, gain: number) => {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'triangle';
+      o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(gain, at + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + d);
+      o.connect(g).connect(master);
+      o.start(at);
+      o.stop(at + d + 0.05);
+    };
+    if (kind === 'move') knock(t0, 1700, 1);
+    else if (kind === 'capture') {
+      knock(t0, 1300, 1.3);
+      knock(t0 + 0.045, 2100, 0.7);
+    } else if (kind === 'check') {
+      knock(t0, 1700, 1);
+      tone(t0 + 0.04, N.E6, 0.18, 0.25);
+    } else {
+      tone(t0, N.A5, 0.25, 0.3);
+      tone(t0 + 0.14, N.E5, 0.4, 0.3);
+    }
+    setTimeout(() => master.disconnect(), 800);
+    clearTimeout(idle);
+    idle = setTimeout(() => ctx?.state === 'running' && ctx.suspend().catch(() => {}), 2800);
   } catch {
     /* audio not available */
   }

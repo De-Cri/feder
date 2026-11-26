@@ -16,6 +16,7 @@
         <Avatar id={g!.challenger} size={32} />
         <div class="body">
           <div class="who">{t('chess.notifyChallenge', { name: app.name(g!.challenger) })}</div>
+          <div class="msg">{games.controlLabel(g!.time_base, g!.time_inc)}</div>
           <div class="actions">
             <button class="btn primary small" onclick={() => games.respond(g!, true)}>{t('social.accept')}</button>
             <button class="btn small" onclick={() => games.respond(g!, false)}>{t('social.decline')}</button>

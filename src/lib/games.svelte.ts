@@ -3,7 +3,7 @@
 import { supabase } from './supabase';
 import { app } from './state.svelte';
 import { notify } from './notify';
-import { playSound } from './sounds';
+import { playSound, playChess } from './sounds';
 import { t } from './i18n.svelte';
 import { replay, findLegal, toUci, type Move } from './chess';
 
@@ -15,11 +15,18 @@ export type ChessGame = {
   status: 'pending' | 'active' | 'over' | 'declined' | 'cancelled';
   moves: string[];
   result: '1-0' | '0-1' | '1/2-1/2' | null;
-  reason: 'checkmate' | 'resign' | 'stalemate' | 'agreed' | 'insufficient' | 'repetition' | 'fifty' | 'aborted' | null;
+  reason: 'checkmate' | 'resign' | 'stalemate' | 'agreed' | 'insufficient' | 'repetition' | 'fifty' | 'aborted' | 'timeout' | null;
   draw_offer: string | null;
+  /** Clock (0013): seconds per player (null = no clock), seconds added per move, time left, when the clock to move started. */
+  time_base: number | null;
+  time_inc: number;
+  white_ms: number | null;
+  black_ms: number | null;
+  last_move_at: string | null;
   created_at: string;
   updated_at: string;
 };
+/** Win +3, draw +1, loss -3, never below 0 (computed by the server, game by game). */
 export type Standing = { user_id: string; won: number; drawn: number; lost: number; points: number };
 
 /** `app.view` of the chess page. */
@@ -27,7 +34,7 @@ export const CHESS_VIEW = -4;
 
 const ERRORS = [
   'chess_not_friend', 'chess_already_pending', 'chess_too_many', 'chess_rate_limited',
-  'chess_not_found', 'chess_not_active', 'chess_out_of_sync', 'chess_not_your_turn',
+  'chess_not_found', 'chess_not_active', 'chess_out_of_sync', 'chess_not_your_turn', 'chess_invalid_time',
 ] as const;
 function errorText(e: { message: string } | null): string | null {
   if (!e) return null;
@@ -45,6 +52,8 @@ class Games {
   /** Queued premoves per game (played in order as soon as it's your turn). */
   premoves = $state<Record<number, Move[]>>({});
   private sending = new Set<number>();
+  /** Server clock minus local clock (ms). */
+  private offset = 0;
   private loaded = false;
 
   get open(): ChessGame | null {
@@ -92,14 +101,19 @@ class Games {
 
   async load() {
     if (!app.me) return;
-    const { data } = await supabase.from('chess_games').select('*').order('updated_at', { ascending: false }).limit(60);
+    const sent = Date.now();
+    const [{ data }, now] = await Promise.all([
+      supabase.from('chess_games').select('*').order('updated_at', { ascending: false }).limit(60),
+      supabase.rpc('server_now'),
+    ]);
+    if (now.data) this.offset = Date.parse(now.data as string) - (sent + Date.now()) / 2;
     this.list = (data ?? []) as ChessGame[];
     this.loaded = true;
     void this.loadStandings();
   }
   async loadStandings() {
     const { data } = await supabase.rpc('chess_standings');
-    this.standings = (data ?? []) as Standing[];
+    this.standings = ((data ?? []) as Standing[]).sort((a, b) => b.points - a.points || b.won - a.won);
   }
 
   /** A change from the server (realtime): notify what's new for you, then play queued premoves. */
@@ -121,13 +135,13 @@ class Games {
       notify(t('chess.notifyAccepted', { name: app.name(opp) }), '');
       playSound('message');
       if (this.openId === null) this.openId = row.id;
-    } else if (before && row.status === 'active' && row.moves.length > before.moves.length && this.myTurn(row)) {
-      if (away) {
-        notify(t('chess.notifyMove', { name: app.name(opp) }), replay(row.moves).sans.at(-1) ?? '');
-        playSound('message');
-      }
-    } else if (before?.status === 'active' && row.status === 'over' && away) {
-      notify(t('chess.notifyOver', { name: app.name(opp) }), this.resultText(row));
+    } else if (before && row.moves.length > before.moves.length && (row.moves.length % 2 === 1) === (row.white !== me)) {
+      // the opponent moved: just the move's sound, no notification
+      this.moveSound(row.moves);
+      if (row.status === 'over' && away) notify(t('chess.notifyOver', { name: app.name(opp) }), this.resultText(row));
+    } else if (before?.status === 'active' && row.status === 'over') {
+      if (row.reason === 'timeout' || row.reason === 'resign' || row.reason === 'agreed') playChess('end');
+      if (away) notify(t('chess.notifyOver', { name: app.name(opp) }), this.resultText(row));
     } else if (row.draw_offer && row.draw_offer !== me && before?.draw_offer !== row.draw_offer && away) {
       notify(t('chess.notifyDraw', { name: app.name(opp) }), '');
     }
@@ -166,7 +180,15 @@ class Games {
     const moves = [...g.moves, toUci(m)];
     const end = replay(moves).ending;
     this.sending.add(g.id);
-    this.list = this.list.map((x) => (x.id === g.id ? { ...x, moves, draw_offer: null } : x));
+    // show my clock as the server will set it: time used, plus the increment
+    const clock: Partial<ChessGame> = {};
+    if (g.time_base !== null) {
+      const white = this.myColor(g) === 'w';
+      const left = Math.max(0, this.clock(g, white ? 'w' : 'b') ?? 0) + (ply >= 2 ? g.time_inc * 1000 : 0);
+      Object.assign(clock, white ? { white_ms: left } : { black_ms: left }, { last_move_at: new Date(this.serverNow()).toISOString() });
+    }
+    this.list = this.list.map((x) => (x.id === g.id ? { ...x, ...clock, moves, draw_offer: null } : x));
+    this.moveSound(moves);
     const { error } = await supabase.rpc('chess_move', { p_game: g.id, p_ply: ply, p_move: toUci(m), p_end: end });
     this.sending.delete(g.id);
     if (error) {
@@ -178,14 +200,48 @@ class Games {
     return null;
   }
 
+  /** Sound of the last move: check, capture or plain; two notes if it ended the game. */
+  private moveSound(moves: string[]) {
+    const r = replay(moves);
+    const san = r.sans.at(-1) ?? '';
+    if (r.ending) playChess(san.endsWith('#') ? 'check' : 'move');
+    else playChess(san.includes('+') ? 'check' : san.includes('x') ? 'capture' : 'move');
+    if (r.ending) setTimeout(() => playChess('end'), 250);
+  }
+
+  /** Server time now (ms), from the offset measured at load. */
+  serverNow(): number {
+    return Date.now() + this.offset;
+  }
+  /** Time left for a color (ms), or null without a clock. Runs only for the side to move, after both first moves. */
+  clock(g: ChessGame, c: 'w' | 'b'): number | null {
+    if (g.time_base === null) return null;
+    const ms = (c === 'w' ? g.white_ms : g.black_ms) ?? g.time_base * 1000;
+    const toMove = g.moves.length % 2 === 0 ? 'w' : 'b';
+    if (g.status !== 'active' || toMove !== c || g.moves.length < 2 || !g.last_move_at) return ms;
+    return ms - (this.serverNow() - Date.parse(g.last_move_at));
+  }
+  /** The side to move has run out: ask the server to end the game (once per position). */
+  private flagged = new Set<string>();
+  timeout(g: ChessGame) {
+    const k = `${g.id}:${g.moves.length}`;
+    if (this.flagged.has(k) || g.status !== 'active') return;
+    this.flagged.add(k);
+    // a little margin: the server must agree that the time is really over
+    setTimeout(() => void supabase.rpc('chess_timeout', { p_game: g.id }).then(({ error }) => {
+      // not over for the server yet (clocks a bit apart): try again in a moment
+      if (error) setTimeout(() => this.flagged.delete(k), 1500);
+    }), 300);
+  }
+
   private async call(fn: string, args: Record<string, unknown>): Promise<string | null> {
     const { error } = await supabase.rpc(fn, args);
     if (error) await this.load();
     return errorText(error);
   }
 
-  async challenge(user: string, color: 'white' | 'black' | 'random'): Promise<string | null> {
-    const { data, error } = await supabase.rpc('chess_challenge', { p_user: user, p_color: color });
+  async challenge(user: string, color: 'white' | 'black' | 'random', base: number | null, inc: number): Promise<string | null> {
+    const { data, error } = await supabase.rpc('chess_challenge', { p_user: user, p_color: color, p_base: base, p_inc: inc });
     if (error) return errorText(error);
     await this.load();
     this.openId = data as number;
@@ -211,6 +267,13 @@ class Games {
   }
   closePopup(id: number) {
     this.popups = this.popups.filter((x) => x !== id);
+  }
+
+  /** "10 min", "3+2", or no clock. */
+  controlLabel(base: number | null, inc: number): string {
+    if (base === null) return t('chess.noClock');
+    const min = base / 60;
+    return inc ? `${min}+${inc}` : `${min} min`;
   }
 
   /** "You won by checkmate", "Draw by stalemate"… from your point of view. */
