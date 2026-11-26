@@ -11,6 +11,8 @@
   import RightBar from './RightBar.svelte';
   import FriendsView from './FriendsView.svelte';
   import { social, FRIENDS_VIEW } from '../lib/social.svelte';
+  import { games, CHESS_VIEW } from '../lib/games.svelte';
+  import ChessView from './ChessView.svelte';
   import { prefs } from '../lib/prefs.svelte';
   import Settings from './Settings.svelte';
   import ScreenPicker from './ScreenPicker.svelte';
@@ -38,6 +40,7 @@
   onMount(() => {
     dm.init();
     social.init();
+    games.init();
     const offHidden = onHiddenChange((h) => (hidden = h));
     checkUpdate().then((u) => (update = u));
     const t = setInterval(() => checkUpdate().then((u) => u && (update = u)), 6 * 3600_000);
@@ -46,11 +49,12 @@
       offHidden();
       dm.stop();
       social.stop();
+      games.stop();
     };
   });
 
-  // Right column: not in private messages, and hidden if you chose so (RightBarToggle).
-  const showRight = $derived(app.view !== DM_VIEW && prefs.rightBar);
+  // Right column: not in private messages nor chess (the board needs the room), and hidden if you chose so (RightBarToggle).
+  const showRight = $derived(app.view !== DM_VIEW && app.view !== CHESS_VIEW && prefs.rightBar);
 
   // Removed from a voice chat (or it was deleted) while in it: leave the call.
   $effect(() => {
@@ -103,6 +107,8 @@
       <Releases />
     {:else if app.view === FRIENDS_VIEW}
       <FriendsView />
+    {:else if app.view === CHESS_VIEW}
+      <ChessView />
     {:else if app.view === DM_VIEW}
       <DmView />
     {:else if textChannel}

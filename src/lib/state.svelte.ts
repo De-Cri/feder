@@ -175,6 +175,8 @@ class AppState {
   onMemberLeft: ((id: string) => void) | null = null;
   /** Friends, invites or chat members changed (handled by social.svelte.ts). */
   onSocialChange: (() => void) | null = null;
+  /** A chess game changed (handled by games.svelte.ts): the full new row. */
+  onChessChange: ((row: unknown) => void) | null = null;
   /** Called before signing out (private messages delete the local key). */
   onSignOut: (() => Promise<void>) | null = null;
 
@@ -393,6 +395,9 @@ class AppState {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'channel_invites' }, () => this.onSocialChange?.())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, () => this.onSocialChange?.())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chess_games' }, (ev) => {
+        if (ev.eventType !== 'DELETE') this.onChessChange?.(ev.new);
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'voice_mutes' }, (ev) => {
         if (ev.eventType === 'DELETE') delete this.voiceMutes[(ev.old as { user_id: string }).user_id];
         else this.voiceMutes[(ev.new as { user_id: string }).user_id] = true;

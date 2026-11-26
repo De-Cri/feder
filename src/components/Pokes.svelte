@@ -1,12 +1,29 @@
 <script lang="ts">
   import { app } from '../lib/state.svelte';
+  import { games } from '../lib/games.svelte';
   import Avatar from './Avatar.svelte';
   import Icon from './Icon.svelte';
   import { t } from '../lib/i18n.svelte';
+
+  // Chess challenges waiting for an answer, shown in the same stack as pokes.
+  const challenges = $derived(games.popups.map((id) => games.list.find((g) => g.id === id)).filter((g) => !!g && g.status === 'pending'));
 </script>
 
-{#if app.pokes.length}
+{#if app.pokes.length || challenges.length}
   <div class="pokes">
+    {#each challenges as g (g!.id)}
+      <div class="poke" role="alert">
+        <Avatar id={g!.challenger} size={32} />
+        <div class="body">
+          <div class="who">{t('chess.notifyChallenge', { name: app.name(g!.challenger) })}</div>
+          <div class="actions">
+            <button class="btn primary small" onclick={() => games.respond(g!, true)}>{t('social.accept')}</button>
+            <button class="btn small" onclick={() => games.respond(g!, false)}>{t('social.decline')}</button>
+          </div>
+        </div>
+        <button class="icon-btn" title={t('common.close')} onclick={() => games.closePopup(g!.id)}><Icon name="x" size={16} /></button>
+      </div>
+    {/each}
     {#each app.pokes as p (p.key)}
       <div class="poke" role="alert">
         <Avatar id={p.from} size={32} />
@@ -45,4 +62,6 @@
   .body { flex: 1; min-width: 0; }
   .who { font-weight: 600; font-size: 13px; }
   .msg { font-size: 13px; color: var(--text-2); overflow-wrap: anywhere; }
+  .actions { display: flex; gap: 6px; margin-top: 6px; }
+  .small { height: 26px; padding: 0 10px; font-size: 12px; }
 </style>

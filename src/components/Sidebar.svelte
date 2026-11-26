@@ -9,6 +9,7 @@
   import Avatar from './Avatar.svelte';
   import VoiceMenu from './VoiceMenu.svelte';
   import ChatDialog from './ChatDialog.svelte';
+  import { games, CHESS_VIEW } from '../lib/games.svelte';
 
   let menu = $state<{ id: string; x: number; y: number } | null>(null);
   let dialog = $state<{ chat: Channel | null } | null>(null);
@@ -47,6 +48,11 @@
         <Icon name="megaphone" size={16} />
         <span class="name">{t('nav.releases')}</span>
         {#if app.releasesUnseen}<span class="badge">{t('nav.new')}</span>{/if}
+      </button>
+      <button class="nav-item" class:active={app.view === CHESS_VIEW} onclick={() => (app.view = CHESS_VIEW)}>
+        <Icon name="chess" size={16} />
+        <span class="name">{t('chess.title')}</span>
+        {#if games.pending}<span class="badge">{games.pending}</span>{/if}
       </button>
 
       {#if app.voiceChannels.length}
