@@ -12,6 +12,11 @@
   // Chess page: challenge a friend, your games, the standings, and the board.
   let picking = $state(false);
   let color = $state<'white' | 'random' | 'black'>('random');
+  // time control: [seconds, increment], null = no clock
+  const CONTROLS: ([number, number] | null)[] = [null, [60, 0], [180, 0], [180, 2], [300, 0], [600, 0], [900, 10], [1800, 0]];
+  let control = $state(5);
+  // ticks while a clock runs
+  let now = $state(Date.now());
   let msg = $state<string | null>(null);
   let busy = $state(false);
   let confirmResign = $state(false);
@@ -34,7 +39,19 @@
     void games.load();
     const onFocus = () => void games.load(); // anything missed while away (sleep, lost connection)
     window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
+    const tick = setInterval(() => {
+      if (!games.active.some((g) => g.time_base !== null)) return;
+      now = Date.now();
+      // the side to move ran out of time: ask the server to end the game
+      for (const g of games.active) {
+        const left = games.clock(g, g.moves.length % 2 === 0 ? 'w' : 'b');
+        if (left !== null && left <= 0) games.timeout(g);
+      }
+    }, 100);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      clearInterval(tick);
+    };
   });
 
   // a new move or another game: back to the live position
@@ -52,11 +69,12 @@
     return msg;
   }
   async function challenge(id: string) {
-    if (!(await run(() => games.challenge(id, color)))) picking = false;
+    if (!(await run(() => games.challenge(id, color, CONTROLS[control]?.[0] ?? null, CONTROLS[control]?.[1] ?? 0)))) picking = false;
   }
 
   function status(g: ChessGame): string {
-    if (g.status === 'pending') return g.challenger === app.me ? t('chess.waiting', { name: app.name(games.opponent(g)) }) : t('chess.challengedYou', { name: app.name(g.challenger) });
+    const tc = games.controlLabel(g.time_base, g.time_inc);
+    if (g.status === 'pending') return (g.challenger === app.me ? t('chess.waiting', { name: app.name(games.opponent(g)) }) : t('chess.challengedYou', { name: app.name(g.challenger) })) + ' · ' + tc;
     if (g.status === 'over') return games.resultText(g);
     const p = replay(g.moves);
     // the game just ended on the board: say so before the server confirms
@@ -75,6 +93,17 @@
     if (app.settingsOpen || (e.target as Element)?.closest('input, textarea')) return;
     if (e.key === 'ArrowLeft') step(-1);
     else if (e.key === 'ArrowRight') step(1);
+  }
+
+  function clockText(g: ChessGame, c: 'w' | 'b'): { text: string; low: boolean; running: boolean } | null {
+    void now;
+    const ms = games.clock(g, c);
+    if (ms === null) return null;
+    const left = Math.max(0, ms);
+    const s = left / 1000;
+    const text = s < 10 ? s.toFixed(1) : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+    const running = g.status === 'active' && (g.moves.length % 2 === 0 ? 'w' : 'b') === c;
+    return { text, low: s < 20, running };
   }
 
   const record = (id: string) => games.standings.find((s) => s.user_id === id);
@@ -99,6 +128,11 @@
           <div class="seg" role="radiogroup" aria-label={t('chess.color')}>
             {#each [['white', t('chess.white')], ['random', t('chess.random')], ['black', t('chess.black')]] as [v, label]}
               <button role="radio" aria-checked={color === v} class:on={color === v} onclick={() => (color = v as typeof color)}>{label}</button>
+            {/each}
+          </div>
+          <div class="seg times" role="radiogroup" aria-label={t('chess.time')}>
+            {#each CONTROLS as c, i}
+              <button role="radio" aria-checked={control === i} class:on={control === i} title={c ? '' : t('chess.noClock')} onclick={() => (control = i)}>{c ? games.controlLabel(c[0], c[1]) : '∞'}</button>
             {/each}
           </div>
           {#each friends as id (id)}
@@ -234,12 +268,14 @@
 
 {#snippet player(id: string, c: 'w' | 'b')}
   {@const r = record(id)}
+  {@const clk = game ? clockText(game, c) : null}
   <div class="player">
     <Avatar {id} size={28} status={app.presence[id] ? 'online' : 'offline'} />
     <span class="pname">{app.name(id)}</span>
     {#if r}<span class="prec">{r.points} {t('chess.points').toLowerCase()}</span>{/if}
     <span class="grow"></span>
     <span class="swatch" class:black={c === 'b'} title={c === 'w' ? t('chess.white') : t('chess.black')}></span>
+    {#if clk}<span class="clock" class:running={clk.running} class:low={clk.low && clk.running}>{clk.text}</span>{/if}
   </div>
 {/snippet}
 
@@ -299,6 +335,20 @@
   .grow { flex: 1; }
   .swatch { width: 14px; height: 14px; border-radius: 3px; background: #f4f4f4; box-shadow: 0 0 0 1px var(--border-strong); }
   .swatch.black { background: #262626; }
+  .clock {
+    min-width: 76px;
+    padding: 4px 10px;
+    border-radius: var(--r-sm);
+    background: var(--bg-input);
+    color: var(--text-3);
+    font: 600 18px/1.2 var(--mono);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .clock.running { background: #f4f4f4; color: #1c1c1c; box-shadow: 0 0 0 1px var(--border-strong); }
+  .clock.low { background: var(--red); color: #fff; box-shadow: none; }
+  .seg.times { flex-wrap: wrap; }
+  .seg.times button { flex: 1 0 22%; }
   .controls { min-height: 56px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .status { font-size: 13px; font-weight: 600; }
   .offer { font-size: 12px; color: var(--text-2); }
