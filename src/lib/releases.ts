@@ -15,6 +15,30 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.6.6',
+    date: '2026-11-26',
+    it: {
+      added: [
+        'Scacchi con gli amici: nuova pagina "Scacchi" a sinistra. Sfida un amico, lui riceve la notifica e accetta. Mosse con clic o trascinamento, premosse come su chess.com, patta e abbandono.',
+        'Classifica tra te e i tuoi amici, come nel calcio: vittoria 3 punti, pareggio 1, sconfitta 0.',
+      ],
+      test: [
+        'Apri "Scacchi" a sinistra, premi "Sfida un amico" e scegli il colore e l\'amico.',
+        'Mentre l\'altro pensa, trascina un pezzo: diventa rosso (premossa) e parte da solo appena tocca a te. Tasto destro per annullare.',
+      ],
+    },
+    en: {
+      added: [
+        'Chess with friends: new "Chess" page on the left. Challenge a friend, they get a notification and accept. Move by click or drag, premoves like on chess.com, draw and resign.',
+        'Standings for you and your friends, football style: a win is 3 points, a draw 1, a loss 0.',
+      ],
+      test: [
+        'Open "Chess" on the left, press "Challenge a friend" and pick a color and a friend.',
+        'While the other player is thinking, drag a piece: it turns red (premove) and is played as soon as it\'s your turn. Right click to cancel.',
+      ],
+    },
+  },
+  {
     version: '0.6.5',
     date: '2026-11-25',
     it: {
@@ -59,30 +83,6 @@ export const RELEASES: Release[] = [
       test: [
         'Right-click the microphone at the bottom left and switch microphone while you\'re in Public Channel.',
         'Turn on "Keep Feder running", close the window with the X and reopen it from the icon next to the clock.',
-      ],
-    },
-  },
-  {
-    version: '0.6.3',
-    date: '2026-11-23',
-    it: {
-      added: [
-        'Nuovo canale vocale "Public Channel", aperto a tutti i membri del server (fino a 8 persone).',
-        'Le tue chat private ora sono a sinistra, sotto i canali, con il + per crearne una. A destra restano solo le persone: amici, inviti e membri.',
-      ],
-      test: [
-        'Entra in Public Channel dalla colonna di sinistra.',
-        'Crea una chat con il + accanto a "Le tue chat".',
-      ],
-    },
-    en: {
-      added: [
-        'New voice channel "Public Channel", open to every member of the server (up to 8 people).',
-        'Your private chats are now on the left, under the channels, with the + to create one. The right column is just people: friends, invites and members.',
-      ],
-      test: [
-        'Join Public Channel from the left column.',
-        'Create a chat with the + next to "Your chats".',
       ],
     },
   },
