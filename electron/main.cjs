@@ -139,6 +139,7 @@ function createWindow() {
 
   win.loadURL(DEV_URL || 'app://cerchio/index.html');
   win.on('closed', () => {
+    setVoiceShortcuts(false);
     win = null;
     pendingPick?.(null);
     pendingPick = null;
@@ -225,15 +226,6 @@ app.whenReady().then(() => {
   });
 
   createWindow();
-
-  // Discord-style global shortcuts (work even when the window is in the background;
-  // on Wayland registration may be declined by the compositor, in which case the
-  // in-window keydown handler in Shell.svelte still works when focused).
-  const sendShortcut = (action) => {
-    if (win && !win.webContents.isDestroyed()) win.webContents.send('shortcut:voice', action);
-  };
-  globalShortcut.register('CommandOrControl+Shift+M', () => sendShortcut('mute'));
-  globalShortcut.register('CommandOrControl+Shift+D', () => sendShortcut('deafen'));
 });
 
 app.on('window-all-closed', () => app.quit());
@@ -245,6 +237,32 @@ ipcMain.on('app:version', (e) => (e.returnValue = app.getVersion()));
 ipcMain.on('background', (_e, background) => {
   win?.webContents.setBackgroundThrottling(!!background);
 });
+
+// Discord-style global shortcuts: registered only while in a voice channel so
+// Ctrl+Shift+M / Ctrl+Shift+D are not stolen from other apps outside calls.
+const VOICE_SHORTCUTS = [
+  ['CommandOrControl+Shift+M', 'mute'],
+  ['CommandOrControl+Shift+D', 'deafen'],
+];
+let voiceShortcutsActive = false;
+
+function setVoiceShortcuts(enabled) {
+  if (enabled === voiceShortcutsActive) return;
+  voiceShortcutsActive = enabled;
+  if (!enabled) {
+    for (const [accel] of VOICE_SHORTCUTS) globalShortcut.unregister(accel);
+    return;
+  }
+  const sendShortcut = (action) => {
+    if (win && !win.webContents.isDestroyed()) win.webContents.send('shortcut:voice', action);
+  };
+  for (const [accel, action] of VOICE_SHORTCUTS) {
+    const ok = globalShortcut.register(accel, () => sendShortcut(action));
+    if (!ok) console.warn(`globalShortcut.register failed for ${accel}`);
+  }
+}
+
+ipcMain.on('voice:shortcuts', (_e, enabled) => setVoiceShortcuts(!!enabled));
 
 // ---- Keep running in the tray, start with the PC ------------------------------
 ipcMain.on('desktop:keep-running', (_e, on, labels) => {

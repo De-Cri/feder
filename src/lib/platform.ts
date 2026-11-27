@@ -14,6 +14,7 @@ type ElectronBridge = {
   pickSource(id: string | null): void;
   setBackground?(background: boolean): void;
   onWindowHidden?(cb: (hidden: boolean) => void): void;
+  setVoiceShortcuts?(enabled: boolean): void;
   onVoiceShortcut?(cb: (action: VoiceShortcut) => void): void;
   setKeepRunning?(on: boolean, labels: TrayLabels): void;
   getAutostart?(): Promise<boolean>;
@@ -150,6 +151,15 @@ export function onHiddenChange(cb: (hidden: boolean) => void): () => void {
 // ---- Global voice shortcuts (Electron) ---------------------------------------
 const shortcutListeners = new Set<(action: VoiceShortcut) => void>();
 let shortcutBound = false;
+
+/** Registers or unregisters Electron global mute/deafen shortcuts (call-scoped). */
+export function setVoiceShortcuts(enabled: boolean) {
+  try {
+    electron?.setVoiceShortcuts?.(enabled);
+  } catch {
+    /* not supported */
+  }
+}
 
 /** Notifies when a global mute/deafen shortcut is pressed. Returns the function to stop listening. */
 export function onVoiceShortcut(cb: (action: VoiceShortcut) => void): () => void {

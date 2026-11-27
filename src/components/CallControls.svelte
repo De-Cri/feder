@@ -9,6 +9,7 @@
   const size = 17;
   const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
   const mod = isMac ? 'Cmd+Shift' : 'Ctrl+Shift';
+  const inCall = $derived(voice.channelId !== null);
 
   // Right-click on the microphone: input/output volumes and level.
   let micMenu = $state<DOMRect | null>(null);
@@ -22,7 +23,7 @@
   class="icon-btn"
   class:bad={!voice.micOn || voice.adminMuted}
   class:open={micMenu !== null}
-  title={voice.adminMuted ? t('call.adminMuted') : `${voice.micOn ? t('call.micOff') : t('call.micOn')} (${mod}+M)`}
+  title={voice.adminMuted ? t('call.adminMuted') : `${voice.micOn ? t('call.micOff') : t('call.micOn')}${inCall ? ` (${mod}+M)` : ''}`}
   onclick={() => voice.toggleMic()}
   oncontextmenu={openMicMenu}
 >
@@ -31,7 +32,7 @@
 <button
   class="icon-btn"
   class:bad={voice.deaf}
-  title={`${voice.deaf ? t('call.undeafen') : t('call.deafen')} (${mod}+D)`}
+  title={`${voice.deaf ? t('call.undeafen') : t('call.deafen')}${inCall ? ` (${mod}+D)` : ''}`}
   onclick={() => voice.toggleDeaf()}
 >
   <Icon name={voice.deaf ? 'headphones-off' : 'headphones'} {size} />
