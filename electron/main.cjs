@@ -7,6 +7,7 @@ const {
   Menu,
   Tray,
   desktopCapturer,
+  globalShortcut,
   ipcMain,
   nativeTheme,
   net,
@@ -175,6 +176,9 @@ app.on('second-instance', () => showWindow());
 app.on('before-quit', () => {
   quitting = true;
 });
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+});
 
 app.whenReady().then(() => {
   // App files served from app://cerchio/ with a CSP.
@@ -221,6 +225,15 @@ app.whenReady().then(() => {
   });
 
   createWindow();
+
+  // Discord-style global shortcuts (work even when the window is in the background;
+  // on Wayland registration may be declined by the compositor, in which case the
+  // in-window keydown handler in Shell.svelte still works when focused).
+  const sendShortcut = (action) => {
+    if (win && !win.webContents.isDestroyed()) win.webContents.send('shortcut:voice', action);
+  };
+  globalShortcut.register('CommandOrControl+Shift+M', () => sendShortcut('mute'));
+  globalShortcut.register('CommandOrControl+Shift+D', () => sendShortcut('deafen'));
 });
 
 app.on('window-all-closed', () => app.quit());

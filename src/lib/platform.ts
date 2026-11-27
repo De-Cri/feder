@@ -3,6 +3,7 @@
 
 export type UpdateInfo = { version: string; install: () => Promise<void> };
 export type ScreenSource = { id: string; name: string; thumb: string };
+export type VoiceShortcut = 'mute' | 'deafen';
 
 type ElectronBridge = {
   version: string;
@@ -13,6 +14,7 @@ type ElectronBridge = {
   pickSource(id: string | null): void;
   setBackground?(background: boolean): void;
   onWindowHidden?(cb: (hidden: boolean) => void): void;
+  onVoiceShortcut?(cb: (action: VoiceShortcut) => void): void;
   setKeepRunning?(on: boolean, labels: TrayLabels): void;
   getAutostart?(): Promise<boolean>;
   setAutostart?(on: boolean): Promise<boolean>;
@@ -142,6 +144,25 @@ export function onHiddenChange(cb: (hidden: boolean) => void): () => void {
   hiddenListeners.add(cb);
   return () => {
     hiddenListeners.delete(cb);
+  };
+}
+
+// ---- Global voice shortcuts (Electron) ---------------------------------------
+const shortcutListeners = new Set<(action: VoiceShortcut) => void>();
+let shortcutBound = false;
+
+/** Notifies when a global mute/deafen shortcut is pressed. Returns the function to stop listening. */
+export function onVoiceShortcut(cb: (action: VoiceShortcut) => void): () => void {
+  if (!shortcutBound && electron?.onVoiceShortcut) {
+    shortcutBound = true;
+    electron.onVoiceShortcut((action) => {
+      if (action !== 'mute' && action !== 'deafen') return;
+      for (const fn of shortcutListeners) fn(action);
+    });
+  }
+  shortcutListeners.add(cb);
+  return () => {
+    shortcutListeners.delete(cb);
   };
 }
 
