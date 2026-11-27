@@ -1,5 +1,6 @@
 // Release notes shown in the "novità" channel (the last 3 versions, newest first).
-// On every release: add the new one at the top (in Italian and English) and remove the last one.
+// On every release: add the new one at the top (in English) and remove the last one.
+// Older entries may also have an Italian version; without one, English is shown to everyone.
 
 export type Notes = {
   added: string[]; // what's new, briefly
@@ -9,24 +10,14 @@ export type Notes = {
 export type Release = {
   version: string;
   date: string; // YYYY-MM-DD, shown in the interface language
-  it: Notes;
   en: Notes;
+  it?: Notes;
 };
 
 export const RELEASES: Release[] = [
   {
     version: '0.6.9',
     date: '2026-11-27',
-    it: {
-      added: [
-        'Soppressione del rumore AI nuova (GTCRN al posto di RNNoise): toglie molto meglio ventole, fruscio e soprattutto la tastiera.',
-        'La voce resta piena e naturale: niente effetto "lontano" o metallico.',
-        'L\'app è anche un po\' più leggera.',
-      ],
-      test: [
-        'Impostazioni → Voce e video → Soppressione del rumore: scegli "AI". In chiamata scrivi alla tastiera mentre parli e chiedi agli altri come ti sentono.',
-      ],
-    },
     en: {
       added: [
         'New AI noise suppression (GTCRN instead of RNNoise): it removes fans, hiss and above all the keyboard much better.',
