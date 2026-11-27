@@ -39,7 +39,7 @@ const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1);
 
   const micInfo = await pages.a.evaluate(() => ({ ai: !window.voice.mic.aiFallback, db: window.voice.mic.levelDb(), label: window.voice.audioTrack.label }));
   console.log('mic pipeline', JSON.stringify(micInfo));
-  assert(micInfo.ai, 'RNNoise (AI) caricato nella catena del microfono');
+  assert(micInfo.ai, 'GTCRN (AI) caricato nella catena del microfono');
   await pages.a.evaluate(() => window.voice.setInputGain(0));
   await sleep(400);
   const silent = await pages.a.evaluate(() => window.voice.mic.levelDb());

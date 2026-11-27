@@ -13,7 +13,7 @@
 - Images, videos and files in chat
 - Encrypted private messages, gone after 30 days unless you star them
 - Voice, webcam and screen sharing, with system audio on Windows
-- AI noise suppression (RNNoise), noise gate, per-friend volume
+- AI noise suppression (GTCRN), noise gate, per-friend volume
 - Automatic updates, light/dark theme, Italian and English
 
 ## Download

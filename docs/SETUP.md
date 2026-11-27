@@ -85,7 +85,7 @@ supabase/migrations/                schema, RLS, admin functions, storage, realt
 supabase/functions/turn/            TURN credentials (optional)
 src/lib/state.svelte.ts             app state, realtime, presence
 src/lib/voice.svelte.ts             WebRTC mesh (perfect negotiation)
-src/lib/audio.ts                    microphone chain: RNNoise, noise gate, gain
+src/lib/audio.ts                    microphone chain: GTCRN AI noise suppression, noise gate, gain
 src/lib/dm.svelte.ts, dmcrypto.ts   private messages and their end-to-end encryption
 src/lib/platform.ts                 Tauri / Electron abstraction
 electron/                           Linux shell (Electron)
@@ -114,7 +114,7 @@ psql -d test -f supabase/tests/00_stubs.sql $(printf -- '-f %s ' supabase/migrat
 for f in $(ls supabase/tests/[0-9][0-9]_*.sql | grep -v 00_stubs); do PGOPTIONS='-c lc_messages=C' psql -d test -f "$f"; done
 
 # 3-peer WebRTC mesh in Chromium (simulated signaling): connection, audio,
-# RNNoise, gain, microphone rebuild during a call, webcam, leave/rejoin
+# GTCRN, gain, microphone rebuild during a call, webcam, leave/rejoin
 npm run test:voice
 
 # UI with fake data

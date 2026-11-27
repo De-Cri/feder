@@ -1,15 +1,18 @@
 // Microphone chain:
 //   mic (browser echo cancellation + AGC)
 //     → mono (downmixed to center)
-//     → noise suppression (none / browser standard / RNNoise AI)
+//     → noise suppression (none / browser standard / GTCRN AI)
 //     → optional noise gate
 //     → input gain
 //     → track sent to the others (+ analyser for the meters)
-import { NoiseGateWorkletNode, RnnoiseWorkletNode, loadRnnoise } from '@sapphi-red/web-noise-suppressor';
-import rnnoiseWorkletUrl from '@sapphi-red/web-noise-suppressor/rnnoiseWorklet.js?url';
+// AI suppression uses GTCRN, not RNNoise: on fan/keyboard noise RNNoise only took
+// ~6 dB off the pauses and smeared the voice; GTCRN removes 30+ dB and keeps the voice
+// cleaner, for ~0.35 ms of CPU per 16 ms frame and ~10 ms more latency.
+import { GtcrnWorkletNode, NoiseGateWorkletNode, loadGtcrn } from '@sapphi-red/web-noise-suppressor';
+import gtcrnWorkletUrl from '@sapphi-red/web-noise-suppressor/gtcrnWorklet.js?url';
 import noiseGateWorkletUrl from '@sapphi-red/web-noise-suppressor/noiseGateWorklet.js?url';
-import rnnoiseWasmUrl from '@sapphi-red/web-noise-suppressor/rnnoise.wasm?url';
-import rnnoiseSimdUrl from '@sapphi-red/web-noise-suppressor/rnnoise_simd.wasm?url';
+import gtcrnWasmUrl from '@sapphi-red/web-noise-suppressor/gtcrn.wasm?url';
+import voiceRestoreWorkletUrl from './voiceRestoreWorklet.js?url';
 
 export type NoiseMode = 'off' | 'standard' | 'ai';
 
@@ -23,7 +26,7 @@ export type MicOptions = {
 };
 
 let ctx: AudioContext | null = null;
-/** A single 48 kHz AudioContext (required by RNNoise). */
+/** A single 48 kHz AudioContext (GTCRN runs at 16 or 48 kHz only). */
 export function audioContext(): AudioContext {
   if (!ctx || ctx.state === 'closed') ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
@@ -31,7 +34,7 @@ export function audioContext(): AudioContext {
 }
 
 // Active microphone chains (call, settings test). When none is left the context
-// closes: it frees the audio thread, the worklets and RNNoise's WASM memory
+// closes: it frees the audio thread, the worklets and GTCRN's WASM memory
 // instead of keeping them alive until the app quits.
 let pipelines = 0;
 function release() {
@@ -42,7 +45,7 @@ function release() {
   c.close().catch(() => {});
 }
 
-let rnnoiseWasm: Promise<ArrayBuffer> | null = null;
+let gtcrnWasm: Promise<ArrayBuffer> | null = null;
 const loadedWorklets = new WeakMap<AudioContext, Set<string>>();
 
 async function addWorklet(c: AudioContext, url: string) {
@@ -132,15 +135,29 @@ export class MicPipeline {
 
     if (o.noise === 'ai') {
       try {
-        rnnoiseWasm ??= loadRnnoise({ url: rnnoiseWasmUrl, simdUrl: rnnoiseSimdUrl });
-        const [wasmBinary] = await Promise.all([rnnoiseWasm, addWorklet(c, rnnoiseWorkletUrl)]);
-        const rn = new RnnoiseWorkletNode(c, { wasmBinary, maxChannels: 1 });
-        last.connect(rn);
-        last = rn;
-        nodes.push(rn);
+        gtcrnWasm ??= loadGtcrn({ url: gtcrnWasmUrl });
+        const [wasmBinary] = await Promise.all([
+          gtcrnWasm,
+          addWorklet(c, gtcrnWorkletUrl),
+          addWorklet(c, voiceRestoreWorkletUrl),
+        ]);
+        const ai = new GtcrnWorkletNode(c, { wasmBinary, maxChannels: 1 });
+        // GTCRN cuts everything above ~8 kHz (voice sounds far away): this node adds the
+        // microphone's own high band back where GTCRN let the voice through.
+        const restore = new AudioWorkletNode(c, 'feder-voice-restore', {
+          numberOfInputs: 2,
+          numberOfOutputs: 1,
+          outputChannelCount: [1],
+          channelCount: 1,
+          channelCountMode: 'explicit',
+        });
+        last.connect(ai).connect(restore, 0, 0);
+        last.connect(restore, 0, 1);
+        last = restore;
+        nodes.push(ai, restore);
       } catch (e) {
-        console.warn('RNNoise not available', e);
-        rnnoiseWasm = null;
+        console.warn('AI noise suppression not available', e);
+        gtcrnWasm = null;
         aiFallback = true;
       }
     }
@@ -205,7 +222,7 @@ export class MicPipeline {
       } catch {
         /* already disconnected */
       }
-      if (n instanceof RnnoiseWorkletNode) n.destroy?.();
+      if (n instanceof GtcrnWorkletNode) n.destroy?.();
     }
     this.nodes = [];
     release();

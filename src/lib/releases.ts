@@ -15,6 +15,30 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.6.9',
+    date: '2026-11-27',
+    it: {
+      added: [
+        'Soppressione del rumore AI nuova (GTCRN al posto di RNNoise): toglie molto meglio ventole, fruscio e soprattutto la tastiera.',
+        'La voce resta piena e naturale: niente effetto "lontano" o metallico.',
+        'L\'app è anche un po\' più leggera.',
+      ],
+      test: [
+        'Impostazioni → Voce e video → Soppressione del rumore: scegli "AI". In chiamata scrivi alla tastiera mentre parli e chiedi agli altri come ti sentono.',
+      ],
+    },
+    en: {
+      added: [
+        'New AI noise suppression (GTCRN instead of RNNoise): it removes fans, hiss and above all the keyboard much better.',
+        'Your voice stays full and natural: no "far away" or metallic sound.',
+        'The app is also a bit lighter.',
+      ],
+      test: [
+        'Settings → Voice and video → Noise suppression: pick "AI". In a call, type while you talk and ask the others how you sound.',
+      ],
+    },
+  },
+  {
     version: '0.6.8',
     date: '2026-11-27',
     it: {
@@ -57,30 +81,6 @@ export const RELEASES: Release[] = [
       ],
       test: [
         'Challenge a friend at 3+2 and watch the clocks above and below the board.',
-      ],
-    },
-  },
-  {
-    version: '0.6.6',
-    date: '2026-11-26',
-    it: {
-      added: [
-        'Scacchi con gli amici: nuova pagina "Scacchi" a sinistra. Sfida un amico, lui riceve la notifica e accetta. Mosse con clic o trascinamento, premosse come su chess.com, patta e abbandono.',
-        'Classifica tra te e i tuoi amici, come nel calcio: vittoria 3 punti, pareggio 1, sconfitta 0.',
-      ],
-      test: [
-        'Apri "Scacchi" a sinistra, premi "Sfida un amico" e scegli il colore e l\'amico.',
-        'Mentre l\'altro pensa, trascina un pezzo: diventa rosso (premossa) e parte da solo appena tocca a te. Tasto destro per annullare.',
-      ],
-    },
-    en: {
-      added: [
-        'Chess with friends: new "Chess" page on the left. Challenge a friend, they get a notification and accept. Move by click or drag, premoves like on chess.com, draw and resign.',
-        'Standings for you and your friends, football style: a win is 3 points, a draw 1, a loss 0.',
-      ],
-      test: [
-        'Open "Chess" on the left, press "Challenge a friend" and pick a color and a friend.',
-        'While the other player is thinking, drag a piece: it turns red (premove) and is played as soon as it\'s your turn. Right click to cancel.',
       ],
     },
   },
