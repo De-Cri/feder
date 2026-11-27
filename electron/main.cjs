@@ -7,6 +7,7 @@ const {
   Menu,
   Tray,
   desktopCapturer,
+  globalShortcut,
   ipcMain,
   nativeTheme,
   net,
@@ -138,6 +139,7 @@ function createWindow() {
 
   win.loadURL(DEV_URL || 'app://cerchio/index.html');
   win.on('closed', () => {
+    setVoiceShortcuts(false);
     win = null;
     pendingPick?.(null);
     pendingPick = null;
@@ -174,6 +176,9 @@ function askScreenSource(sources) {
 app.on('second-instance', () => showWindow());
 app.on('before-quit', () => {
   quitting = true;
+});
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });
 
 app.whenReady().then(() => {
@@ -232,6 +237,32 @@ ipcMain.on('app:version', (e) => (e.returnValue = app.getVersion()));
 ipcMain.on('background', (_e, background) => {
   win?.webContents.setBackgroundThrottling(!!background);
 });
+
+// Discord-style global shortcuts: registered only while in a voice channel so
+// Ctrl+Shift+M / Ctrl+Shift+D are not stolen from other apps outside calls.
+const VOICE_SHORTCUTS = [
+  ['CommandOrControl+Shift+M', 'mute'],
+  ['CommandOrControl+Shift+D', 'deafen'],
+];
+let voiceShortcutsActive = false;
+
+function setVoiceShortcuts(enabled) {
+  if (enabled === voiceShortcutsActive) return;
+  voiceShortcutsActive = enabled;
+  if (!enabled) {
+    for (const [accel] of VOICE_SHORTCUTS) globalShortcut.unregister(accel);
+    return;
+  }
+  const sendShortcut = (action) => {
+    if (win && !win.webContents.isDestroyed()) win.webContents.send('shortcut:voice', action);
+  };
+  for (const [accel, action] of VOICE_SHORTCUTS) {
+    const ok = globalShortcut.register(accel, () => sendShortcut(action));
+    if (!ok) console.warn(`globalShortcut.register failed for ${accel}`);
+  }
+}
+
+ipcMain.on('voice:shortcuts', (_e, enabled) => setVoiceShortcuts(!!enabled));
 
 // ---- Keep running in the tray, start with the PC ------------------------------
 ipcMain.on('desktop:keep-running', (_e, on, labels) => {

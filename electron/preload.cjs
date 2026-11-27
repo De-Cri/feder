@@ -17,6 +17,12 @@ contextBridge.exposeInMainWorld('cerchio', {
     ipcRenderer.removeAllListeners('window:hidden');
     ipcRenderer.on('window:hidden', (_e, hidden) => cb(!!hidden));
   },
+  // Global voice shortcuts (mute / deafen) from the main process, active only during a call.
+  setVoiceShortcuts: (enabled) => ipcRenderer.send('voice:shortcuts', !!enabled),
+  onVoiceShortcut: (cb) => {
+    ipcRenderer.removeAllListeners('shortcut:voice');
+    ipcRenderer.on('shortcut:voice', (_e, action) => cb(action));
+  },
   // Closing leaves Feder in the tray; start with the PC.
   setKeepRunning: (on, labels) =>
     ipcRenderer.send('desktop:keep-running', !!on, { open: String(labels?.open ?? ''), quit: String(labels?.quit ?? '') }),
