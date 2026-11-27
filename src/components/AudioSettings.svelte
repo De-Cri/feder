@@ -158,7 +158,7 @@
   const noiseModes = $derived<{ v: NoiseMode; label: string; hint: string }[]>([
     { v: 'off', label: t('audio.noiseOff'), hint: t('audio.noiseOffHint') },
     { v: 'standard', label: t('audio.noiseStandard'), hint: t('audio.noiseStandardHint') },
-    { v: 'ai', label: 'AI (RNNoise)', hint: t('audio.noiseAiHint') },
+    { v: 'ai', label: 'AI', hint: t('audio.noiseAiHint') },
   ]);
 
   const gatePos = $derived(dbToMeter(prefs.gateDb) * 100);

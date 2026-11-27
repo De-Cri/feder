@@ -22,6 +22,7 @@
 
   <div class="scroller">
     {#each RELEASES as r, i (r.version)}
+      {@const notes = r[lang()] ?? r.en}
       <article>
         <div class="head">
           <span class="ver">Feder {r.version}</span>
@@ -30,11 +31,11 @@
         </div>
         <h3>{t('releases.added')}</h3>
         <ul>
-          {#each r[lang()].added as a}<li>{a}</li>{/each}
+          {#each notes.added as a}<li>{a}</li>{/each}
         </ul>
         <h3>{t('releases.test')}</h3>
         <ul class="test">
-          {#each r[lang()].test as item}<li>{item}</li>{/each}
+          {#each notes.test as item}<li>{item}</li>{/each}
         </ul>
       </article>
     {/each}
