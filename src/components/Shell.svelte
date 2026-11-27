@@ -77,7 +77,22 @@
     // mark the open channel as read when the window is focused
     if (app.focused && app.unread[app.view]) app.unread[app.view] = 0;
   });
+
+  // Discord-style shortcuts: Ctrl/Cmd+Shift+M toggles mic, Ctrl/Cmd+Shift+D toggles deafen.
+  function onKeyDown(e: KeyboardEvent) {
+    if (e.repeat || e.altKey || !(e.ctrlKey || e.metaKey) || !e.shiftKey) return;
+    const key = e.key.toLowerCase();
+    if (key === 'm') {
+      e.preventDefault();
+      voice.toggleMic();
+    } else if (key === 'd') {
+      e.preventDefault();
+      voice.toggleDeaf();
+    }
+  }
 </script>
+
+<svelte:window onkeydown={onKeyDown} />
 
 <div class="shell" class:members={showRight}>
   <Sidebar />

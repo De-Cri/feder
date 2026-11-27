@@ -7,6 +7,8 @@
   import { t } from '../lib/i18n.svelte';
 
   const size = 17;
+  const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
+  const mod = isMac ? 'Cmd+Shift' : 'Ctrl+Shift';
 
   // Right-click on the microphone: input/output volumes and level.
   let micMenu = $state<DOMRect | null>(null);
@@ -20,7 +22,7 @@
   class="icon-btn"
   class:bad={!voice.micOn || voice.adminMuted}
   class:open={micMenu !== null}
-  title={voice.adminMuted ? t('call.adminMuted') : voice.micOn ? t('call.micOff') : t('call.micOn')}
+  title={voice.adminMuted ? t('call.adminMuted') : `${voice.micOn ? t('call.micOff') : t('call.micOn')} (${mod}+M)`}
   onclick={() => voice.toggleMic()}
   oncontextmenu={openMicMenu}
 >
@@ -29,7 +31,7 @@
 <button
   class="icon-btn"
   class:bad={voice.deaf}
-  title={voice.deaf ? t('call.undeafen') : t('call.deafen')}
+  title={`${voice.deaf ? t('call.undeafen') : t('call.deafen')} (${mod}+D)`}
   onclick={() => voice.toggleDeaf()}
 >
   <Icon name={voice.deaf ? 'headphones-off' : 'headphones'} {size} />
