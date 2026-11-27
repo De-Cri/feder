@@ -11,10 +11,12 @@
   let { game, ply = null, size }: { game: ChessGame; ply?: number | null; size: number } = $props();
 
   const me = $derived(games.myColor(game));
-  const flipped = $derived(me === 'b');
+  // spectators see it from white's side and can't touch the pieces
+  const spectator = $derived(!games.plays(game));
+  const flipped = $derived(!spectator && me === 'b');
   const played = $derived(replay(game.moves));
   const live = $derived(ply === null || ply >= played.played);
-  const canPlay = $derived(live && game.status === 'active' && !played.ending);
+  const canPlay = $derived(!spectator && live && game.status === 'active' && !played.ending);
   const myTurn = $derived(canPlay && played.pos.turn === me);
   const queue = $derived(games.premoves[game.id] ?? []);
 

@@ -52,6 +52,14 @@ const db: Record<string, any[]> = {
     { id: 8, channel_id: 1, author_id: 'u2', content: 'entro in Lounge', created_at: iso(1) },
     { id: 9, channel_id: 101, author_id: 'u3', content: 'qui solo noi due, ho caricato le slide', created_at: iso(15) },
   ].map((m) => ({ attachment_path: null, attachment_name: null, attachment_mime: null, attachment_size: null, ...m })),
+  // chess (0012–0014): one game of mine, one between friends to watch (3+2, running)
+  chess_games: [
+    { id: 1, white: 'u1', black: 'u4', challenger: 'u1', status: 'active', moves: ['e2e4', 'c7c5', 'g1f3'], result: null, reason: null,
+      draw_offer: null, time_base: null, time_inc: 0, white_ms: null, black_ms: null, last_move_at: iso(3), created_at: iso(20), updated_at: iso(3) },
+    { id: 2, white: 'u2', black: 'u3', challenger: 'u2', status: 'active',
+      moves: ['d2d4', 'g8f6', 'c2c4', 'e7e6', 'b1c3', 'f8b4', 'e2e3', 'e8g8'], result: null, reason: null,
+      draw_offer: null, time_base: 180, time_inc: 2, white_ms: 151000, black_ms: 162000, last_move_at: iso(0.2), created_at: iso(10), updated_at: iso(0.2) },
+  ],
 };
 
 // Private messages: marco, giulia and fede have activated them (real keys), luca and ale haven't.
@@ -143,7 +151,10 @@ function builder(table: string) {
     select: () => b,
     eq: (k: string, v: any) => ((rows = rows.filter((r) => r[k] === v)), b),
     lt: (k: string, v: any) => ((rows = rows.filter((r) => r[k] < v)), b),
+    neq: (k: string, v: any) => ((rows = rows.filter((r) => r[k] !== v)), b),
     or: (expr: string) => {
+      const player = expr.match(/^white\.eq\.([^,]+),black\.eq\.([^,]+)$/);
+      if (player) return ((rows = rows.filter((r) => r.white === player[1] || r.black === player[1])), b);
       const pairs = [...expr.matchAll(/sender\.eq\.([^,)]+),recipient\.eq\.([^,)]+)/g)];
       rows = rows.filter((r) => pairs.some((x) => r.sender === x[1] && r.recipient === x[2]));
       return b;
@@ -206,6 +217,11 @@ export const supabase: any = {
       p.maybeSingle = p.single;
       return p;
     }
+    if (fn === 'server_now') return rpcResult(new Date().toISOString());
+    if (fn === 'chess_standings') return rpcResult([
+      { user_id: 'u3', won: 4, drawn: 1, lost: 1, points: 10 }, { user_id: 'u1', won: 2, drawn: 2, lost: 1, points: 5 },
+      { user_id: 'u2', won: 1, drawn: 0, lost: 2, points: 0 },
+    ]);
     if (fn === 'server_status') return rpcResult([{ open: signupsOpen, members: 37, max_members: 100 }]);
     if (fn === 'admin_set_open') signupsOpen = args.p_open;
     if (fn === 'join_open') {

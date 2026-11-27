@@ -1,4 +1,5 @@
 // Chess between friends (0012_chess.sql): challenges, games, premoves and standings.
+// Friends of a player can watch ongoing games read only (0014_chess_spectators.sql).
 // The server keeps the moves and whose turn it is; the rules live in chess.ts.
 import { supabase } from './supabase';
 import { app } from './state.svelte';
@@ -59,17 +60,32 @@ class Games {
   get open(): ChessGame | null {
     return this.list.find((g) => g.id === this.openId) ?? null;
   }
+  /** Games you play in (the list also holds the friends' games you can watch). */
+  get mine(): ChessGame[] {
+    return this.list.filter((g) => this.plays(g));
+  }
   get incoming(): ChessGame[] {
-    return this.list.filter((g) => g.status === 'pending' && g.challenger !== app.me);
+    return this.mine.filter((g) => g.status === 'pending' && g.challenger !== app.me);
   }
   get outgoing(): ChessGame[] {
-    return this.list.filter((g) => g.status === 'pending' && g.challenger === app.me);
+    return this.mine.filter((g) => g.status === 'pending' && g.challenger === app.me);
   }
   get active(): ChessGame[] {
-    return this.list.filter((g) => g.status === 'active');
+    return this.mine.filter((g) => g.status === 'active');
   }
   get finished(): ChessGame[] {
-    return this.list.filter((g) => g.status === 'over').slice(0, 15);
+    return this.mine.filter((g) => g.status === 'over').slice(0, 15);
+  }
+  /** Friends' ongoing games you can watch. */
+  get watchable(): ChessGame[] {
+    return this.list.filter((g) => !this.plays(g) && g.status === 'active');
+  }
+  /** Games whose clock is running on screen: yours and the ones you can watch. */
+  get ticking(): ChessGame[] {
+    return this.list.filter((g) => g.status === 'active' && g.time_base !== null);
+  }
+  plays(g: ChessGame): boolean {
+    return g.white === app.me || g.black === app.me;
   }
   opponent(g: ChessGame): string {
     return g.white === app.me ? g.black : g.white;
@@ -102,12 +118,19 @@ class Games {
   async load() {
     if (!app.me) return;
     const sent = Date.now();
-    const [{ data }, now] = await Promise.all([
-      supabase.from('chess_games').select('*').order('updated_at', { ascending: false }).limit(60),
+    const me = app.me;
+    const [{ data }, { data: watch }, now] = await Promise.all([
+      supabase.from('chess_games').select('*').or(`white.eq.${me},black.eq.${me}`)
+        .order('updated_at', { ascending: false }).limit(60),
+      // friends' games (RLS: ongoing ones, or just finished)
+      supabase.from('chess_games').select('*').neq('white', me).neq('black', me)
+        .order('updated_at', { ascending: false }).limit(30),
       supabase.rpc('server_now'),
     ]);
     if (now.data) this.offset = Date.parse(now.data as string) - (sent + Date.now()) / 2;
-    this.list = (data ?? []) as ChessGame[];
+    // a finished friends' game stays only if it's on the board
+    const others = ((watch ?? []) as ChessGame[]).filter((g) => g.status === 'active' || g.id === this.openId);
+    this.list = [...((data ?? []) as ChessGame[]), ...others];
     this.loaded = true;
     void this.loadStandings();
   }
@@ -123,6 +146,15 @@ class Games {
     // my own move still on its way: don't step back to the older row
     if (before && this.sending.has(row.id) && row.moves.length < before.moves.length && row.status === 'active') return;
     this.list = [row, ...this.list.filter((g) => g.id !== row.id)];
+    if (!this.plays(row)) {
+      // a game you watch: only the sound of the moves, and only while it's on screen
+      const watching = app.focused && app.view === CHESS_VIEW && this.openId === row.id;
+      if (watching && before && row.moves.length > before.moves.length) this.moveSound(row.moves);
+      else if (watching && before?.status === 'active' && row.status === 'over') playChess('end');
+      // finished and not on the board: gone from the list
+      if (row.status !== 'active' && this.openId !== row.id) this.list = this.list.filter((g) => g.id !== row.id);
+      return;
+    }
     const me = app.me;
     const opp = this.opponent(row);
     const away = !(app.focused && app.view === CHESS_VIEW && this.openId === row.id);
@@ -225,7 +257,8 @@ class Games {
   private flagged = new Set<string>();
   timeout(g: ChessGame) {
     const k = `${g.id}:${g.moves.length}`;
-    if (this.flagged.has(k) || g.status !== 'active') return;
+    // spectators can't end a game: one of the players' apps does it
+    if (this.flagged.has(k) || g.status !== 'active' || !this.plays(g)) return;
     this.flagged.add(k);
     // a little margin: the server must agree that the time is really over
     setTimeout(() => void supabase.rpc('chess_timeout', { p_game: g.id }).then(({ error }) => {
@@ -282,6 +315,7 @@ class Games {
     if (!g.result || !g.reason) return '';
     const how = t(`chess.reason.${g.reason}` as const);
     if (g.result === '1/2-1/2') return t('chess.drawBy', { how });
+    if (!this.plays(g)) return t('chess.winnerBy', { name: app.name(g.result === '1-0' ? g.white : g.black), how });
     const won = (g.result === '1-0') === (g.white === app.me);
     return t(won ? 'chess.wonBy' : 'chess.lostBy', { how });
   }

@@ -34,6 +34,7 @@
     copy: 'M10 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2zM4 16a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2',
     search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3',
     chess: 'M12 3a3 3 0 0 1 2 5.2L15.5 10h-2c.3 3 1.5 5.5 3.5 8H7c2-2.5 3.2-5 3.5-8h-2L10 8.2A3 3 0 0 1 12 3zM5 21h14',
+    eye: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
     megaphone: 'M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 1 1-5.8-1.6',
   };
   let { name, size = 18, stroke = 1.75, filled = false }: { name: string; size?: number; stroke?: number; filled?: boolean } = $props();
