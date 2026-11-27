@@ -27,6 +27,10 @@
   const game = $derived(games.open);
   const played = $derived(game ? replay(game.moves) : null);
   const opp = $derived(game ? games.opponent(game) : null);
+  // watching a friends' game: white at the bottom, no buttons
+  const spectating = $derived(!!game && !games.plays(game));
+  const bottom = $derived<'w' | 'b'>(game && !spectating ? games.myColor(game) : 'w');
+  const playerOf = (g: ChessGame, c: 'w' | 'b') => (c === 'w' ? g.white : g.black);
   const friends = $derived([...social.friends].sort((a, b) => app.name(a).localeCompare(app.name(b))));
   const waitingWith = $derived(new Set(games.list.filter((g) => g.status === 'pending').map((g) => games.opponent(g))));
   // the board fills the space left, in whole pixels per square
@@ -40,7 +44,7 @@
     const onFocus = () => void games.load(); // anything missed while away (sleep, lost connection)
     window.addEventListener('focus', onFocus);
     const tick = setInterval(() => {
-      if (!games.active.some((g) => g.time_base !== null)) return;
+      if (!games.ticking.length) return;
       now = Date.now();
       // the side to move ran out of time: ask the server to end the game
       for (const g of games.active) {
@@ -79,7 +83,8 @@
     const p = replay(g.moves);
     // the game just ended on the board: say so before the server confirms
     if (p.ending) return games.resultText({ ...g, reason: p.ending, result: p.ending === 'checkmate' ? (p.pos.turn === 'w' ? '0-1' : '1-0') : '1/2-1/2' });
-    const turn = games.myTurn(g) ? t('chess.yourTurn') : t('chess.theirTurn', { name: app.name(games.opponent(g)) });
+    const toMove = playerOf(g, g.moves.length % 2 === 0 ? 'w' : 'b');
+    const turn = games.myTurn(g) ? t('chess.yourTurn') : t('chess.theirTurn', { name: app.name(games.plays(g) ? games.opponent(g) : toMove) });
     return inCheck(p.pos) ? `${turn} · ${t('chess.check')}` : turn;
   }
 
@@ -159,6 +164,13 @@
         {/if}
       {/each}
 
+      {#if games.watchable.length}
+        <h3>{t('chess.watch')}</h3>
+        {#each games.watchable as g (g.id)}
+          {@render watchItem(g)}
+        {/each}
+      {/if}
+
       <h3>{t('chess.standings')}</h3>
       <table class="standings">
         <thead>
@@ -188,17 +200,20 @@
     <section class="play" bind:clientWidth={areaW} bind:clientHeight={areaH}>
       {#if game && played && opp}
         <div class="column" style="width:{size}px">
-          {@render player(opp, games.myColor(game) === 'w' ? 'b' : 'w')}
+          {@render player(playerOf(game, bottom === 'w' ? 'b' : 'w'), bottom === 'w' ? 'b' : 'w')}
           <div class="row-board">
             <ChessBoard {game} {ply} {size} />
           </div>
-          {@render player(app.me!, games.myColor(game))}
+          {@render player(playerOf(game, bottom), bottom)}
 
           <div class="controls">
+            {#if spectating}<span class="watching" title={t('chess.watchingHint')}><Icon name="eye" size={13} /> {t('chess.watching')}</span>{/if}
             <span class="status">{status(game)}</span>
             {#if played.played < game.moves.length}<span class="err">{t('chess.badMove')}</span>{/if}
             <span class="grow"></span>
-            {#if game.status === 'pending'}
+            {#if spectating}
+              <!-- read only -->
+            {:else if game.status === 'pending'}
               {#if game.challenger === app.me}
                 <button class="btn small" disabled={busy} onclick={() => run(() => games.cancel(game))}>{t('common.cancel')}</button>
               {:else}
@@ -262,6 +277,19 @@
     <span class="info">
       <span class="who">{app.name(games.opponent(g))}</span>
       <span class="sub" class:turn={games.myTurn(g) || (g.status === 'pending' && g.challenger !== app.me)}>{status(g)}</span>
+    </span>
+  </button>
+{/snippet}
+
+{#snippet watchItem(g: ChessGame)}
+  <button class="row game" class:active={games.openId === g.id} onclick={() => (games.openId = g.id)}>
+    <span class="pair">
+      <Avatar id={g.white} size={22} />
+      <Avatar id={g.black} size={22} />
+    </span>
+    <span class="info">
+      <span class="who">{app.name(g.white)} <span class="vs">vs</span> {app.name(g.black)}</span>
+      <span class="sub">{status(g)}</span>
     </span>
   </button>
 {/snippet}
@@ -351,6 +379,22 @@
   .seg.times button { flex: 1 0 22%; }
   .controls { min-height: 56px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .status { font-size: 13px; font-weight: 600; }
+  .watching {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 11px;
+    background: var(--bg-input);
+    color: var(--text-2);
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .pair { display: flex; flex: none; }
+  .pair { width: 36px; }
+  .pair > :global(.av:last-child) { margin-left: -8px; box-shadow: 0 0 0 2px var(--bg); border-radius: 50%; }
+  .vs { color: var(--text-3); font-weight: 400; font-size: 11px; }
   .offer { font-size: 12px; color: var(--text-2); }
   .danger { background: var(--red); color: #fff; }
 

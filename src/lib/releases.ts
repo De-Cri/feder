@@ -15,6 +15,28 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    version: '0.6.8',
+    date: '2026-11-27',
+    it: {
+      added: [
+        'Spettatori negli scacchi: puoi guardare dal vivo le partite in corso dei tuoi amici, con mosse e orologi in tempo reale. Solo i giocatori possono muovere.',
+        'Le vedono solo gli amici di almeno uno dei due giocatori (e mai chi è bloccato); le sfide in attesa restano private.',
+      ],
+      test: [
+        'Apri Scacchi: sotto "Partite degli amici" trovi le partite in corso degli amici. Cliccane una per guardarla.',
+      ],
+    },
+    en: {
+      added: [
+        'Chess spectators: watch your friends\' ongoing games live, with moves and clocks in real time. Only the players can move.',
+        'Only friends of at least one of the two players can see them (never someone who is blocked); pending challenges stay private.',
+      ],
+      test: [
+        'Open Chess: under "Friends\' games" you find your friends\' ongoing games. Click one to watch it.',
+      ],
+    },
+  },
+  {
     version: '0.6.7',
     date: '2026-11-26',
     it: {
@@ -59,26 +81,6 @@ export const RELEASES: Release[] = [
       test: [
         'Open "Chess" on the left, press "Challenge a friend" and pick a color and a friend.',
         'While the other player is thinking, drag a piece: it turns red (premove) and is played as soon as it\'s your turn. Right click to cancel.',
-      ],
-    },
-  },
-  {
-    version: '0.6.5',
-    date: '2026-11-25',
-    it: {
-      added: [
-        'Risolto l\'errore "JWT expired": con Feder nascosto o in chiamata per più di un\'ora il login non si rinnovava e chiamate e messaggi smettevano di funzionare. Ora si rinnova sempre, e se scade lo stesso Feder lo rinnova da solo.',
-      ],
-      test: [
-        'Lascia Feder ridotto a icona (o nascosto vicino all\'orologio) per più di un\'ora, poi scrivi un messaggio o entra in un canale vocale.',
-      ],
-    },
-    en: {
-      added: [
-        'Fixed the "JWT expired" error: with Feder hidden or in a call for over an hour the login wasn\'t renewed and calls and messages stopped working. Now it\'s always renewed, and if it expires anyway Feder renews it by itself.',
-      ],
-      test: [
-        'Leave Feder minimized (or hidden next to the clock) for over an hour, then send a message or join a voice channel.',
       ],
     },
   },
